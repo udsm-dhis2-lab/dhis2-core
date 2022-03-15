@@ -53,14 +53,13 @@ public class UserActions
 
     public String addUser( final String userName, final String password )
     {
-        return addUserFull( userName, "bravo", userName, password, "ALL" );
+        return addUserFull( userName, "bravo", userName, password, "" );
     }
 
     public String addUserFull( final String firstName, final String surname, final String username, final String password,
         String... auth )
     {
         String roleUid = new UserRoleActions().createWithAuthorities( auth );
-
 
         String id = idGenerator.generateUniqueId();
 
