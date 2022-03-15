@@ -32,12 +32,9 @@ import com.google.gson.JsonObject;
 import org.hisp.dhis.Constants;
 import org.hisp.dhis.actions.UserActions;
 import org.hisp.dhis.actions.metadata.ProgramActions;
-import org.hisp.dhis.dto.TrackerApiResponse;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.tracker.TrackerNtiApiTest;
 import org.hisp.dhis.tracker.importer.databuilder.EnrollmentDataBuilder;
-import org.hisp.dhis.tracker.importer.databuilder.EventDataBuilder;
-import org.hisp.dhis.tracker.importer.databuilder.TeiDataBuilder;
 import org.hisp.dhis.utils.DataGenerator;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,8 +59,6 @@ public class OwnershipTests
 
     String searchOu = "YuQRtpLP10I"; // level 3
 
-    String trackedEntityType = Constants.TRACKED_ENTITY_TYPE;
-
     String username;
 
     String teiInSearchScope;
@@ -73,8 +68,6 @@ public class OwnershipTests
     private ProgramActions programActions;
 
     private UserActions userActions;
-
-    private JsonObject enrollment;
 
     private String protectedProgram;
 
@@ -93,13 +86,13 @@ public class OwnershipTests
 
         loginActions.loginAsSuperUser();
         username = createUserWithAccessToOu();
-        protectedProgram = programActions.createProgramWithAccessLevel( "PROTECTED", captureOu, searchOu );
-        openProgram = programActions.createProgramWithAccessLevel( "OPEN", captureOu, searchOu );
 
+        protectedProgram = programActions.createProgramWithAccessLevel( "PROTECTED", captureOu, searchOu );
         protectedProgramStage = programActions
             .get( protectedProgram, new QueryParamsBuilder().add( "fields=programStages" ) ).validateStatus( 200 )
             .extractString( "programStages.id[0]" );
 
+        openProgram = programActions.createProgramWithAccessLevel( "OPEN", captureOu, searchOu );
         openProgramStage = programActions
             .get( openProgram, new QueryParamsBuilder().add( "fields=programStages" ) ).validateStatus( 200 )
             .extractString( "programStages.id[0]" );
@@ -108,12 +101,6 @@ public class OwnershipTests
             .extractImportedTeis().get( 0 );
         teiInSearchScope = super.importTeisWithEnrollmentAndEvent( searchOu, protectedProgram, protectedProgramStage )
             .extractImportedTeis().get( 0 );
-
-        enrollment = trackerActions.getTrackedEntity( teiInSearchScope + "?fields=enrollments" )
-            .validateStatus( 200 )
-            .getBody();
-
-        transferOwnership( teiInCaptureScope, protectedProgram, searchOu );
     }
 
     @BeforeEach
@@ -131,11 +118,11 @@ public class OwnershipTests
 
         JsonObject updatePayload = trackerActions.getTrackedEntity( teiId + "?fields=*" )
             .validateStatus( 200 )
-            .getBodyAsJsonBuilder().wrapIntoArray("trackedEntities");
+            .getBodyAsJsonBuilder().wrapIntoArray( "trackedEntities" );
 
-       loginActions.loginAsUser( username, userPassword );
+        loginActions.loginAsUser( username, userPassword );
 
-        overrideOwnership( teiId, protectedProgram, "Change in ownership" );
+        trackerActions.overrideOwnership( teiId, protectedProgram, "Change in ownership" );
 
         trackerActions.postAndGetJobReport( updatePayload, new QueryParamsBuilder().addAll( "async=false" ) )
             .validateSuccessfulImport();
@@ -150,7 +137,7 @@ public class OwnershipTests
 
         JsonObject updatePayload = trackerActions.getTrackedEntity( teiId + "?fields=*" )
             .validateStatus( 200 )
-            .getBodyAsJsonBuilder().wrapIntoArray("trackedEntities");
+            .getBodyAsJsonBuilder().wrapIntoArray( "trackedEntities" );
 
         loginActions.loginAsUser( username, userPassword );
 
@@ -171,13 +158,14 @@ public class OwnershipTests
 
         JsonObject updatePayload = trackerActions.getTrackedEntity( teiId + "?fields=*" )
             .validateStatus( 200 )
-            .getBodyAsJsonBuilder().wrapIntoArray("trackedEntities");
+            .getBodyAsJsonBuilder().wrapIntoArray( "trackedEntities" );
 
         loginActions.loginAsUser( username, userPassword );
 
         trackerActions.postAndGetJobReport( updatePayload, new QueryParamsBuilder().addAll( "atomicMode=OBJECT" ) )
             .validateSuccessfulImport();
     }
+
     @Test
     public void shouldNotValidateCaptureScopeForTei()
     {
@@ -196,7 +184,7 @@ public class OwnershipTests
     @ParameterizedTest
     public void shouldValidateEnrollmentOwnership( String importStrategy )
     {
-        enrollment = trackerActions.getTrackedEntity( teiInCaptureScope + "?fields=enrollments" )
+        JsonObject enrollment = trackerActions.getTrackedEntity( teiInSearchScope + "?fields=enrollments" )
             .validateStatus( 200 )
             .getBody();
 
@@ -216,7 +204,7 @@ public class OwnershipTests
             .body( "enrollments", hasSize( 0 ) );
 
         trackerActions
-            .postAndGetJobReport( new EnrollmentDataBuilder().array( protectedProgram, captureOu, teiInCaptureScope, "ACTIVE" ) )
+            .postAndGetJobReport( new EnrollmentDataBuilder().array( protectedProgram, captureOu, teiInSearchScope, "ACTIVE" ) )
             .validateErrorReport()
             .body( "errorCode", hasItems( "E1102" ) );
     }
@@ -226,13 +214,10 @@ public class OwnershipTests
     {
         loginActions.loginAsUser( username, userPassword );
 
-        trackerActions.getTrackedEntity( teiInSearchScope + "?fields=enrollments" ).validate().statusCode( 200 );
-
         trackerActions
             .postAndGetJobReport(
-                new EnrollmentDataBuilder().array( openProgram, captureOu, teiInCaptureScope, "ACTIVE" ) )
+                new EnrollmentDataBuilder().array( openProgram, captureOu, teiInSearchScope, "ACTIVE" ) )
             .validateSuccessfulImport();
-
     }
 
     private String createUserWithAccessToOu()
@@ -246,22 +231,4 @@ public class OwnershipTests
 
         return username;
     }
-
-    private void overrideOwnership( String tei, String program, String reason )
-    {
-        trackerActions.post(
-            String.format( "/ownership/override?trackedEntityInstance=%s&program=%s&reason=%s", tei, program, reason ),
-            new JsonObject() )
-            .validateStatus( 200 )
-        ;
-    }
-
-    private void transferOwnership( String tei, String program, String ou )
-    {
-        trackerActions.update( String
-            .format( "/ownership/transfer?trackedEntityInstance=%s&program=%s&ou=%s", tei, program,
-                ou ), new JsonObject() ).validateStatus( 200 );
-
-    }
-
 }
