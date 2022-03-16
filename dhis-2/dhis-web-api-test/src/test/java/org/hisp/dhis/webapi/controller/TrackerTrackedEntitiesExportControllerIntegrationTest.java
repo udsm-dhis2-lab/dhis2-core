@@ -30,7 +30,6 @@ package org.hisp.dhis.webapi.controller;
 import static org.hisp.dhis.utils.Assertions.assertContainsOnly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -39,6 +38,7 @@ import java.util.stream.Collectors;
 
 import org.hisp.dhis.common.CodeGenerator;
 import org.hisp.dhis.common.IdentifiableObjectManager;
+import org.hisp.dhis.dbms.DbmsManager;
 import org.hisp.dhis.jsontree.JsonObject;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.Program;
@@ -54,7 +54,6 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.sharing.UserAccess;
 import org.hisp.dhis.webapi.DhisControllerIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -72,6 +71,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Transactional
 class TrackerTrackedEntitiesExportControllerIntegrationTest extends DhisControllerIntegrationTest
 {
+
+    @Autowired
+    protected DbmsManager dbmsManager;
 
     @Autowired
     private IdentifiableObjectManager manager;
@@ -96,8 +98,6 @@ class TrackerTrackedEntitiesExportControllerIntegrationTest extends DhisControll
     @BeforeEach
     void setUp()
     {
-        // TODO clean up; what truly needs to be in a transaction and what does
-        // not?
         doInTransaction( () -> {
             owner = createUser( "owner" );
 
@@ -110,9 +110,6 @@ class TrackerTrackedEntitiesExportControllerIntegrationTest extends DhisControll
             trackedEntityType.getSharing().setOwner( owner );
             trackedEntityType.getSharing().setPublicAccess( AccessStringHelper.FULL );
             manager.save( trackedEntityType, false );
-        } );
-
-        doInTransaction( () -> {
             user = createUserWithId( "testuser", CodeGenerator.generateUid() );
             user.addOrganisationUnit( orgUnit );
             user.setTeiSearchOrganisationUnits( Set.of( orgUnit ) );
@@ -120,43 +117,25 @@ class TrackerTrackedEntitiesExportControllerIntegrationTest extends DhisControll
             relationshipType = relationshipType( RelationshipEntity.TRACKED_ENTITY_INSTANCE,
                 RelationshipEntity.TRACKED_ENTITY_INSTANCE );
             manager.save( relationshipType, false );
+
+            program = createProgram( 'A' );
+            program.addOrganisationUnit( orgUnit );
+            program.getSharing().setOwner( owner );
+            program.getSharing().setPublicAccess( AccessStringHelper.FULL );
+            manager.save( program, false );
+
+            programStage = createProgramStage( 'A', program );
+            programStage.getSharing().setOwner( owner );
+            programStage.getSharing().setPublicAccess( AccessStringHelper.FULL );
+            manager.save( programStage, false );
+            manager.flush();
         } );
-
-        // TODO programs, programStages also need to go in doInTransaction if I
-        // wanted to have the TrackedEntityInstanceAggregate security context
-        // see them
-        program = createProgram( 'A' );
-        program.addOrganisationUnit( orgUnit );
-        program.getSharing().setOwner( owner );
-        program.getSharing().setPublicAccess( AccessStringHelper.FULL );
-        manager.save( program, false );
-
-        programStage = createProgramStage( 'A', program );
-        programStage.getSharing().setOwner( owner );
-        programStage.getSharing().setPublicAccess( AccessStringHelper.FULL );
-        manager.save( programStage, false );
     }
 
-    @Test
-    void one()
-    {
-
-        assertNotNull( this.getCurrentUser() );
-    }
-
-    @Test
-    void two()
-    {
-
-        assertNotNull( this.getCurrentUser() );
-    }
-
-    @Disabled
     @Test
     void getTrackedEntities()
     {
 
-        // TODO clean this up
         TrackedEntityInstance tei1 = trackedEntityInstance();
         TrackedEntityInstance tei2 = trackedEntityInstance();
         doInTransaction( () -> {
@@ -176,7 +155,6 @@ class TrackerTrackedEntitiesExportControllerIntegrationTest extends DhisControll
         assertContainsOnly( teis, tei1.getUid(), tei2.getUid() );
     }
 
-    @Disabled
     @Test
     void getTrackedEntitiesWithTrackedEntityParam()
     {
@@ -198,6 +176,17 @@ class TrackerTrackedEntitiesExportControllerIntegrationTest extends DhisControll
             .map( e -> e.getString( "trackedEntity" ).string() ).collect( Collectors.toList() );
         assertContainsOnly( teis, tei1.getUid() );
     }
+
+    // @AfterEach
+    // public final void after()
+    // throws Exception
+    // {
+    // clearSecurityContext();
+    //
+    // dbmsManager.clearSession();
+    //
+    // dbmsManager.emptyDatabase();
+    // }
 
     private TrackedEntityInstance trackedEntityInstance()
     {
