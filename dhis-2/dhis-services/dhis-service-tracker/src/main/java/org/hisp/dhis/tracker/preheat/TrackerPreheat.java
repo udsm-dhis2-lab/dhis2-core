@@ -73,7 +73,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentitycomment.TrackedEntityComment;
 import org.hisp.dhis.tracker.TrackerIdScheme;
-import org.hisp.dhis.tracker.TrackerIdentifier;
+import org.hisp.dhis.tracker.TrackerIdentifierParam;
 import org.hisp.dhis.tracker.TrackerIdentifierParams;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.domain.Enrollment;
@@ -162,7 +162,7 @@ public class TrackerPreheat
     {
         if ( categoryOptionCombo != null )
         {
-            TrackerIdentifier optionComboIdScheme = getIdentifiers().getCategoryOptionComboIdScheme();
+            TrackerIdentifierParam optionComboIdScheme = getIdentifiers().getCategoryOptionComboIdScheme();
             this.cosToCOC.put( categoryOptionComboCacheKey( categoryCombo, categoryOptions ),
                 optionComboIdScheme.getIdentifier( categoryOptionCombo ) );
             this.put( optionComboIdScheme, categoryOptionCombo );
@@ -438,7 +438,7 @@ public class TrackerPreheat
     }
 
     @SuppressWarnings( "unchecked" )
-    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdentifier identifier, T object )
+    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdentifierParam identifier, T object )
     {
         if ( object == null )
         {
@@ -471,7 +471,7 @@ public class TrackerPreheat
         return this;
     }
 
-    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdentifier identifier, Collection<T> objects )
+    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdentifierParam identifier, Collection<T> objects )
     {
         for ( T object : objects )
         {
