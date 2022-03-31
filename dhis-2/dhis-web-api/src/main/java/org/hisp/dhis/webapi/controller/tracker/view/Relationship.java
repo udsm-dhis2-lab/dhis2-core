@@ -25,32 +25,61 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.webapi.controller.tracker.export;
+package org.hisp.dhis.webapi.controller.tracker.view;
 
-import org.hisp.dhis.webapi.controller.tracker.view.Enrollment;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import java.time.Instant;
 
-@Mapper( uses = {
-    RelationshipMapper.class,
-    AttributeMapper.class,
-    NoteMapper.class,
-    EventMapper.class,
-    InstantMapper.class,
-    UserMapper.class } )
-interface EnrollmentMapper extends DomainMapper<org.hisp.dhis.dxf2.events.enrollment.Enrollment, Enrollment>
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import org.hisp.dhis.tracker.TrackerType;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ * @author Morten Olav Hansen <mortenoh@gmail.com>
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Relationship implements TrackerDto
 {
-    @Mapping( target = "enrollment", source = "enrollment" )
-    @Mapping( target = "createdAt", source = "created" )
-    @Mapping( target = "createdAtClient", source = "createdAtClient" )
-    @Mapping( target = "updatedAt", source = "lastUpdated" )
-    @Mapping( target = "updatedAtClient", source = "lastUpdatedAtClient" )
-    @Mapping( target = "trackedEntity", source = "trackedEntityInstance" )
-    @Mapping( target = "enrolledAt", source = "enrollmentDate" )
-    @Mapping( target = "occurredAt", source = "incidentDate" )
-    @Mapping( target = "followUp", source = "followup" )
-    @Mapping( target = "completedAt", source = "completedDate" )
-    @Mapping( target = "createdBy", source = "createdByUserInfo" )
-    @Mapping( target = "updatedBy", source = "lastUpdatedByUserInfo" )
-    Enrollment from( org.hisp.dhis.dxf2.events.enrollment.Enrollment enrollment );
+    @JsonProperty
+    private String relationship;
+
+    @JsonProperty
+    private String relationshipName;
+
+    @JsonProperty
+    private String relationshipType;
+
+    @JsonProperty
+    private Instant createdAt;
+
+    @JsonProperty
+    private Instant updatedAt;
+
+    @JsonProperty
+    private boolean bidirectional;
+
+    @JsonProperty
+    private RelationshipItem from;
+
+    @JsonProperty
+    private RelationshipItem to;
+
+    @Override
+    public String getUid()
+    {
+        return relationship;
+    }
+
+    @Override
+    public TrackerType getTrackerType()
+    {
+        return TrackerType.RELATIONSHIP;
+    }
 }

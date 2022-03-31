@@ -25,32 +25,51 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.webapi.controller.tracker.export;
+package org.hisp.dhis.webapi.controller.tracker.view;
 
-import org.hisp.dhis.webapi.controller.tracker.view.Enrollment;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.hisp.dhis.program.ProgramStatus;
 
-@Mapper( uses = {
-    RelationshipMapper.class,
-    AttributeMapper.class,
-    NoteMapper.class,
-    EventMapper.class,
-    InstantMapper.class,
-    UserMapper.class } )
-interface EnrollmentMapper extends DomainMapper<org.hisp.dhis.dxf2.events.enrollment.Enrollment, Enrollment>
+/**
+ * @author Morten Olav Hansen <mortenoh@gmail.com>
+ */
+public enum EnrollmentStatus
 {
-    @Mapping( target = "enrollment", source = "enrollment" )
-    @Mapping( target = "createdAt", source = "created" )
-    @Mapping( target = "createdAtClient", source = "createdAtClient" )
-    @Mapping( target = "updatedAt", source = "lastUpdated" )
-    @Mapping( target = "updatedAtClient", source = "lastUpdatedAtClient" )
-    @Mapping( target = "trackedEntity", source = "trackedEntityInstance" )
-    @Mapping( target = "enrolledAt", source = "enrollmentDate" )
-    @Mapping( target = "occurredAt", source = "incidentDate" )
-    @Mapping( target = "followUp", source = "followup" )
-    @Mapping( target = "completedAt", source = "completedDate" )
-    @Mapping( target = "createdBy", source = "createdByUserInfo" )
-    @Mapping( target = "updatedBy", source = "lastUpdatedByUserInfo" )
-    Enrollment from( org.hisp.dhis.dxf2.events.enrollment.Enrollment enrollment );
+    ACTIVE( 0, ProgramStatus.ACTIVE ),
+    COMPLETED( 1, ProgramStatus.COMPLETED ),
+    CANCELLED( 2, ProgramStatus.CANCELLED );
+
+    private final int value;
+
+    private final ProgramStatus programStatus;
+
+    EnrollmentStatus( int value, ProgramStatus programStatus )
+    {
+        this.value = value;
+        this.programStatus = programStatus;
+    }
+
+    public int getValue()
+    {
+        return value;
+    }
+
+    public ProgramStatus getProgramStatus()
+    {
+        return programStatus;
+    }
+
+    public static EnrollmentStatus fromProgramStatus( ProgramStatus programStatus )
+    {
+        switch ( programStatus )
+        {
+        case ACTIVE:
+            return ACTIVE;
+        case CANCELLED:
+            return CANCELLED;
+        case COMPLETED:
+            return COMPLETED;
+        }
+
+        throw new IllegalArgumentException( "Enum value not found: " + programStatus );
+    }
 }

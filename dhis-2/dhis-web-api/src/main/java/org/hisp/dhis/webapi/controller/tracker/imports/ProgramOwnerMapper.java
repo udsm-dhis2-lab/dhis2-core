@@ -25,32 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.webapi.controller.tracker.export;
+package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.view.Enrollment;
+import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.webapi.controller.tracker.view.ProgramOwner;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
-@Mapper( uses = {
-    RelationshipMapper.class,
-    AttributeMapper.class,
-    NoteMapper.class,
-    EventMapper.class,
-    InstantMapper.class,
-    UserMapper.class } )
-interface EnrollmentMapper extends DomainMapper<org.hisp.dhis.dxf2.events.enrollment.Enrollment, Enrollment>
+@Mapper
+public interface ProgramOwnerMapper extends DomainMapper<ProgramOwner, org.hisp.dhis.tracker.domain.ProgramOwner>
 {
-    @Mapping( target = "enrollment", source = "enrollment" )
-    @Mapping( target = "createdAt", source = "created" )
-    @Mapping( target = "createdAtClient", source = "createdAtClient" )
-    @Mapping( target = "updatedAt", source = "lastUpdated" )
-    @Mapping( target = "updatedAtClient", source = "lastUpdatedAtClient" )
-    @Mapping( target = "trackedEntity", source = "trackedEntityInstance" )
-    @Mapping( target = "enrolledAt", source = "enrollmentDate" )
-    @Mapping( target = "occurredAt", source = "incidentDate" )
-    @Mapping( target = "followUp", source = "followup" )
-    @Mapping( target = "completedAt", source = "completedDate" )
-    @Mapping( target = "createdBy", source = "createdByUserInfo" )
-    @Mapping( target = "updatedBy", source = "lastUpdatedByUserInfo" )
-    Enrollment from( org.hisp.dhis.dxf2.events.enrollment.Enrollment enrollment );
+    org.hisp.dhis.tracker.domain.ProgramOwner from( ProgramOwner programOwner );
 }
