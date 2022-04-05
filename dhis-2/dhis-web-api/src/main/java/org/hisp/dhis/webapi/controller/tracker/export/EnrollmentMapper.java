@@ -38,7 +38,7 @@ import org.mapstruct.Mapping;
     EventMapper.class,
     InstantMapper.class,
     UserMapper.class } )
-interface EnrollmentMapper extends DomainMapper<org.hisp.dhis.dxf2.events.enrollment.Enrollment, Enrollment>
+interface EnrollmentMapper extends ViewMapper<org.hisp.dhis.dxf2.events.enrollment.Enrollment, Enrollment>
 {
     @Mapping( target = "enrollment", source = "enrollment" )
     @Mapping( target = "createdAt", source = "created" )

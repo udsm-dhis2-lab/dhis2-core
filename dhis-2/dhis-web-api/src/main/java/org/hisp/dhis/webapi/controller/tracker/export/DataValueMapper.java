@@ -32,7 +32,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper( uses = { InstantMapper.class, UserMapper.class } )
-public interface DataValueMapper extends DomainMapper<org.hisp.dhis.dxf2.events.event.DataValue, DataValue>
+public interface DataValueMapper extends ViewMapper<org.hisp.dhis.dxf2.events.event.DataValue, DataValue>
 {
     @Mapping( target = "createdAt", source = "created" )
     @Mapping( target = "updatedAt", source = "lastUpdated" )

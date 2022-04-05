@@ -39,7 +39,7 @@ import org.mapstruct.Named;
     DataValueMapper.class,
     InstantMapper.class,
     UserMapper.class } )
-interface EventMapper extends DomainMapper<org.hisp.dhis.dxf2.events.event.Event, Event>
+interface EventMapper extends ViewMapper<org.hisp.dhis.dxf2.events.event.Event, Event>
 {
     @Mapping( target = "occurredAt", source = "eventDate" )
     @Mapping( target = "scheduledAt", source = "dueDate" )

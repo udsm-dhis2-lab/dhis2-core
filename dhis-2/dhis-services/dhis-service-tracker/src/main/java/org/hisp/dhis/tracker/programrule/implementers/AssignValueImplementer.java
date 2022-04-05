@@ -46,6 +46,7 @@ import org.hisp.dhis.tracker.domain.Attribute;
 import org.hisp.dhis.tracker.domain.DataValue;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.programrule.EnrollmentActionRule;
@@ -238,10 +239,12 @@ public class AssignValueImplementer
 
     private Attribute createAttribute( String attributeUid, String newValue )
     {
-        Attribute attribute = new Attribute();
-        attribute.setAttribute( attributeUid );
-        attribute.setValue( newValue );
-        return attribute;
+        // TODO(DHIS2-DHIS2-12563) I think the attribute identifier will always
+        // be a UID when we are within the program rule realm; double-check
+        return Attribute.builder()
+            .attribute( MetadataIdentifier.ofUid( attributeUid ) )
+            .value( newValue )
+            .build();
     }
 
     private DataValue createDataValue( String dataElementUid, String newValue )

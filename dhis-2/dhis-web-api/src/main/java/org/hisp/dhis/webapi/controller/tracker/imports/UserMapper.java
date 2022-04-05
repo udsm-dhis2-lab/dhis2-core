@@ -27,22 +27,12 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.tracker.TrackerIdSchemeParams;
-import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.view.TrackedEntity;
-import org.mapstruct.Context;
+import org.hisp.dhis.webapi.controller.tracker.export.ViewMapper;
+import org.hisp.dhis.webapi.controller.tracker.view.User;
 import org.mapstruct.Mapper;
 
-@Mapper( uses = {
-    RelationshipMapper.class,
-    AttributeMapper.class,
-    EnrollmentMapper.class,
-    ProgramOwnerMapper.class,
-    InstantMapper.class,
-    UserMapper.class } )
-interface TrackedEntityMapper extends DomainMapper<TrackedEntity, org.hisp.dhis.tracker.domain.TrackedEntity>
+@Mapper
+public interface UserMapper extends ViewMapper<User, org.hisp.dhis.tracker.domain.User>
 {
-    org.hisp.dhis.tracker.domain.TrackedEntity from( TrackedEntity trackedEntity,
-        @Context TrackerIdSchemeParams idSchemeParams );
-
+    org.hisp.dhis.tracker.domain.User from( User user );
 }

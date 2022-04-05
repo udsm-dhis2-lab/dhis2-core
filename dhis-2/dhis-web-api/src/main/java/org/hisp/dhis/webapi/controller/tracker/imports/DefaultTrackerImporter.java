@@ -32,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.hisp.dhis.scheduling.JobConfiguration;
 import org.hisp.dhis.scheduling.JobType;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.report.TrackerImportReport;
 import org.mapstruct.factory.Mappers;
@@ -61,6 +62,7 @@ public class DefaultTrackerImporter implements TrackerImporter
     @Override
     public TrackerImportReport importTracker( TrackerImportRequest request )
     {
+
         // TODO move common mappers into a common package. import should not
         // depend on export and the other way around.
         // TODO this services will do the mapping from view to tracker domain :)
@@ -77,14 +79,21 @@ public class DefaultTrackerImporter implements TrackerImporter
 
     private TrackerImportParams trackerImportParams( TrackerImportRequest request )
     {
+        // TODO get idSchemeParams in a clean way
+        TrackerIdSchemeParams idSchemeParams = TrackerImportParamsBuilder
+            .getTrackerIdentifiers( request.getContextService().getParameterValuesMap() );
+
         TrackerImportParams.TrackerImportParamsBuilder paramsBuilder = TrackerImportParamsBuilder
             .builder( request.getContextService().getParameterValuesMap() )
             .userId( request.getUserUid() )
             .trackedEntities(
-                TRACKED_ENTITY_MAPPER.fromCollection( request.getTrackerBundleParams().getTrackedEntities() ) )
-            .enrollments( ENROLLMENT_MAPPER.fromCollection( request.getTrackerBundleParams().getEnrollments() ) )
-            .events( EVENT_MAPPER.fromCollection( request.getTrackerBundleParams().getEvents() ) )
-            .relationships( RELATIONSHIP_MAPPER.fromCollection( request.getTrackerBundleParams().getRelationships() ) );
+                TRACKED_ENTITY_MAPPER.fromCollection( request.getTrackerBundleParams().getTrackedEntities(),
+                    idSchemeParams ) )
+            .enrollments(
+                ENROLLMENT_MAPPER.fromCollection( request.getTrackerBundleParams().getEnrollments(), idSchemeParams ) )
+            .events( EVENT_MAPPER.fromCollection( request.getTrackerBundleParams().getEvents(), idSchemeParams ) )
+            .relationships( RELATIONSHIP_MAPPER.fromCollection( request.getTrackerBundleParams().getRelationships(),
+                idSchemeParams ) );
 
         if ( !request.isAsync() )
         {

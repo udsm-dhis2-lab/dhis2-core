@@ -27,9 +27,10 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.Relationship;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper( uses = {
@@ -38,5 +39,6 @@ import org.mapstruct.Mapper;
 interface RelationshipMapper
     extends DomainMapper<Relationship, org.hisp.dhis.tracker.domain.Relationship>
 {
-    org.hisp.dhis.tracker.domain.Relationship from( Relationship relationship );
+    org.hisp.dhis.tracker.domain.Relationship from( Relationship relationship,
+        @Context TrackerIdSchemeParams idSchemeParams );
 }

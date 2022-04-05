@@ -25,24 +25,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.webapi.controller.tracker.imports;
+package org.hisp.dhis.webapi.controller.tracker.export;
 
-import org.hisp.dhis.tracker.TrackerIdSchemeParams;
-import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.view.TrackedEntity;
-import org.mapstruct.Context;
-import org.mapstruct.Mapper;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-@Mapper( uses = {
-    RelationshipMapper.class,
-    AttributeMapper.class,
-    EnrollmentMapper.class,
-    ProgramOwnerMapper.class,
-    InstantMapper.class,
-    UserMapper.class } )
-interface TrackedEntityMapper extends DomainMapper<TrackedEntity, org.hisp.dhis.tracker.domain.TrackedEntity>
+public interface ViewMapper<FROM, TO>
 {
-    org.hisp.dhis.tracker.domain.TrackedEntity from( TrackedEntity trackedEntity,
-        @Context TrackerIdSchemeParams idSchemeParams );
+    TO from( FROM from );
 
+    default List<TO> fromCollection( Collection<FROM> froms )
+    {
+        return Optional.ofNullable( froms )
+            .orElse( Collections.emptySet() )
+            .stream()
+            .map( this::from )
+            .collect( Collectors.toList() );
+    }
 }

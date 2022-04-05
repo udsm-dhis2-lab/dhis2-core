@@ -27,10 +27,10 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.DataValueMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.Event;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper( uses = {
@@ -40,5 +40,5 @@ import org.mapstruct.Mapper;
     InstantMapper.class } )
 interface EventMapper extends DomainMapper<Event, org.hisp.dhis.tracker.domain.Event>
 {
-    org.hisp.dhis.tracker.domain.Event from( Event event );
+    org.hisp.dhis.tracker.domain.Event from( Event event, @Context TrackerIdSchemeParams idSchemeParams );
 }

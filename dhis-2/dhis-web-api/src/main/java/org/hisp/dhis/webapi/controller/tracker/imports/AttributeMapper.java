@@ -27,14 +27,26 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.Attribute;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 
-@Mapper( uses = InstantMapper.class )
+@Mapper( uses = { InstantMapper.class, MetadataIdentifierMapper.class } )
 public interface AttributeMapper extends DomainMapper<Attribute, org.hisp.dhis.tracker.domain.Attribute>
 {
 
-    org.hisp.dhis.tracker.domain.Attribute from( Attribute attribute );
+    @Mapping( target = "attribute", source = "attribute", qualifiedByName = "toAttribute" )
+    org.hisp.dhis.tracker.domain.Attribute from( Attribute attribute, @Context TrackerIdSchemeParams params );
+
+    @Named( "toAttribute" )
+    default org.hisp.dhis.tracker.domain.MetadataIdentifier from( String identifier,
+        @Context TrackerIdSchemeParams idSchemeParams )
+    {
+        return MetadataIdentifier.of( idSchemeParams.getIdScheme().getIdScheme(), identifier );
+    }
 }

@@ -27,14 +27,14 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.UserMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.DataValue;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper( uses = { InstantMapper.class, UserMapper.class } )
 public interface DataValueMapper extends DomainMapper<DataValue, org.hisp.dhis.tracker.domain.DataValue>
 {
-    org.hisp.dhis.tracker.domain.DataValue from( DataValue dataValue );
+    org.hisp.dhis.tracker.domain.DataValue from( DataValue dataValue, @Context TrackerIdSchemeParams idSchemeParams );
 }

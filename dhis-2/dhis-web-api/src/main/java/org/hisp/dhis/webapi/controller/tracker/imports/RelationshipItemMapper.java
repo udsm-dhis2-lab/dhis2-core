@@ -27,15 +27,13 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.AttributeMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.DataValueMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.UserMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.Enrollment;
 import org.hisp.dhis.webapi.controller.tracker.view.Event;
 import org.hisp.dhis.webapi.controller.tracker.view.RelationshipItem;
 import org.hisp.dhis.webapi.controller.tracker.view.TrackedEntity;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper( uses = {
@@ -49,11 +47,15 @@ import org.mapstruct.Mapper;
 interface RelationshipItemMapper
     extends DomainMapper<RelationshipItem, org.hisp.dhis.tracker.domain.RelationshipItem>
 {
-    org.hisp.dhis.tracker.domain.RelationshipItem from( RelationshipItem relationshipItem );
+    org.hisp.dhis.tracker.domain.RelationshipItem from( RelationshipItem relationshipItem,
+        @Context TrackerIdSchemeParams idSchemeParams );
 
-    org.hisp.dhis.tracker.domain.RelationshipItem.TrackedEntity from( TrackedEntity trackedEntity );
+    org.hisp.dhis.tracker.domain.RelationshipItem.TrackedEntity from( TrackedEntity trackedEntity,
+        @Context TrackerIdSchemeParams idSchemeParams );
 
-    org.hisp.dhis.tracker.domain.RelationshipItem.Enrollment from( Enrollment enrollment );
+    org.hisp.dhis.tracker.domain.RelationshipItem.Enrollment from( Enrollment enrollment,
+        @Context TrackerIdSchemeParams idSchemeParams );
 
-    org.hisp.dhis.tracker.domain.RelationshipItem.Event from( Event event );
+    org.hisp.dhis.tracker.domain.RelationshipItem.Event from( Event event,
+        @Context TrackerIdSchemeParams idSchemeParams );
 }

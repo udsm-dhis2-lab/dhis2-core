@@ -27,22 +27,24 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.hisp.dhis.tracker.TrackerIdSchemeParams;
-import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.view.TrackedEntity;
-import org.mapstruct.Context;
-import org.mapstruct.Mapper;
 
-@Mapper( uses = {
-    RelationshipMapper.class,
-    AttributeMapper.class,
-    EnrollmentMapper.class,
-    ProgramOwnerMapper.class,
-    InstantMapper.class,
-    UserMapper.class } )
-interface TrackedEntityMapper extends DomainMapper<TrackedEntity, org.hisp.dhis.tracker.domain.TrackedEntity>
+public interface DomainMapper<FROM, TO>
 {
-    org.hisp.dhis.tracker.domain.TrackedEntity from( TrackedEntity trackedEntity,
-        @Context TrackerIdSchemeParams idSchemeParams );
+    TO from( FROM from, TrackerIdSchemeParams idSchemeParams );
 
+    default List<TO> fromCollection( Collection<FROM> froms, TrackerIdSchemeParams idSchemeParams )
+    {
+        return Optional.ofNullable( froms )
+            .orElse( Collections.emptySet() )
+            .stream()
+            .map( e -> this.from( e, idSchemeParams ) )
+            .collect( Collectors.toList() );
+    }
 }

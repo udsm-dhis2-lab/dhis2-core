@@ -27,12 +27,14 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.view.ProgramOwner;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper
 public interface ProgramOwnerMapper extends DomainMapper<ProgramOwner, org.hisp.dhis.tracker.domain.ProgramOwner>
 {
-    org.hisp.dhis.tracker.domain.ProgramOwner from( ProgramOwner programOwner );
+    org.hisp.dhis.tracker.domain.ProgramOwner from( ProgramOwner programOwner,
+        @Context TrackerIdSchemeParams idSchemeParams );
 }

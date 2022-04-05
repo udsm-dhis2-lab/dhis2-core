@@ -58,6 +58,7 @@ import org.hisp.dhis.tracker.domain.DataValue;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.EnrollmentStatus;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.programrule.implementers.SetMandatoryFieldValidator;
 import org.hisp.dhis.tracker.report.TrackerErrorCode;
@@ -250,9 +251,10 @@ class SetMandatoryFieldValidatorTest extends DhisConvenienceTest
 
     private List<Attribute> getAttributes()
     {
-        Attribute attribute = new Attribute();
-        attribute.setAttribute( ATTRIBUTE_ID );
-        attribute.setValue( ATTRIBUTE_VALUE );
+        Attribute attribute = Attribute.builder()
+            .attribute( MetadataIdentifier.ofUid( ATTRIBUTE_ID ) )
+            .value( ATTRIBUTE_VALUE )
+            .build();
         return Lists.newArrayList( attribute );
     }
 

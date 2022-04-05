@@ -49,6 +49,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityTypeAttribute;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Attribute;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.TrackerErrorCode;
@@ -106,7 +107,8 @@ class TrackedEntityAttributeValidationHookTest
 
         TrackedEntity trackedEntity = TrackedEntity.builder()
             .attributes(
-                Collections.singletonList( Attribute.builder().attribute( "uid" ).value( "value" ).build() ) )
+                Collections.singletonList(
+                    Attribute.builder().attribute( MetadataIdentifier.ofUid( "uid" ) ).value( "value" ).build() ) )
             .trackedEntityType( "trackedEntityType" )
             .build();
 
@@ -137,8 +139,9 @@ class TrackedEntityAttributeValidationHookTest
 
         TrackedEntity trackedEntity = TrackedEntity.builder()
             .trackedEntityType( tet )
-            .attributes( Arrays.asList( Attribute.builder().attribute( "a" ).value( "value" ).build(),
-                Attribute.builder().attribute( "b" ).value( "value" ).build() ) )
+            .attributes( Arrays.asList(
+                Attribute.builder().attribute( MetadataIdentifier.ofUid( "a" ) ).value( "value" ).build(),
+                Attribute.builder().attribute( MetadataIdentifier.ofUid( "b" ) ).value( "value" ).build() ) )
             .build();
 
         TrackedEntityAttribute contextAttribute = new TrackedEntityAttribute();
@@ -161,8 +164,8 @@ class TrackedEntityAttributeValidationHookTest
     void shouldFailValidationMissingTea()
     {
         TrackedEntity trackedEntity = TrackedEntity.builder()
-            .attributes( Arrays.asList( Attribute.builder().attribute( "aaaaa" ).build(),
-                Attribute.builder().attribute( "bbbbb" ).build() ) )
+            .attributes( Arrays.asList( Attribute.builder().attribute( MetadataIdentifier.ofUid( "aaaaa" ) ).build(),
+                Attribute.builder().attribute( MetadataIdentifier.ofUid( "bbbbb" ) ).build() ) )
             .trackedEntityType( "tet" )
             .build();
 
@@ -185,7 +188,8 @@ class TrackedEntityAttributeValidationHookTest
         String tet = "tet";
 
         TrackedEntity trackedEntity = TrackedEntity.builder()
-            .attributes( Collections.singletonList( Attribute.builder().attribute( tea ).build() ) )
+            .attributes(
+                Collections.singletonList( Attribute.builder().attribute( MetadataIdentifier.ofUid( tea ) ).build() ) )
             .trackedEntityType( tet )
             .build();
 
@@ -290,7 +294,8 @@ class TrackedEntityAttributeValidationHookTest
 
         TrackedEntity trackedEntity = TrackedEntity.builder()
             .attributes(
-                Collections.singletonList( Attribute.builder().attribute( "uid" ).value( "wrongCode" ).build() ) )
+                Collections.singletonList(
+                    Attribute.builder().attribute( MetadataIdentifier.ofUid( "uid" ) ).value( "wrongCode" ).build() ) )
             .trackedEntityType( "trackedEntityType" )
             .build();
 
@@ -314,7 +319,8 @@ class TrackedEntityAttributeValidationHookTest
 
         TrackedEntity trackedEntity = TrackedEntity.builder()
             .attributes(
-                Collections.singletonList( Attribute.builder().attribute( "trackedEntity" ).value( "code" ).build() ) )
+                Collections.singletonList( Attribute.builder().attribute( MetadataIdentifier.ofUid( "trackedEntity" ) )
+                    .value( "code" ).build() ) )
             .trackedEntityType( "trackedEntityType" )
             .build();
 
@@ -345,7 +351,8 @@ class TrackedEntityAttributeValidationHookTest
 
         TrackedEntity trackedEntity = TrackedEntity.builder()
             .attributes(
-                Collections.singletonList( Attribute.builder().attribute( "trackedEntityAttribute" ).build() ) )
+                Collections.singletonList(
+                    Attribute.builder().attribute( MetadataIdentifier.ofUid( "trackedEntityAttribute" ) ).build() ) )
             .trackedEntityType( "trackedEntityType" )
             .build();
 
@@ -362,7 +369,8 @@ class TrackedEntityAttributeValidationHookTest
     {
         TrackedEntity trackedEntity = TrackedEntity.builder()
             .attributes(
-                Collections.singletonList( Attribute.builder().attribute( "trackedEntityAttribute" ).build() ) )
+                Collections.singletonList(
+                    Attribute.builder().attribute( MetadataIdentifier.ofUid( "trackedEntityAttribute" ) ).build() ) )
             .trackedEntityType( "trackedEntityType" )
             .build();
 

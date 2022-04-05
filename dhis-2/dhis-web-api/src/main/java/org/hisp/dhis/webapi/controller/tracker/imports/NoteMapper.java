@@ -27,14 +27,15 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.UserMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.Note;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper( uses = { InstantMapper.class, UserMapper.class } )
 public interface NoteMapper extends DomainMapper<Note, org.hisp.dhis.tracker.domain.Note>
 {
-    org.hisp.dhis.tracker.domain.Note from( org.hisp.dhis.tracker.domain.Note note );
+    org.hisp.dhis.tracker.domain.Note from( org.hisp.dhis.tracker.domain.Note note,
+        @Context TrackerIdSchemeParams idSchemeParams );
 }

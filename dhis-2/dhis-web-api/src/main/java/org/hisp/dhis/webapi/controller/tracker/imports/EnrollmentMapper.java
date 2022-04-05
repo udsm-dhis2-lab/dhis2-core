@@ -27,12 +27,10 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import org.hisp.dhis.webapi.controller.tracker.export.AttributeMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.DomainMapper;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.webapi.controller.tracker.export.InstantMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.NoteMapper;
-import org.hisp.dhis.webapi.controller.tracker.export.UserMapper;
 import org.hisp.dhis.webapi.controller.tracker.view.Enrollment;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 
 @Mapper( uses = {
@@ -44,5 +42,6 @@ import org.mapstruct.Mapper;
     UserMapper.class } )
 interface EnrollmentMapper extends DomainMapper<Enrollment, org.hisp.dhis.tracker.domain.Enrollment>
 {
-    org.hisp.dhis.tracker.domain.Enrollment from( Enrollment enrollment );
+    org.hisp.dhis.tracker.domain.Enrollment from( Enrollment enrollment,
+        @Context TrackerIdSchemeParams idSchemeParams );
 }

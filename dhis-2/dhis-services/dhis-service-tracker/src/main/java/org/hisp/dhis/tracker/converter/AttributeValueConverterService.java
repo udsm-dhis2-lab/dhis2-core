@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.tracker.domain.Attribute;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.springframework.stereotype.Service;
 
@@ -49,17 +50,16 @@ public class AttributeValueConverterService
     @Override
     public Attribute to( TrackedEntityAttributeValue teav )
     {
-        Attribute attribute = new Attribute();
-
-        attribute.setAttribute( teav.getAttribute().getUid() );
-        attribute.setCode( teav.getAttribute().getCode() );
-        attribute.setDisplayName( teav.getAttribute().getDisplayName() );
-        attribute.setCreatedAt( instantFromDate( teav.getCreated() ) );
-        attribute.setUpdatedAt( instantFromDate( teav.getLastUpdated() ) );
-        attribute.setStoredBy( teav.getStoredBy() );
-        attribute.setValueType( teav.getAttribute().getValueType() );
-        attribute.setValue( teav.getValue() );
-
+        Attribute attribute = Attribute.builder()
+            .attribute( MetadataIdentifier.ofUid( teav.getAttribute().getUid() ) )
+            .code( teav.getAttribute().getCode() )
+            .displayName( teav.getAttribute().getDisplayName() )
+            .createdAt( instantFromDate( teav.getCreated() ) )
+            .updatedAt( instantFromDate( teav.getLastUpdated() ) )
+            .storedBy( teav.getStoredBy() )
+            .valueType( teav.getAttribute().getValueType() )
+            .value( teav.getValue() )
+            .build();
         return attribute;
     }
 

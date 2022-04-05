@@ -39,7 +39,7 @@ import org.mapstruct.Mapping;
     ProgramOwnerMapper.class,
     InstantMapper.class,
     UserMapper.class } )
-interface TrackedEntityMapper extends DomainMapper<TrackedEntityInstance, TrackedEntity>
+interface TrackedEntityMapper extends ViewMapper<TrackedEntityInstance, TrackedEntity>
 {
     @Mapping( target = "trackedEntity", source = "trackedEntityInstance" )
     @Mapping( target = "createdAt", source = "created" )

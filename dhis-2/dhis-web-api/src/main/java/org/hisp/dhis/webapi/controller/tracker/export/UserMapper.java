@@ -31,7 +31,7 @@ import org.hisp.dhis.webapi.controller.tracker.view.User;
 import org.mapstruct.Mapper;
 
 @Mapper
-public interface UserMapper extends DomainMapper<User, org.hisp.dhis.tracker.domain.User>
+public interface UserMapper extends ViewMapper<User, org.hisp.dhis.tracker.domain.User>
 {
     org.hisp.dhis.tracker.domain.User from( User user );
 }

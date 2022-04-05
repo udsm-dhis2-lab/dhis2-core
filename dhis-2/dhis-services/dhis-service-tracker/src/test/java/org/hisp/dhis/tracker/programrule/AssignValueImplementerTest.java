@@ -63,6 +63,7 @@ import org.hisp.dhis.tracker.domain.DataValue;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.EnrollmentStatus;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.programrule.implementers.AssignValueImplementer;
@@ -470,17 +471,19 @@ class AssignValueImplementerTest extends DhisConvenienceTest
 
     private List<Attribute> getAttributes()
     {
-        Attribute attribute = new Attribute();
-        attribute.setAttribute( ATTRIBUTE_ID );
-        attribute.setValue( TEI_ATTRIBUTE_OLD_VALUE );
+        Attribute attribute = Attribute.builder()
+            .attribute( MetadataIdentifier.ofUid( ATTRIBUTE_ID ) )
+            .value( TEI_ATTRIBUTE_OLD_VALUE )
+            .build();
         return Lists.newArrayList( attribute );
     }
 
     private List<Attribute> getAttributesSameValue()
     {
-        Attribute attribute = new Attribute();
-        attribute.setAttribute( ATTRIBUTE_ID );
-        attribute.setValue( TEI_ATTRIBUTE_NEW_VALUE );
+        Attribute attribute = Attribute.builder()
+            .attribute( MetadataIdentifier.ofUid( ATTRIBUTE_ID ) )
+            .value( TEI_ATTRIBUTE_NEW_VALUE )
+            .build();
         return Lists.newArrayList( attribute );
     }
 

@@ -48,7 +48,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class Attribute
 {
     @JsonProperty
-    private String attribute;
+    private MetadataIdentifier attribute;
 
     @JsonProperty
     private String code;
@@ -70,4 +70,20 @@ public class Attribute
 
     @JsonProperty
     private String value;
+
+    /**
+     * Used to gradually migrate code over to {@link MetadataIdentifier}. This
+     * getter will be removed in DHIS2-12563.
+     *
+     * @return identifier value of attribute
+     */
+    // TODO(DHIS2-12563) remove this one before releasing/closing this issue!
+    public String getAttribute()
+    {
+        if ( this.attribute == null )
+        {
+            return null;
+        }
+        return this.attribute.getValue();
+    }
 }

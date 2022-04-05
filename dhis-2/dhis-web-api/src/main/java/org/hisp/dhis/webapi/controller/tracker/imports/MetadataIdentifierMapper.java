@@ -25,24 +25,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.webapi.controller.tracker.export;
+package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
+import org.mapstruct.Context;
+import org.mapstruct.Mapper;
 
-public interface DomainMapper<FROM, TO>
+@Mapper
+public interface MetadataIdentifierMapper
 {
-    TO from( FROM from );
 
-    default List<TO> fromCollection( Collection<FROM> froms )
+    default org.hisp.dhis.tracker.domain.MetadataIdentifier from( String identifier,
+        @Context TrackerIdSchemeParams idSchemeParams )
     {
-        return Optional.ofNullable( froms )
-            .orElse( Collections.emptySet() )
-            .stream()
-            .map( this::from )
-            .collect( Collectors.toList() );
+        // TODO I need the name of the field as well so I can implement a
+        // generic mapper
+        // return new MetadataIdentifier(identifier, );
+        return null;
     }
 }
