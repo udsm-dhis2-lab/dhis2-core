@@ -30,6 +30,7 @@ package org.hisp.dhis.tracker;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -141,7 +142,14 @@ public abstract class TrackerTest extends TransactionalIntegrationTest
     protected TrackerImportParams _fromJson( String path )
         throws IOException
     {
-        return renderService.fromJson( new ClassPathResource( path ).getInputStream(), TrackerImportParams.class );
+        TrackerImportParams params = renderService.fromJson( new ClassPathResource( path ).getInputStream(),
+            TrackerImportParams.class );
+        // TODO(DHIS2-12563) remove once migration is done
+        try ( FileOutputStream out = new FileOutputStream( "src/test/resources/" + path ) )
+        {
+            renderService.toJson( out, params );
+        }
+        return params;
     }
 
     protected void assertNoImportErrors( TrackerImportReport report )
