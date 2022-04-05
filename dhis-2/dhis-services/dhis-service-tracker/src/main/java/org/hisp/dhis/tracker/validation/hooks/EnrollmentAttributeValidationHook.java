@@ -92,7 +92,7 @@ public class EnrollmentAttributeValidationHook extends AttributeValidationHook
             validateRequiredProperties( reporter, enrollment, attribute, program );
 
             TrackedEntityAttribute teAttribute = reporter.getBundle().getPreheat()
-                .getTrackedEntityAttribute( attribute.getAttribute() );
+                .getTrackedEntityAttribute( attribute.getAttributeMetadataIdentifier() );
 
             if ( attribute.getAttribute() != null && attribute.getValue() != null && teAttribute != null )
             {
@@ -118,10 +118,12 @@ public class EnrollmentAttributeValidationHook extends AttributeValidationHook
     protected void validateRequiredProperties( ValidationErrorReporter reporter, Enrollment enrollment,
         Attribute attribute, Program program )
     {
-        reporter.addErrorIfNull( attribute.getAttribute(), enrollment, E1075, attribute );
+        reporter.addErrorIfNull( attribute.getAttributeMetadataIdentifier(), enrollment, E1075, attribute );
 
+        // TODO(DHIS2-12563) add API for equality comparison of
+        // BaseIdentifiableObject and MetadataIdentifier
         Optional<ProgramTrackedEntityAttribute> optionalTrackedAttr = program.getProgramAttributes().stream()
-            .filter( pa -> pa.getAttribute().getUid().equals( attribute.getAttribute() ) && pa.isMandatory() )
+            .filter( pa -> attribute.getAttributeMetadataIdentifier().isEqualTo( pa ) && pa.isMandatory() )
             .findFirst();
 
         if ( optionalTrackedAttr.isPresent() )

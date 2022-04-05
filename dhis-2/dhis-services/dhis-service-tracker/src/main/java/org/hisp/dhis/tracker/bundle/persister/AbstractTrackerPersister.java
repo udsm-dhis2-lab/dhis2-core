@@ -59,6 +59,7 @@ import org.hisp.dhis.tracker.FlushMode;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Attribute;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.domain.TrackerDto;
 import org.hisp.dhis.tracker.job.TrackerSideEffectDataBundle;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
@@ -341,6 +342,9 @@ public abstract class AbstractTrackerPersister<T extends TrackerDto, V extends B
             return;
         }
 
+        // TODO(DHIS2-12563) how can I fix and improve this/prevent this error
+        // from happening again; is this a common pattern
+        // we are assuming that attribute.getAttribute() is a UID
         Map<String, TrackedEntityAttributeValue> attributeValueByUid = trackedEntityInstance
             .getTrackedEntityAttributeValues()
             .stream()
@@ -378,7 +382,8 @@ public abstract class AbstractTrackerPersister<T extends TrackerDto, V extends B
 
                     trackedEntityAttributeValue = Optional.ofNullable( trackedEntityAttributeValue )
                         .orElseGet( () -> new TrackedEntityAttributeValue()
-                            .setAttribute( getTrackedEntityAttributeFromPreheat( preheat, attribute.getAttribute() ) )
+                            .setAttribute( getTrackedEntityAttributeFromPreheat( preheat,
+                                attribute.getAttributeMetadataIdentifier() ) )
                             .setEntityInstance( trackedEntityInstance ) )
                         .setStoredBy( attribute.getStoredBy() )
                         .setValue( attribute.getValue() );
@@ -450,12 +455,12 @@ public abstract class AbstractTrackerPersister<T extends TrackerDto, V extends B
     }
 
     private static TrackedEntityAttribute getTrackedEntityAttributeFromPreheat( TrackerPreheat preheat,
-        String attributeUid )
+        MetadataIdentifier identifier )
     {
-        TrackedEntityAttribute trackedEntityAttribute = preheat.get( TrackedEntityAttribute.class, attributeUid );
+        TrackedEntityAttribute trackedEntityAttribute = preheat.get( TrackedEntityAttribute.class, identifier );
 
         checkNotNull( trackedEntityAttribute,
-            "Attribute " + attributeUid
+            "Attribute " + identifier
                 + " should never be NULL here if validation is enforced before commit." );
 
         return trackedEntityAttribute;

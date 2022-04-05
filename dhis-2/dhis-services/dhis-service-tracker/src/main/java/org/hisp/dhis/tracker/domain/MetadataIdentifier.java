@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.tracker.domain;
 
+import java.util.Objects;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Value;
@@ -115,5 +117,16 @@ public class MetadataIdentifier
     {
         String identifier = getIdentifier( object );
         return object.getClass().getSimpleName() + " (" + identifier + ")";
+    }
+
+    // TODO(DHIS2-12563) write docs and tests
+    public boolean isEqualTo( IdentifiableObject that )
+    {
+        if ( that == null )
+        {
+            return false;
+        }
+
+        return Objects.equals( this.value, this.getIdentifier( that ) );
     }
 }

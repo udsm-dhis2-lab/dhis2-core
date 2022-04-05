@@ -171,10 +171,11 @@ public class UniqueAttributesSupplier extends AbstractPreheatSupplier
     {
 
         // TEIs grouped by attribute and value.
-        // Two attributes with the same value and uid are considered equals
+        // Two attributes with the same value and identifiers (UID,CODE,...) are
+        // considered equals
         TreeMap<Attribute, List<TrackedEntity>> teiByAttributeValue = new TreeMap<>( ( o1, o2 ) -> {
             if ( Objects.equals( o1.getValue(), o2.getValue() )
-                && Objects.equals( o1.getAttribute(), o2.getAttribute() ) )
+                && Objects.equals( o1.getAttributeMetadataIdentifier(), o2.getAttributeMetadataIdentifier() ) )
             {
                 return 0;
             }
@@ -206,6 +207,7 @@ public class UniqueAttributesSupplier extends AbstractPreheatSupplier
     private Collection<UniqueAttributeValue> buildUniqueAttributeValues( Attribute attribute,
         List<TrackedEntity> teis )
     {
+        // TODO(DHIS2-12563) make this idScheme aware
         return teis.stream()
             .map( tei -> new UniqueAttributeValue( tei.getUid(), attribute.getAttribute(), attribute.getValue(),
                 tei.getOrgUnit() ) )

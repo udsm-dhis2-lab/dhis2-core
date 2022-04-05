@@ -86,4 +86,12 @@ public class Attribute
         }
         return this.attribute.getValue();
     }
+
+    // TODO(DHIS2-12563): the above getter should be replaced by simply
+    // returning the this.attribute
+    // this is just for transitioning
+    public MetadataIdentifier getAttributeMetadataIdentifier()
+    {
+        return this.attribute;
+    }
 }

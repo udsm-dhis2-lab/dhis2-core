@@ -75,6 +75,7 @@ import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.user.User;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -392,6 +393,24 @@ public class TrackerPreheat
         String key )
     {
         return (T) map.getOrDefault( klass, new HashMap<>() ).get( key );
+    }
+
+    /**
+     * Fetch a metadata object from the pre-heat, based on the type of the
+     * object and the cached identifier.
+     *
+     * @param klass The metadata class to fetch
+     * @param id metadata identifier
+     * @return A metadata object or null
+     */
+    @SuppressWarnings( "unchecked" )
+    public <T extends IdentifiableObject> T get( Class<? extends IdentifiableObject> klass, MetadataIdentifier id )
+    {
+        if ( id == null )
+        {
+            return null;
+        }
+        return (T) map.getOrDefault( klass, new HashMap<>() ).get( id.getValue() );
     }
 
     public CategoryOption getCategoryOption( String id )
@@ -729,6 +748,13 @@ public class TrackerPreheat
     }
 
     public TrackedEntityAttribute getTrackedEntityAttribute( String id )
+    {
+        return get( TrackedEntityAttribute.class, id );
+    }
+
+    // TODO(DHIS2-12563) should this one be the only method instead of the above
+    // to discourage reaching for the actual id value?
+    public TrackedEntityAttribute getTrackedEntityAttribute( MetadataIdentifier id )
     {
         return get( TrackedEntityAttribute.class, id );
     }

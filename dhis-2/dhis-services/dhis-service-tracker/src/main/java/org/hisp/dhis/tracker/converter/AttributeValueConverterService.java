@@ -72,7 +72,8 @@ public class AttributeValueConverterService
     @Override
     public TrackedEntityAttributeValue from( TrackerPreheat preheat, Attribute at )
     {
-        TrackedEntityAttribute attribute = preheat.get( TrackedEntityAttribute.class, at.getAttribute() );
+        TrackedEntityAttribute attribute = preheat.get( TrackedEntityAttribute.class,
+            at.getAttributeMetadataIdentifier() );
 
         TrackedEntityAttributeValue teav = new TrackedEntityAttributeValue();
 
