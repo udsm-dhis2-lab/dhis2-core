@@ -1,4 +1,5 @@
 {
+  "importStrategy": "DELETE",
   "events": [
     {
       "event": "D9PbzJY8bJ1",

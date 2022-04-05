@@ -5,17 +5,16 @@
       "trackedEntity": "IOR1AXXl24H",
       "createdAt": "2020-02-20T12:09:21.844",
       "updatedAt": "2020-02-20T12:09:21.844",
-      "clientCreatedAt": "2020-02-20T12:09:21.844",
-      "clientUpdatedAt": "2020-02-20T12:09:21.844",
+      "createdAtClient": "2020-02-20T12:09:21.844",
+      "updatedAtClient": "2020-02-20T12:09:21.844",
       "orgUnit": "h4w96yEMlzO",
       "inactive": false,
       "deleted": false,
-      "featureType": "NONE",
       "programOwners": [
         {
-          "ownerOrgUnit": "cNEZTkdAvmg",
-          "program": "hJUBNVQWl4e",
-          "trackedEntity": "EEFkxTWB55Y"
+          "orgUnit": "cNEZTkdAvmg",
+          "trackedEntity": "EEFkxTWB55Y",
+          "program": "hJUBNVQWl4e"
         }
       ]
     },
@@ -24,17 +23,16 @@
       "trackedEntity": "IOR1AXXl24G",
       "createdAt": "2020-02-20T12:09:21.844",
       "updatedAt": "2020-02-20T12:09:21.844",
-      "clientCreatedAt": "2020-02-20T12:09:21.844",
-      "clientUpdatedAt": "2020-02-20T12:09:21.844",
+      "createdAtClient": "2020-02-20T12:09:21.844",
+      "updatedAtClient": "2020-02-20T12:09:21.844",
       "orgUnit": "h4w96yEMlzO",
       "inactive": false,
       "deleted": false,
-      "featureType": "NONE",
       "programOwners": [
         {
-          "ownerOrgUnit": "cNEZTkdAvmg",
-          "program": "hJUBNVQWl4e",
-          "trackedEntity": "EEFkxTWB55Y"
+          "orgUnit": "cNEZTkdAvmg",
+          "trackedEntity": "EEFkxTWB55Y",
+          "program": "hJUBNVQWl4e"
         }
       ]
     }
@@ -42,8 +40,8 @@
   "enrollments": [
     {
       "enrollment": "TvctPPhpD8u",
-      "created": "2018-01-26T13:48:13.363",
-      "lastUpdated": "2018-01-26T13:48:13.363",
+      "createdAt": "2018-01-26T13:48:13.363",
+      "updatedAt": "2018-01-26T13:48:13.363",
       "createdAtClient": "2017-01-26T13:48:13.363",
       "trackedEntity": "IOR1AXXl24H",
       "program": "BFcipDERJnf",
@@ -52,13 +50,13 @@
       "orgUnitName": "Mbokie CHP",
       "enrolledAt": "2021-03-28T12:05:00.000",
       "occurredAt": "2021-03-28T12:05:00.000",
-      "followup": false,
+      "followUp": false,
       "deleted": false
     },
     {
       "enrollment": "TvctPPhpD8z",
-      "created": "2018-01-26T13:48:13.363",
-      "lastUpdated": "2018-01-26T13:48:13.363",
+      "createdAt": "2018-01-26T13:48:13.363",
+      "updatedAt": "2018-01-26T13:48:13.363",
       "createdAtClient": "2017-01-26T13:48:13.363",
       "trackedEntity": "IOR1AXXl24G",
       "program": "BFcipDERJnf",
@@ -67,7 +65,7 @@
       "orgUnitName": "Mbokie CHP",
       "enrolledAt": "2021-03-28T12:05:00.000",
       "occurredAt": "2021-03-28T12:05:00.000",
-      "followup": false,
+      "followUp": false,
       "deleted": false
     }
   ],
