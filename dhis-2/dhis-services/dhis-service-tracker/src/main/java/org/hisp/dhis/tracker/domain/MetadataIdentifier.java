@@ -83,12 +83,46 @@ public class MetadataIdentifier
     /**
      * Creates identifier for metadata using idScheme UID and given uid.
      *
-     * @param uid uid of metadata
+     * @param uid metadata uid
      * @return metadata identifier representing a UID
      */
     public static MetadataIdentifier ofUid( String uid )
     {
         return new MetadataIdentifier( TrackerIdScheme.UID, uid );
+    }
+
+    /**
+     * Creates identifier for metadata using idScheme CODE and given code.
+     *
+     * @param code metadata code
+     * @return metadata identifier representing a code
+     */
+    public static MetadataIdentifier ofCode( String code )
+    {
+        return new MetadataIdentifier( TrackerIdScheme.CODE, code );
+    }
+
+    /**
+     * Creates identifier for metadata using idScheme NAME and given name.
+     *
+     * @param name metadata name
+     * @return metadata identifier representing a name
+     */
+    public static MetadataIdentifier ofName( String name )
+    {
+        return new MetadataIdentifier( TrackerIdScheme.NAME, name );
+    }
+
+    /**
+     * Creates identifier for metadata using idScheme ATTRIBUTE and its given
+     * uid.
+     *
+     * @param uid metadata attribute uid
+     * @return metadata identifier representing an attribute
+     */
+    public static MetadataIdentifier ofAttribute( String uid )
+    {
+        return new MetadataIdentifier( TrackerIdScheme.ATTRIBUTE, uid );
     }
 
     public <T extends IdentifiableObject> String getIdentifier( T object )
@@ -120,13 +154,13 @@ public class MetadataIdentifier
     }
 
     // TODO(DHIS2-12563) write docs and tests
-    public boolean isEqualTo( IdentifiableObject that )
+    public boolean isEqualTo( IdentifiableObject metadata )
     {
-        if ( that == null )
+        if ( metadata == null )
         {
             return false;
         }
 
-        return Objects.equals( this.value, this.getIdentifier( that ) );
+        return Objects.equals( this.value, this.getIdentifier( metadata ) );
     }
 }
