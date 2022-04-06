@@ -40,6 +40,11 @@ import org.hisp.dhis.tracker.TrackerIdScheme;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * idScheme=ATTRIBUTE uses the {@link #identifier} and {@link #attributeValue}
+ * to identify metadata while the other idSchemes only rely on the identifier
+ * (UID, CODE, NAME).
+ */
 @Value
 @AllArgsConstructor( access = AccessLevel.PRIVATE )
 public class MetadataIdentifier
@@ -49,7 +54,10 @@ public class MetadataIdentifier
     private final TrackerIdScheme idScheme;
 
     @JsonProperty
-    private final String value;
+    private final String identifier;
+
+    @JsonProperty
+    private final String attributeValue;
 
     /**
      * Used to gradually migrate JSON test fixtures code over to
@@ -67,17 +75,17 @@ public class MetadataIdentifier
     }
 
     /**
-     * Creates identifier for metadata using idScheme UID and given value.
+     * Creates identifier for metadata using idScheme and given identifier.
      *
      * @param idScheme idScheme of metadata identifier
-     * @param value value of metadata identifier
+     * @param identifier identifier of metadata identifier
      * @return metadata identifier
      */
     @JsonCreator
     public static MetadataIdentifier of( @JsonProperty( "idScheme" ) TrackerIdScheme idScheme,
-        @JsonProperty( "value" ) String value )
+        @JsonProperty( "identifier" ) String identifier, @JsonProperty( "value" ) String value )
     {
-        return new MetadataIdentifier( idScheme, value );
+        return new MetadataIdentifier( idScheme, identifier, value );
     }
 
     /**
@@ -88,7 +96,7 @@ public class MetadataIdentifier
      */
     public static MetadataIdentifier ofUid( String uid )
     {
-        return new MetadataIdentifier( TrackerIdScheme.UID, uid );
+        return new MetadataIdentifier( TrackerIdScheme.UID, uid, null );
     }
 
     /**
@@ -99,7 +107,7 @@ public class MetadataIdentifier
      */
     public static MetadataIdentifier ofCode( String code )
     {
-        return new MetadataIdentifier( TrackerIdScheme.CODE, code );
+        return new MetadataIdentifier( TrackerIdScheme.CODE, code, null );
     }
 
     /**
@@ -110,19 +118,20 @@ public class MetadataIdentifier
      */
     public static MetadataIdentifier ofName( String name )
     {
-        return new MetadataIdentifier( TrackerIdScheme.NAME, name );
+        return new MetadataIdentifier( TrackerIdScheme.NAME, name, null );
     }
 
     /**
      * Creates identifier for metadata using idScheme ATTRIBUTE and its given
-     * uid.
+     * uid and value.
      *
      * @param uid metadata attribute uid
+     * @param value metadata attribute value
      * @return metadata identifier representing an attribute
      */
-    public static MetadataIdentifier ofAttribute( String uid )
+    public static MetadataIdentifier ofAttribute( String uid, String value )
     {
-        return new MetadataIdentifier( TrackerIdScheme.ATTRIBUTE, uid );
+        return new MetadataIdentifier( TrackerIdScheme.ATTRIBUTE, uid, value );
     }
 
     public <T extends IdentifiableObject> String getIdentifier( T object )
@@ -138,7 +147,7 @@ public class MetadataIdentifier
         case ATTRIBUTE:
             return object.getAttributeValues()
                 .stream()
-                .filter( av -> av.getAttribute().getUid().equals( value ) )
+                .filter( av -> av.getAttribute().getUid().equals( this.identifier ) )
                 .map( AttributeValue::getValue )
                 .findFirst()
                 .orElse( null );
@@ -153,7 +162,13 @@ public class MetadataIdentifier
         return object.getClass().getSimpleName() + " (" + identifier + ")";
     }
 
-    // TODO(DHIS2-12563) write docs and tests
+    /**
+     * Determines whether given metadata is identified by this metadata
+     * identifier.
+     *
+     * @param metadata to compare to
+     * @return true if metadata is identified by this identifier
+     */
     public boolean isEqualTo( IdentifiableObject metadata )
     {
         if ( metadata == null )
@@ -161,6 +176,12 @@ public class MetadataIdentifier
             return false;
         }
 
-        return Objects.equals( this.value, this.getIdentifier( metadata ) );
+        final String thatId = this.getIdentifier( metadata );
+        if ( this.idScheme == TrackerIdScheme.ATTRIBUTE )
+        {
+            return Objects.equals( this.attributeValue, thatId );
+        }
+
+        return Objects.equals( this.identifier, thatId );
     }
 }

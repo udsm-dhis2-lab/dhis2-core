@@ -410,7 +410,7 @@ public class TrackerPreheat
         {
             return null;
         }
-        return (T) map.getOrDefault( klass, new HashMap<>() ).get( id.getValue() );
+        return (T) map.getOrDefault( klass, new HashMap<>() ).get( id.getIdentifier() );
     }
 
     public CategoryOption getCategoryOption( String id )

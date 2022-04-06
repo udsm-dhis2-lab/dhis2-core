@@ -156,10 +156,48 @@ class MetadataIdentifierTest
         Program p = new Program();
         Attribute att = new Attribute();
         att.setUid( CodeGenerator.generateUid() );
-        p.setAttributeValues( Set.of( new AttributeValue( att, "does not matter" ) ) );
+        p.setAttributeValues( Set.of( new AttributeValue( att, "sunshine" ) ) );
 
-        MetadataIdentifier id = MetadataIdentifier.ofAttribute( att.getUid() );
+        MetadataIdentifier id = MetadataIdentifier.ofAttribute( att.getUid(), "sunshine" );
 
         assertTrue( id.isEqualTo( p ) );
+    }
+
+    @Test
+    void isEqualToAttributeWithDifferentUID()
+    {
+
+        Program p = new Program();
+        p.setAttributeValues(
+            Set.of( attributeValue( "sunshine" ), attributeValue( "grass" ), attributeValue( "rocks" ) ) );
+
+        MetadataIdentifier id = MetadataIdentifier.ofAttribute( CodeGenerator.generateUid(), "sunshine" );
+
+        assertFalse( id.isEqualTo( p ) );
+    }
+
+    @Test
+    void isEqualToAttributeWithDifferentValue()
+    {
+
+        Program p = new Program();
+        Attribute att = new Attribute();
+        att.setUid( CodeGenerator.generateUid() );
+        p.setAttributeValues(
+            Set.of( new AttributeValue( att, "sunshine" ), attributeValue( "grass" ), attributeValue( "rocks" ) ) );
+
+        MetadataIdentifier id = MetadataIdentifier.ofAttribute( att.getUid(), "clouds" );
+
+        assertFalse( id.isEqualTo( p ) );
+    }
+
+    private AttributeValue attributeValue( String value )
+    {
+        return attributeValue( CodeGenerator.generateUid(), value );
+    }
+
+    private AttributeValue attributeValue( String uid, String value )
+    {
+        return new AttributeValue( new Attribute( uid ), value );
     }
 }
