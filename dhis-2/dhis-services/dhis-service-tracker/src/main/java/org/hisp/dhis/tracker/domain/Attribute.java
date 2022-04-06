@@ -84,7 +84,7 @@ public class Attribute
         {
             return null;
         }
-        return this.attribute.getValue();
+        return this.attribute.getIdentifier();
     }
 
     // TODO(DHIS2-12563): the above getter should be replaced by simply
