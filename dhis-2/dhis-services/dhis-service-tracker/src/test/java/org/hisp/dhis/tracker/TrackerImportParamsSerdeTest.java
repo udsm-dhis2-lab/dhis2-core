@@ -61,7 +61,7 @@ class TrackerImportParamsSerdeTest extends TrackerTest
         TrackerIdSchemeParams identifierParams = TrackerIdSchemeParams.builder()
             .idScheme( TrackerIdSchemeParam.CODE )
             .programIdScheme(
-                TrackerIdSchemeParam.builder().idScheme( TrackerIdScheme.ATTRIBUTE ).value( "aaaa" ).build() )
+                TrackerIdSchemeParam.builder().idScheme( TrackerIdScheme.ATTRIBUTE ).attributeUid( "aaaa" ).build() )
             .build();
         TrackerImportParams trackerImportParams = TrackerImportParams.builder()
             .idSchemes( identifierParams )
@@ -120,7 +120,7 @@ class TrackerImportParamsSerdeTest extends TrackerTest
         TrackerIdSchemeParams idSchemes = trackerImportParams.getIdSchemes();
         assertThat( idSchemes.getIdScheme(), is( TrackerIdSchemeParam.CODE ) );
         assertThat( idSchemes.getProgramIdScheme().getIdScheme(), is( TrackerIdScheme.ATTRIBUTE ) );
-        assertThat( idSchemes.getProgramIdScheme().getValue(), is( "aaaa" ) );
+        assertThat( idSchemes.getProgramIdScheme().getAttributeUid(), is( "aaaa" ) );
     }
 
     @Test
@@ -153,6 +153,6 @@ class TrackerImportParamsSerdeTest extends TrackerTest
         TrackerIdSchemeParams idSchemes = trackerImportParams.getIdSchemes();
         assertThat( idSchemes.getIdScheme(), is( TrackerIdSchemeParam.CODE ) );
         assertThat( idSchemes.getProgramIdScheme().getIdScheme(), is( TrackerIdScheme.ATTRIBUTE ) );
-        assertThat( idSchemes.getProgramIdScheme().getValue(), is( "aaaa" ) );
+        assertThat( idSchemes.getProgramIdScheme().getAttributeUid(), is( "aaaa" ) );
     }
 }
