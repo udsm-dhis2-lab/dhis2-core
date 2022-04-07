@@ -33,6 +33,7 @@ import java.util.List;
 
 import lombok.*;
 
+import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.TrackerType;
 import org.locationtech.jts.geom.Geometry;
 
@@ -67,7 +68,7 @@ public class Enrollment
     private String trackedEntity;
 
     @JsonProperty
-    private String program;
+    private MetadataIdentifier program;
 
     @JsonProperty
     private EnrollmentStatus status;
@@ -134,5 +135,33 @@ public class Enrollment
     public TrackerType getTrackerType()
     {
         return TrackerType.ENROLLMENT;
+    }
+
+    /**
+     * Used to gradually migrate code over to {@link MetadataIdentifier}. This
+     * getter will be removed in DHIS2-12563.
+     *
+     * @return identifier value of attribute
+     */
+    // TODO(DHIS2-12563) remove this one before releasing/closing this issue!
+    public String getProgram()
+    {
+        if ( this.program == null )
+        {
+            return null;
+        }
+        if ( this.program.getIdScheme() == TrackerIdScheme.ATTRIBUTE )
+        {
+            return this.program.getAttributeValue();
+        }
+        return this.program.getIdentifier();
+    }
+
+    // TODO(DHIS2-12563): the above getter should be replaced by simply
+    // returning the this.attribute
+    // this is just for transitioning
+    public MetadataIdentifier getProgramMetadataIdentifier()
+    {
+        return this.program;
     }
 }

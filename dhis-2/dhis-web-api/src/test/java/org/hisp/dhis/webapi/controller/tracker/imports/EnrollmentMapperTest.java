@@ -25,35 +25,49 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.tracker.validation.hooks;
+package org.hisp.dhis.webapi.controller.tracker.imports;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.hisp.dhis.program.Program;
-import org.hisp.dhis.tracker.domain.Enrollment;
-import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.springframework.stereotype.Component;
+import org.hisp.dhis.tracker.TrackerIdScheme;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
+import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 
-/**
- * @author Morten Svanæs <msvanaes@dhis2.org>
- */
-@Component
-public class EnrollmentGeoValidationHook
-    extends AbstractTrackerDtoValidationHook
+class EnrollmentMapperTest
 {
-    @Override
-    public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
+
+    private static final EnrollmentMapper ENROLLMENT_MAPPER = Mappers.getMapper( EnrollmentMapper.class );
+
+    @Test
+    void programIdentifierFromUID()
     {
-        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgramMetadataIdentifier() );
 
-        checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
+        TrackerIdSchemeParams params = TrackerIdSchemeParams.builder()
+            .idScheme( TrackerIdSchemeParam.CODE )
+            .build();
 
-        if ( enrollment.getGeometry() != null )
-        {
-            ValidationUtils.validateGeometry( reporter, enrollment,
-                enrollment.getGeometry(),
-                program.getFeatureType() );
-        }
+        MetadataIdentifier id = ENROLLMENT_MAPPER.from( "RiNIt1yJoge", params );
+
+        assertEquals( TrackerIdScheme.UID, id.getIdScheme() );
+        assertEquals( "RiNIt1yJoge", id.getIdentifier() );
     }
 
+    @Test
+    void programIdentifierFromAttribute()
+    {
+
+        TrackerIdSchemeParams params = TrackerIdSchemeParams.builder()
+            .idScheme( TrackerIdSchemeParam.CODE )
+            .programIdScheme( TrackerIdSchemeParam.ofAttribute( "RiNIt1yJoge" ) )
+            .build();
+
+        MetadataIdentifier id = ENROLLMENT_MAPPER.from( "clouds", params );
+
+        assertEquals( TrackerIdScheme.ATTRIBUTE, id.getIdScheme() );
+        assertEquals( "RiNIt1yJoge", id.getIdentifier() );
+        assertEquals( "clouds", id.getAttributeValue() );
+    }
 }

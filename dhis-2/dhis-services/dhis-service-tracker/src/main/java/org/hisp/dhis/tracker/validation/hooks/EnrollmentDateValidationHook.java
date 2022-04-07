@@ -56,7 +56,7 @@ public class EnrollmentDateValidationHook
     {
         validateMandatoryDates( reporter, enrollment );
 
-        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgram() );
+        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgramMetadataIdentifier() );
 
         validateEnrollmentDatesNotInFuture( reporter, program, enrollment );
 

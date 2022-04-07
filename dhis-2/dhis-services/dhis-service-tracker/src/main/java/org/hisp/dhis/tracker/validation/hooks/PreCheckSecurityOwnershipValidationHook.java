@@ -185,7 +185,7 @@ public class PreCheckSecurityOwnershipValidationHook
         Program program = strategy.isUpdateOrDelete()
             ? reporter.getBundle().getProgramInstance( enrollment.getEnrollment() )
                 .getProgram()
-            : reporter.getBundle().getPreheat().getProgram( enrollment.getProgram() );
+            : reporter.getBundle().getPreheat().getProgram( enrollment.getProgramMetadataIdentifier() );
         OrganisationUnit ownerOrgUnit = getOwnerOrganisationUnit( preheat, enrollment.getTrackedEntity(),
             enrollment.getProgram() );
 
@@ -219,6 +219,8 @@ public class PreCheckSecurityOwnershipValidationHook
 
     private OrganisationUnit getOwnerOrganisationUnit( TrackerPreheat preheat, String teiUid, String programUid )
     {
+        // TODO(DHIS2-12563) programUid does not always contain a UID; check how
+        // preheat.getProgramOwner() is populated
         Map<String, TrackedEntityProgramOwnerOrgUnit> programOwner = preheat.getProgramOwner()
             .get( teiUid );
         if ( programOwner == null || programOwner.get( programUid ) == null )

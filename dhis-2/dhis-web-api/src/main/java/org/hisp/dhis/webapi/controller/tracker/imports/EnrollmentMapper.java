@@ -27,11 +27,15 @@
  */
 package org.hisp.dhis.webapi.controller.tracker.imports;
 
+import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.TrackerIdSchemeParams;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.webapi.controller.tracker.view.Enrollment;
 import org.hisp.dhis.webapi.controller.tracker.view.InstantMapper;
 import org.mapstruct.Context;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 
 @Mapper( uses = {
     RelationshipMapper.class,
@@ -42,6 +46,20 @@ import org.mapstruct.Mapper;
     UserMapper.class } )
 interface EnrollmentMapper extends DomainMapper<Enrollment, org.hisp.dhis.tracker.domain.Enrollment>
 {
+    @Mapping( target = "program", source = "program", qualifiedByName = "toProgram" )
     org.hisp.dhis.tracker.domain.Enrollment from( Enrollment enrollment,
         @Context TrackerIdSchemeParams idSchemeParams );
+
+    @Named( "toProgram" )
+    default org.hisp.dhis.tracker.domain.MetadataIdentifier from( String identifier,
+        @Context TrackerIdSchemeParams idSchemeParams )
+    {
+
+        TrackerIdScheme idScheme = idSchemeParams.getProgramIdScheme().getIdScheme();
+        if ( idScheme == TrackerIdScheme.ATTRIBUTE )
+        {
+            return MetadataIdentifier.ofAttribute( idSchemeParams.getProgramIdScheme().getAttributeUid(), identifier );
+        }
+        return MetadataIdentifier.of( idSchemeParams.getProgramIdScheme().getIdScheme(), identifier, null );
+    }
 }

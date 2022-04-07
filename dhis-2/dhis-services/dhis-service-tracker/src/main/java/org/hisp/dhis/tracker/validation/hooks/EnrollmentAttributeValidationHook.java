@@ -77,7 +77,7 @@ public class EnrollmentAttributeValidationHook extends AttributeValidationHook
     {
         TrackerBundle bundle = reporter.getBundle();
         TrackerPreheat preheat = bundle.getPreheat();
-        Program program = preheat.getProgram( enrollment.getProgram() );
+        Program program = preheat.getProgram( enrollment.getProgramMetadataIdentifier() );
         checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
 
         TrackedEntityInstance tei = reporter.getBundle().getTrackedEntityInstance( enrollment.getTrackedEntity() );

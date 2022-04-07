@@ -122,7 +122,7 @@ public class EnrollmentTrackerConverterService
 
         checkNotNull( organisationUnit, TrackerImporterAssertErrors.ORGANISATION_UNIT_CANT_BE_NULL );
 
-        Program program = preheat.get( Program.class, enrollment.getProgram() );
+        Program program = preheat.get( Program.class, enrollment.getProgramMetadataIdentifier() );
 
         checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
 

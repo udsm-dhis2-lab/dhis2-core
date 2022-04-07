@@ -25,35 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.tracker.validation.hooks;
+package org.hisp.dhis.tracker.preheat.mappers;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.hisp.dhis.attribute.Attribute;
+import org.mapstruct.BeanMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
 
-import org.hisp.dhis.program.Program;
-import org.hisp.dhis.tracker.domain.Enrollment;
-import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.springframework.stereotype.Component;
-
-/**
- * @author Morten Svanæs <msvanaes@dhis2.org>
- */
-@Component
-public class EnrollmentGeoValidationHook
-    extends AbstractTrackerDtoValidationHook
+@Mapper( uses = { DebugMapper.class } )
+public interface AttributeMapper extends PreheatMapper<Attribute>
 {
-    @Override
-    public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
-    {
-        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgramMetadataIdentifier() );
+    AttributeMapper INSTANCE = Mappers.getMapper( AttributeMapper.class );
 
-        checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
-
-        if ( enrollment.getGeometry() != null )
-        {
-            ValidationUtils.validateGeometry( reporter, enrollment,
-                enrollment.getGeometry(),
-                program.getFeatureType() );
-        }
-    }
-
+    @BeanMapping( ignoreByDefault = true )
+    @Mapping( target = "uid" )
+    Attribute map( Attribute attribute );
 }
