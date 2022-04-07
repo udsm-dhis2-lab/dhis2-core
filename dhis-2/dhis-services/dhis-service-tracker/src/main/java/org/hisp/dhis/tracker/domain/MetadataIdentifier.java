@@ -134,6 +134,7 @@ public class MetadataIdentifier
         return new MetadataIdentifier( TrackerIdScheme.ATTRIBUTE, uid, value );
     }
 
+    // TODO(DHIS2-12563) rename since it sounds like a getter for the identifier
     public <T extends IdentifiableObject> String getIdentifier( T object )
     {
         switch ( idScheme )
@@ -156,10 +157,22 @@ public class MetadataIdentifier
         throw new RuntimeException( "Unhandled identifier type." );
     }
 
+    // TODO(DHIS2-12563) rename? is it needed?
     public <T extends IdentifiableObject> String getIdAndName( T object )
     {
         String identifier = getIdentifier( object );
         return object.getClass().getSimpleName() + " (" + identifier + ")";
+    }
+
+    // TODO(DHIS2-12563) test and doc
+    public String getIdentifierOrAttributeValue()
+    {
+
+        if ( this.idScheme == TrackerIdScheme.ATTRIBUTE )
+        {
+            return this.attributeValue;
+        }
+        return this.identifier;
     }
 
     /**

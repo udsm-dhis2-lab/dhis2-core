@@ -65,7 +65,7 @@ public class PreCheckMandatoryFieldsValidationHook
         reporter.addErrorIf( () -> StringUtils.isEmpty( enrollment.getOrgUnit() ), enrollment, E1122, ORG_UNIT );
         // TODO(DHIS2-12563) what is the structure if the JSON does not contain
         // a program? or when it contains "program": ""?
-        // would a helper on metadataidentifier help for the later?
+        // would a helper on metadata identifier help for the later?
         reporter.addErrorIf( () -> StringUtils.isEmpty( enrollment.getProgram() ), enrollment, E1122, "program" );
         reporter.addErrorIf( () -> StringUtils.isEmpty( enrollment.getTrackedEntity() ), enrollment, E1122,
             "trackedEntity" );

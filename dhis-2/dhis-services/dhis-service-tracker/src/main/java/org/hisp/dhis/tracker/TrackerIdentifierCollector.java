@@ -146,10 +146,13 @@ public class TrackerIdentifierCollector
 
     private void collectEnrollments( Map<Class<?>, Set<String>> identifiers, List<Enrollment> enrollments )
     {
+        // TODO(DHIS2-12563) create a helper to add metadata identifiers since
+        // this can cause an NPE
         enrollments.forEach( enrollment -> {
             addIdentifier( identifiers, TrackedEntity.class, enrollment.getTrackedEntity() );
             addIdentifier( identifiers, Enrollment.class, enrollment.getEnrollment() );
-            addIdentifier( identifiers, Program.class, enrollment.getProgram() );
+            addIdentifier( identifiers, Program.class,
+                enrollment.getProgramMetadataIdentifier().getIdentifierOrAttributeValue() );
             addIdentifier( identifiers, OrganisationUnit.class, enrollment.getOrgUnit() );
 
             collectNotes( identifiers, enrollment.getNotes() );

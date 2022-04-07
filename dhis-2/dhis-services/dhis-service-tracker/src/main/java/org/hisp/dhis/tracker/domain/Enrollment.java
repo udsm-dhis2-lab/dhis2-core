@@ -33,7 +33,6 @@ import java.util.List;
 
 import lombok.*;
 
-import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.TrackerType;
 import org.locationtech.jts.geom.Geometry;
 
@@ -150,11 +149,7 @@ public class Enrollment
         {
             return null;
         }
-        if ( this.program.getIdScheme() == TrackerIdScheme.ATTRIBUTE )
-        {
-            return this.program.getAttributeValue();
-        }
-        return this.program.getIdentifier();
+        return this.program.getIdentifierOrAttributeValue();
     }
 
     // TODO(DHIS2-12563): the above getter should be replaced by simply

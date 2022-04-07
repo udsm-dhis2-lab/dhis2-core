@@ -186,8 +186,12 @@ public class PreCheckSecurityOwnershipValidationHook
             ? reporter.getBundle().getProgramInstance( enrollment.getEnrollment() )
                 .getProgram()
             : reporter.getBundle().getPreheat().getProgram( enrollment.getProgramMetadataIdentifier() );
+        // TODO(DHIS2-12563) is it safe to pass the above program instead into
+        // getOwnerOrganisationUnit
+        // I replaced it with something identical to the meaning of
+        // enrollment.getProgram() which it was before
         OrganisationUnit ownerOrgUnit = getOwnerOrganisationUnit( preheat, enrollment.getTrackedEntity(),
-            enrollment.getProgram() );
+            preheat.getProgram( enrollment.getProgramMetadataIdentifier() ) );
 
         checkNotNull( user, USER_CANT_BE_NULL );
         checkNotNull( enrollment, ENROLLMENT_CANT_BE_NULL );
@@ -217,19 +221,17 @@ public class PreCheckSecurityOwnershipValidationHook
         checkWriteEnrollmentAccess( reporter, enrollment, program, ownerOrgUnit );
     }
 
-    private OrganisationUnit getOwnerOrganisationUnit( TrackerPreheat preheat, String teiUid, String programUid )
+    private OrganisationUnit getOwnerOrganisationUnit( TrackerPreheat preheat, String teiUid, Program program )
     {
-        // TODO(DHIS2-12563) programUid does not always contain a UID; check how
-        // preheat.getProgramOwner() is populated
         Map<String, TrackedEntityProgramOwnerOrgUnit> programOwner = preheat.getProgramOwner()
             .get( teiUid );
-        if ( programOwner == null || programOwner.get( programUid ) == null )
+        if ( programOwner == null || programOwner.get( program.getUid() ) == null )
         {
             return null;
         }
         else
         {
-            return programOwner.get( programUid ).getOrganisationUnit();
+            return programOwner.get( program.getUid() ).getOrganisationUnit();
         }
     }
 
@@ -319,7 +321,7 @@ public class PreCheckSecurityOwnershipValidationHook
 
         CategoryOptionCombo categoryOptionCombo = bundle.getPreheat()
             .getCategoryOptionCombo( event.getAttributeOptionCombo() );
-        OrganisationUnit ownerOrgUnit = getOwnerOrganisationUnit( preheat, teiUid, program.getUid() );
+        OrganisationUnit ownerOrgUnit = getOwnerOrganisationUnit( preheat, teiUid, program );
         // Check acting user is allowed to change existing/write event
         if ( strategy.isUpdateOrDelete() )
         {
