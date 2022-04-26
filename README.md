@@ -1,5 +1,4 @@
-./mvnw -DskipTests clean install \
-  && ./mvnw -DskipTests -f dhis-web-embedded-jetty/pom.xml jar:jar jib:dockerBuild
+./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml war:war jib:dockerBuild
 docker compose up dhis2-core db
 # Install httpie, you can thank me later
 http --auth admin:district :8080/api/me
