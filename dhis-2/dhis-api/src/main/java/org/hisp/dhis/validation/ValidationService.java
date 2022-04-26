@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.Period;
+import org.hisp.dhis.scheduling.JobProgress;
 
 /**
  * @author Jim Grace
@@ -48,13 +49,15 @@ public interface ValidationService
     int MAX_SCHEDULED_ALERTS = 100000;
 
     /**
-     * Start a validation analysis, based on the supplied parameters. See
-     * ValidationAnalysisParams for more information
+     * Start a validation analysis, based on the supplied parameters.
+     *
+     * @see ValidationAnalysisParams for more information
      *
      * @param parameters the parameters to base the analysis on.
+     * @param progress job progress tracking callback
      * @return a collection of ValidationResults found.
      */
-    List<ValidationResult> validationAnalysis( ValidationAnalysisParams parameters );
+    List<ValidationResult> validationAnalysis( ValidationAnalysisParams parameters, JobProgress progress );
 
     /**
      * Get validation rule expression details for a validation run.

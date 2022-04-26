@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,11 +55,11 @@ public class Note
     private Instant storedAt;
 
     @JsonProperty
-    private Instant updatedAt;
+    private String value;
+
+    @JsonProperty
+    private User createdBy;
 
     @JsonProperty
     private String storedBy;
-
-    @JsonProperty
-    private String value;
 }

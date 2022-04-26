@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,6 @@ package org.hisp.dhis.dxf2.metadata.objectbundle.hooks;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.dataset.Section;
@@ -42,18 +41,11 @@ import org.springframework.stereotype.Component;
  * @author Viet Nguyen <viet@dhis2.org>
  */
 @Component
-public class SectionObjectBundleHook extends AbstractObjectBundleHook
+public class SectionObjectBundleHook extends AbstractObjectBundleHook<Section>
 {
     @Override
-    public void preUpdate( IdentifiableObject object, IdentifiableObject persistedObject, ObjectBundle bundle )
+    public void preUpdate( Section section, Section persistedObject, ObjectBundle bundle )
     {
-        if ( !Section.class.isInstance( persistedObject ) )
-        {
-            return;
-        }
-
-        Section section = (Section) object;
-
         Set<DataElementOperand> returnGreyFields = new HashSet<>();
 
         for ( DataElementOperand greyField : section.getGreyedFields() )

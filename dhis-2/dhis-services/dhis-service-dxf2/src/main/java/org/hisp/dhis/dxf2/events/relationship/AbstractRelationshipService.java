@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,17 +33,16 @@ import static org.hisp.dhis.relationship.RelationshipEntity.TRACKED_ENTITY_INSTA
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.commons.collection.ListUtils;
+import org.hisp.dhis.commons.util.RelationshipUtils;
 import org.hisp.dhis.dbms.DbmsManager;
 import org.hisp.dhis.dxf2.common.ImportOptions;
 import org.hisp.dhis.dxf2.events.RelationshipParams;
@@ -54,7 +53,7 @@ import org.hisp.dhis.dxf2.events.event.Event;
 import org.hisp.dhis.dxf2.events.event.EventService;
 import org.hisp.dhis.dxf2.events.trackedentity.Relationship;
 import org.hisp.dhis.dxf2.events.trackedentity.TrackedEntityInstanceService;
-import org.hisp.dhis.dxf2.importsummary.ImportConflict;
+import org.hisp.dhis.dxf2.importsummary.ImportConflicts;
 import org.hisp.dhis.dxf2.importsummary.ImportStatus;
 import org.hisp.dhis.dxf2.importsummary.ImportSummaries;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
@@ -210,7 +209,7 @@ public abstract class AbstractRelationshipService
 
         if ( ImportReportMode.ERRORS == importOptions.getReportMode() )
         {
-            importSummaries.getImportSummaries().removeIf( is -> is.getConflicts().isEmpty() );
+            importSummaries.getImportSummaries().removeIf( is -> !is.hasConflicts() );
         }
 
         return importSummaries;
@@ -245,8 +244,6 @@ public abstract class AbstractRelationshipService
     @Transactional
     public ImportSummary addRelationship( Relationship relationship, ImportOptions importOptions )
     {
-        ImportSummary importSummary = new ImportSummary( relationship.getRelationship() );
-
         importOptions = updateImportOptions( importOptions );
 
         // Set up cache if not set already
@@ -255,11 +252,11 @@ public abstract class AbstractRelationshipService
             prepareCaches( Lists.newArrayList( relationship ), importOptions.getUser() );
         }
 
-        Set<ImportConflict> importConflicts = new HashSet<>( checkRelationship( relationship ) );
+        ImportSummary importSummary = new ImportSummary( relationship.getRelationship() );
+        checkRelationship( relationship, importSummary );
 
-        if ( !importConflicts.isEmpty() )
+        if ( importSummary.hasConflicts() )
         {
-            importSummary.setConflicts( importConflicts );
             importSummary.setStatus( ImportStatus.ERROR );
             importSummary.getImportCount().incrementIgnored();
             return importSummary;
@@ -333,23 +330,22 @@ public abstract class AbstractRelationshipService
         org.hisp.dhis.relationship.Relationship daoRelationship = relationshipService
             .getRelationship( relationship.getRelationship() );
 
-        Set<ImportConflict> importConflicts = new HashSet<>( checkRelationship( relationship ) );
+        checkRelationship( relationship, importSummary );
 
         if ( daoRelationship == null )
         {
             String message = "Relationship '" + relationship.getRelationship() + "' does not exist";
-            importConflicts.add( new ImportConflict( "Relationship", message ) );
+            importSummary.addConflict( "Relationship", message );
 
             importSummary.setStatus( ImportStatus.ERROR );
             importSummary.getImportCount().incrementIgnored();
 
-            importSummary.setConflicts( importConflicts );
             return importSummary;
         }
 
         List<String> errors = trackerAccessManager.canWrite( importOptions.getUser(), daoRelationship );
 
-        if ( !errors.isEmpty() || !importConflicts.isEmpty() )
+        if ( !errors.isEmpty() || importSummary.hasConflicts() )
         {
             importSummary.setStatus( ImportStatus.ERROR );
             importSummary.getImportCount().incrementIgnored();
@@ -358,8 +354,6 @@ public abstract class AbstractRelationshipService
             {
                 importSummary.setDescription( errors.toString() );
             }
-
-            importSummary.setConflicts( importConflicts );
             return importSummary;
         }
 
@@ -570,16 +564,13 @@ public abstract class AbstractRelationshipService
      * Checks the relationship for any conflicts, like missing or invalid
      * references.
      */
-    private List<ImportConflict> checkRelationship( Relationship relationship )
+    private void checkRelationship( Relationship relationship, ImportConflicts importConflicts )
     {
-        List<ImportConflict> conflicts = new ArrayList<>();
-
         RelationshipType relationshipType = null;
 
         if ( StringUtils.isEmpty( relationship.getRelationshipType() ) )
         {
-            conflicts
-                .add( new ImportConflict( relationship.getRelationship(), "Missing property 'relationshipType'" ) );
+            importConflicts.addConflict( relationship.getRelationship(), "Missing property 'relationshipType'" );
         }
         else
         {
@@ -588,54 +579,49 @@ public abstract class AbstractRelationshipService
 
         if ( relationship.getFrom() == null || getUidOfRelationshipItem( relationship.getFrom() ).isEmpty() )
         {
-            conflicts.add( new ImportConflict( relationship.getRelationship(), "Missing property 'from'" ) );
+            importConflicts.addConflict( relationship.getRelationship(), "Missing property 'from'" );
         }
 
         if ( relationship.getTo() == null || getUidOfRelationshipItem( relationship.getTo() ).isEmpty() )
         {
-            conflicts.add( new ImportConflict( relationship.getRelationship(), "Missing property 'to'" ) );
+            importConflicts.addConflict( relationship.getRelationship(), "Missing property 'to'" );
         }
 
         if ( relationship.getFrom().equals( relationship.getTo() ) )
         {
-            conflicts.add( new ImportConflict( relationship.getRelationship(),
-                "Self-referencing relationships are not allowed." ) );
+            importConflicts.addConflict( relationship.getRelationship(),
+                "Self-referencing relationships are not allowed." );
         }
 
-        if ( !conflicts.isEmpty() )
+        if ( importConflicts.hasConflicts() )
         {
-            return conflicts;
+            return;
         }
 
         if ( relationshipType == null )
         {
-            conflicts.add( new ImportConflict( relationship.getRelationship(),
-                "relationshipType '" + relationship.getRelationshipType() + "' not found." ) );
-            return conflicts;
+            importConflicts.addConflict( relationship.getRelationship(),
+                "relationshipType '" + relationship.getRelationshipType() + "' not found." );
+            return;
         }
 
-        conflicts.addAll(
-            getRelationshipConstraintConflicts( relationshipType.getFromConstraint(), relationship.getFrom(),
-                relationship.getRelationship() ) );
-        conflicts.addAll( getRelationshipConstraintConflicts( relationshipType.getToConstraint(), relationship.getTo(),
-            relationship.getRelationship() ) );
-
-        return conflicts;
+        addRelationshipConstraintConflicts( relationshipType.getFromConstraint(), relationship.getFrom(),
+            relationship.getRelationship(), importConflicts );
+        addRelationshipConstraintConflicts( relationshipType.getToConstraint(), relationship.getTo(),
+            relationship.getRelationship(), importConflicts );
     }
 
     /**
-     * Finds and returns any conflicts between relationship and relationship
-     * type
+     * Finds and adds any conflicts between relationship and relationship type
      *
      * @param constraint the constraint to check
      * @param relationshipItem the relationshipItem to check
      * @param relationshipUid the uid of the relationship
-     * @return a list of conflicts
      */
-    private List<ImportConflict> getRelationshipConstraintConflicts( RelationshipConstraint constraint,
-        org.hisp.dhis.dxf2.events.trackedentity.RelationshipItem relationshipItem, String relationshipUid )
+    private void addRelationshipConstraintConflicts( RelationshipConstraint constraint,
+        org.hisp.dhis.dxf2.events.trackedentity.RelationshipItem relationshipItem, String relationshipUid,
+        ImportConflicts importConflicts )
     {
-        List<ImportConflict> conflicts = new ArrayList<>();
         RelationshipEntity entity = constraint.getRelationshipEntity();
         String itemUid = getUidOfRelationshipItem( relationshipItem );
 
@@ -645,13 +631,13 @@ public abstract class AbstractRelationshipService
 
             if ( tei == null )
             {
-                conflicts.add( new ImportConflict( relationshipUid,
-                    "TrackedEntityInstance '" + itemUid + "' not found." ) );
+                importConflicts.addConflict( relationshipUid,
+                    "TrackedEntityInstance '" + itemUid + "' not found." );
             }
             else if ( !tei.getTrackedEntityType().equals( constraint.getTrackedEntityType() ) )
             {
-                conflicts.add( new ImportConflict( relationshipUid,
-                    "TrackedEntityInstance '" + itemUid + "' has invalid TrackedEntityType." ) );
+                importConflicts.addConflict( relationshipUid,
+                    "TrackedEntityInstance '" + itemUid + "' has invalid TrackedEntityType." );
             }
         }
         else if ( PROGRAM_INSTANCE.equals( entity ) )
@@ -660,13 +646,13 @@ public abstract class AbstractRelationshipService
 
             if ( pi == null )
             {
-                conflicts.add( new ImportConflict( relationshipUid,
-                    "ProgramInstance '" + itemUid + "' not found." ) );
+                importConflicts.addConflict( relationshipUid,
+                    "ProgramInstance '" + itemUid + "' not found." );
             }
             else if ( !pi.getProgram().equals( constraint.getProgram() ) )
             {
-                conflicts.add( new ImportConflict( relationshipUid,
-                    "ProgramInstance '" + itemUid + "' has invalid Program." ) );
+                importConflicts.addConflict( relationshipUid,
+                    "ProgramInstance '" + itemUid + "' has invalid Program." );
             }
         }
         else if ( PROGRAM_STAGE_INSTANCE.equals( entity ) )
@@ -675,27 +661,25 @@ public abstract class AbstractRelationshipService
 
             if ( psi == null )
             {
-                conflicts.add( new ImportConflict( relationshipUid,
-                    "ProgramStageInstance '" + itemUid + "' not found." ) );
+                importConflicts.addConflict( relationshipUid,
+                    "ProgramStageInstance '" + itemUid + "' not found." );
             }
             else
             {
                 if ( constraint.getProgram() != null &&
                     !psi.getProgramStage().getProgram().equals( constraint.getProgram() ) )
                 {
-                    conflicts.add( new ImportConflict( relationshipUid,
-                        "ProgramStageInstance '" + itemUid + "' has invalid Program." ) );
+                    importConflicts.addConflict( relationshipUid,
+                        "ProgramStageInstance '" + itemUid + "' has invalid Program." );
                 }
                 else if ( constraint.getProgramStage() != null &&
                     !psi.getProgramStage().equals( constraint.getProgramStage() ) )
                 {
-                    conflicts.add( new ImportConflict( relationshipUid,
-                        "ProgramStageInstance '" + itemUid + "' has invalid ProgramStage." ) );
+                    importConflicts.addConflict( relationshipUid,
+                        "ProgramStageInstance '" + itemUid + "' has invalid ProgramStage." );
                 }
             }
         }
-
-        return conflicts;
     }
 
     private String getUidOfRelationshipItem( org.hisp.dhis.dxf2.events.trackedentity.RelationshipItem relationshipItem )
@@ -771,6 +755,8 @@ public abstract class AbstractRelationshipService
 
         daoRelationship.setFrom( fromItem );
         daoRelationship.setTo( toItem );
+        daoRelationship.setKey( RelationshipUtils.generateRelationshipKey( daoRelationship ) );
+        daoRelationship.setInvertedKey( RelationshipUtils.generateRelationshipInvertedKey( daoRelationship ) );
 
         return daoRelationship;
     }

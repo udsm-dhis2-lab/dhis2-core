@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,8 +92,8 @@ public class DatePeriodResourceTable
 
         // TODO Create a dynamic solution instead of having fixed dates
 
-        Date startDate = new Cal( 1975, 1, 1, true ).time();
-        Date endDate = new Cal( 2025, 1, 1, true ).time();
+        Date startDate = new Cal( OLDEST_YEAR_PERIOD_SUPPORTED, 1, 1, true ).time();
+        Date endDate = new Cal( NEWEST_YEAR_PERIOD_SUPPORTED + 1, 1, 1, true ).time();
 
         List<Period> dailyPeriods = new DailyPeriodType().generatePeriods( startDate, endDate );
 

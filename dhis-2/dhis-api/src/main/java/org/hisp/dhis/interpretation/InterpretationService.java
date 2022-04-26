@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+import org.hisp.dhis.eventvisualization.EventVisualization;
 import org.hisp.dhis.mapping.Map;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.visualization.Visualization;
@@ -55,6 +56,8 @@ public interface InterpretationService
     List<Interpretation> getInterpretations();
 
     List<Interpretation> getInterpretations( Visualization visualization );
+
+    List<Interpretation> getInterpretations( EventVisualization eventVisualization );
 
     List<Interpretation> getInterpretations( Map map );
 
@@ -92,10 +95,4 @@ public interface InterpretationService
      * @return true if the current user had previously liked the interpretation.
      */
     boolean unlikeInterpretation( long id );
-
-    long countMapInterpretations( Map map );
-
-    long countVisualizationInterpretations( Visualization visualization );
-
-    Interpretation getInterpretationByVisualization( long id );
 }

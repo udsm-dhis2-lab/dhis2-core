@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@ package org.hisp.dhis.analytics;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static org.hisp.dhis.analytics.TimeField.DEFAULT_TIME_FIELDS;
 import static org.hisp.dhis.common.DimensionType.CATEGORY;
 import static org.hisp.dhis.common.DimensionType.CATEGORY_OPTION_GROUP_SET;
 import static org.hisp.dhis.common.DimensionType.DATA_X;
@@ -41,6 +42,8 @@ import static org.hisp.dhis.common.DimensionalObject.DATA_X_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.DIMENSION_SEP;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
+import static org.hisp.dhis.common.DimensionalObject.QUERY_MODS_ID_SEPARATOR;
+import static org.hisp.dhis.common.DimensionalObject.VALUE_COLUMN_NAME;
 import static org.hisp.dhis.common.DimensionalObjectUtils.asList;
 import static org.hisp.dhis.common.DimensionalObjectUtils.getList;
 
@@ -53,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -67,6 +71,7 @@ import org.hisp.dhis.common.BaseDimensionalObject;
 import org.hisp.dhis.common.CombinationGenerator;
 import org.hisp.dhis.common.DataDimensionItemType;
 import org.hisp.dhis.common.DhisApiVersion;
+import org.hisp.dhis.common.DimensionItemKeywords;
 import org.hisp.dhis.common.DimensionItemObjectValue;
 import org.hisp.dhis.common.DimensionType;
 import org.hisp.dhis.common.DimensionalItemObject;
@@ -110,14 +115,11 @@ import com.google.common.collect.Lists;
  * analytics service. Example instantiation:
  *
  * <pre>
- * {
- *     &#64;code
- *     DataQueryParams params = DataQueryParams.newBuilder()
- *         .withDataElements( deA, deB )
- *         .withOrganisationUnits( ouA, ouB )
- *         .withFilterPeriods( peA, peB )
- *         .build();
- * }
+ * DataQueryParams params = DataQueryParams.newBuilder()
+ *     .withDataElements( deA, deB )
+ *     .withOrganisationUnits( ouA, ouB )
+ *     .withFilterPeriods( peA, peB )
+ *     .build();
  * </pre>
  *
  * @author Lars Helge Overland
@@ -414,6 +416,16 @@ public class DataQueryParams
     protected transient DataType dataType;
 
     /**
+     * The value column (value column name or sub-expression).
+     */
+    protected transient String valueColumn;
+
+    /**
+     * Id of query modifiers affecting data in this query.
+     */
+    protected transient String queryModsId;
+
+    /**
      * The aggregation period type for this query.
      */
     protected transient String periodType;
@@ -489,6 +501,9 @@ public class DataQueryParams
      */
     protected transient boolean skipDataDimensionValidation = false;
 
+    protected String explainOrderId;
+
+    // -------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------
 
@@ -575,6 +590,8 @@ public class DataQueryParams
         params.partitions = new Partitions( this.partitions );
         params.tableName = this.tableName;
         params.dataType = this.dataType;
+        params.valueColumn = this.valueColumn;
+        params.queryModsId = this.queryModsId;
         params.periodType = this.periodType;
         params.dataPeriodType = this.dataPeriodType;
         params.skipPartitioning = this.skipPartitioning;
@@ -587,7 +604,19 @@ public class DataQueryParams
         params.dataApprovalLevels = new HashMap<>( this.dataApprovalLevels );
         params.skipDataDimensionValidation = this.skipDataDimensionValidation;
         params.userOrgUnitType = this.userOrgUnitType;
+        params.explainOrderId = this.explainOrderId;
+
         return params;
+    }
+
+    public String getExplainOrderId()
+    {
+        return explainOrderId;
+    }
+
+    public boolean analyzeOnly()
+    {
+        return explainOrderId != null;
     }
 
     /**
@@ -598,8 +627,10 @@ public class DataQueryParams
     {
         QueryKey key = new QueryKey();
 
-        dimensions.forEach( e -> key.add( "dimension", "[" + e.getKey() + "]" ) );
-        filters.forEach( e -> key.add( "filter", "[" + e.getKey() + "]" ) );
+        dimensions.forEach( e -> key.add( "dimension",
+            "[" + e.getKey() + "]" + getDimensionalItemKeywords( e.getDimensionItemKeywords() ) ) );
+        filters.forEach( e -> key.add( "filter",
+            "[" + e.getKey() + "]" + getDimensionalItemKeywords( e.getDimensionItemKeywords() ) ) );
 
         measureCriteria.forEach( ( k, v ) -> key.add( "measureCriteria", (String.valueOf( k ) + v) ) );
         preAggregateMeasureCriteria
@@ -634,6 +665,18 @@ public class DataQueryParams
             .add( "orgUnitField", orgUnitField )
             .add( "userOrgUnitType", userOrgUnitType )
             .addIgnoreNull( "apiVersion", apiVersion ).build();
+    }
+
+    private String getDimensionalItemKeywords( final DimensionItemKeywords keywords )
+    {
+        if ( keywords != null )
+        {
+            return keywords.getKeywords().stream()
+                .map( DimensionItemKeywords.Keyword::getKey )
+                .collect( Collectors.joining( ":" ) );
+        }
+
+        return StringUtils.EMPTY;
     }
 
     // -------------------------------------------------------------------------
@@ -854,6 +897,17 @@ public class DataQueryParams
                 DimensionType.ORGANISATION_UNIT_LEVEL, PREFIX_ORG_UNIT_LEVEL + l.getLevel(), l.getName(),
                 Lists.newArrayList() ) )
             .collect( Collectors.toList() );
+    }
+
+    /**
+     * For the data dimension only: returns the query mods id prefixed by the
+     * separator, or an empty string if there is no query mods id.
+     */
+    public String getQueryModsId( DimensionalObject dimension )
+    {
+        return (dimension.getUid().equals( DATA_X_DIM_ID ) && queryModsId != null)
+            ? QUERY_MODS_ID_SEPARATOR + queryModsId
+            : "";
     }
 
     /**
@@ -1298,6 +1352,9 @@ public class DataQueryParams
         return outputOrgUnitIdScheme != null && !IdScheme.UID.equals( outputOrgUnitIdScheme );
     }
 
+    /**
+     * Indicates whether a non-default identifier scheme is specified.
+     */
     public boolean hasCustomIdSchemaSet()
     {
         return isGeneralOutputIdSchemeSet() || isOutputDataElementIdSchemeSet() || isOutputOrgUnitIdSchemeSet();
@@ -1351,6 +1408,22 @@ public class DataQueryParams
     }
 
     /**
+     * Indicates whether this query has a start date.
+     */
+    public boolean hasStartDate()
+    {
+        return startDate != null;
+    }
+
+    /**
+     * Indicates whether this query has an end date.
+     */
+    public boolean hasEndDate()
+    {
+        return endDate != null;
+    }
+
+    /**
      * Indicates whether this query has a start and end date.
      */
     public boolean hasStartEndDate()
@@ -1391,7 +1464,7 @@ public class DataQueryParams
      */
     public boolean hasTimeField()
     {
-        return timeField != null && !TimeField.EVENT_DATE.name().equals( timeField );
+        return timeField != null && !DEFAULT_TIME_FIELDS.contains( timeField );
     }
 
     /**
@@ -1539,6 +1612,21 @@ public class DataQueryParams
         }
 
         return null;
+    }
+
+    /**
+     * Returns the data elements which category combinations have skip total
+     * enabled, and not all categories of the category combo of the given data
+     * element are specified as dimensions or filters with items.
+     */
+    public List<DataElement> getSkipTotalDataElements()
+    {
+        List<DataElement> dataElements = DimensionalObjectUtils.asTypedList( getAllDataElements() );
+
+        return dataElements.stream()
+            .filter( de -> de.getCategoryCombo().isSkipTotal() )
+            .filter( de -> !isAllCategoriesDimensionOrFilterWithItems( de ) )
+            .collect( Collectors.toList() );
     }
 
     // -------------------------------------------------------------------------
@@ -1841,6 +1929,27 @@ public class DataQueryParams
             dimension.getItems().removeAll( existing );
             dimension.getItems().addAll( options );
         }
+    }
+
+    /**
+     * Indicates whether all categories of the category combo of the given data
+     * element are specified as dimensions or filters with items.
+     *
+     * @param dataElement the {@link DataElement}.
+     * @return true if all categories of the category combo of the given data
+     *         element are specified as dimensions or filters with items.
+     */
+    private boolean isAllCategoriesDimensionOrFilterWithItems( DataElement dataElement )
+    {
+        for ( Category category : dataElement.getCategoryCombo().getCategories() )
+        {
+            if ( !hasDimensionOrFilterWithItems( category.getDimension() ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // -------------------------------------------------------------------------
@@ -2244,6 +2353,13 @@ public class DataQueryParams
         return dataType;
     }
 
+    public String getValueColumn()
+    {
+        return (valueColumn != null)
+            ? valueColumn
+            : VALUE_COLUMN_NAME;
+    }
+
     public String getPeriodType()
     {
         return periodType;
@@ -2393,6 +2509,24 @@ public class DataQueryParams
     }
 
     /**
+     * Returns all organisation units part of a dimension or filter.
+     */
+    public List<DimensionalItemObject> getAllOrganisationUnits()
+    {
+        return ImmutableList.copyOf( ListUtils.union( getOrganisationUnits(), getFilterOrganisationUnits() ) );
+    }
+
+    /**
+     * Returns all typed organisation part of a dimension or filter.
+     */
+    public List<OrganisationUnit> getAllTypedOrganisationUnits()
+    {
+        return ImmutableList.copyOf( getAllOrganisationUnits().stream()
+            .map( ou -> (OrganisationUnit) ou )
+            .collect( Collectors.toList() ) );
+    }
+
+    /**
      * Returns all data element group sets specified as dimensions or filters.
      */
     public List<DimensionalObject> getDataElementGroupSets()
@@ -2534,10 +2668,10 @@ public class DataQueryParams
     }
 
     /**
-     * Returns a single list containing a Period object based on the "startDate"
+     * Returns a single list containing a period object based on the "startDate"
      * and "endDate" dates.
      *
-     * @return a single Period list or empty list if "startDate" or "endDate" is
+     * @return a single period list or empty list if "startDate" or "endDate" is
      *         null.
      */
     public List<Period> getStartEndDatesToSingleList()
@@ -2662,6 +2796,7 @@ public class DataQueryParams
     // -------------------------------------------------------------------------
     // Builder of immutable instances
     // -------------------------------------------------------------------------
+
     /**
      * Builder for {@link DataQueryParams} instances.
      */
@@ -3156,6 +3291,18 @@ public class DataQueryParams
             return this;
         }
 
+        public Builder withValueColumn( String valueColumn )
+        {
+            this.params.valueColumn = valueColumn;
+            return this;
+        }
+
+        public Builder withQueryModsId( String queryModsId )
+        {
+            this.params.queryModsId = queryModsId;
+            return this;
+        }
+
         public Builder withStartDate( Date startDate )
         {
             this.params.startDate = startDate;
@@ -3214,6 +3361,12 @@ public class DataQueryParams
         public Builder withUserOrgUnitType( UserOrgUnitType userOrgUnitType )
         {
             this.params.userOrgUnitType = userOrgUnitType;
+            return this;
+        }
+
+        public Builder withAnalyzeOrderId()
+        {
+            this.params.explainOrderId = UUID.randomUUID().toString();
             return this;
         }
 

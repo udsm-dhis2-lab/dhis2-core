@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,13 @@
  */
 package org.hisp.dhis.dxf2.metadata.sync;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.List;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.dxf2.metadata.AtomicMode;
 import org.hisp.dhis.dxf2.metadata.MetadataImportParams;
 import org.hisp.dhis.dxf2.metadata.sync.exception.DhisVersionMismatchException;
@@ -53,32 +52,17 @@ import org.springframework.stereotype.Service;
  * @author vanyas
  */
 @Slf4j
-@Service( "org.hisp.dhis.dxf2.metadata.sync.MetadataSyncService" )
-public class DefaultMetadataSyncService
-    implements MetadataSyncService
+@Service
+@AllArgsConstructor
+public class DefaultMetadataSyncService implements MetadataSyncService
 {
-    private MetadataVersionDelegate metadataVersionDelegate;
+    private final MetadataVersionDelegate metadataVersionDelegate;
 
-    private MetadataVersionService metadataVersionService;
+    private final MetadataVersionService metadataVersionService;
 
-    private MetadataSyncDelegate metadataSyncDelegate;
+    private final MetadataSyncDelegate metadataSyncDelegate;
 
-    private MetadataSyncImportHandler metadataSyncImportHandler;
-
-    public DefaultMetadataSyncService( MetadataVersionDelegate metadataVersionDelegate,
-        MetadataVersionService metadataVersionService, MetadataSyncDelegate metadataSyncDelegate,
-        MetadataSyncImportHandler metadataSyncImportHandler )
-    {
-        checkNotNull( metadataVersionDelegate );
-        checkNotNull( metadataVersionService );
-        checkNotNull( metadataSyncDelegate );
-        checkNotNull( metadataSyncImportHandler );
-
-        this.metadataVersionDelegate = metadataVersionDelegate;
-        this.metadataVersionService = metadataVersionService;
-        this.metadataSyncDelegate = metadataSyncDelegate;
-        this.metadataSyncImportHandler = metadataSyncImportHandler;
-    }
+    private final MetadataSyncImportHandler metadataSyncImportHandler;
 
     @Override
     public MetadataSyncParams getParamsFromMap( Map<String, List<String>> parameters )

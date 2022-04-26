@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata.users;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,7 @@ package org.hisp.dhis.metadata.users;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata.users;
 
 import static org.hamcrest.CoreMatchers.is;
 
@@ -60,11 +59,11 @@ public class UserDisableTest
         userActions = new UserActions();
         loginActions = new LoginActions();
 
-        userName = DataGenerator.randomString();
+        userName = (DataGenerator.randomString()).toLowerCase();
 
         loginActions.loginAsSuperUser();
 
-        userId = userActions.addUser( "johnny", "bravo", userName, password );
+        userId = userActions.addUserFull( "johnny", "bravo", userName, password );
     }
 
     @Test
@@ -74,13 +73,13 @@ public class UserDisableTest
         loginActions.loginAsSuperUser();
 
         ApiResponse preChangeResponse = userActions.get( userId );
-        preChangeResponse.validate().statusCode( 200 ).body( "userCredentials.disabled", is( false ) );
+        preChangeResponse.validate().statusCode( 200 ).body( "disabled", is( false ) );
 
         ApiResponse response = userActions.post( userId + "/disabled", new Object(), null );
         response.validate().statusCode( 204 );
 
         ApiResponse getResponse = userActions.get( userId );
-        getResponse.validate().statusCode( 200 ).body( "userCredentials.disabled", is( true ) );
+        getResponse.validate().statusCode( 200 ).body( "disabled", is( true ) );
 
         loginActions.addAuthenticationHeader( userName, password );
         loginActions.getLoggedInUserInfo().validate().statusCode( 401 );
@@ -93,13 +92,13 @@ public class UserDisableTest
         loginActions.loginAsSuperUser();
 
         ApiResponse preChangeResponse = userActions.get( userId );
-        preChangeResponse.validate().statusCode( 200 ).body( "userCredentials.disabled", is( false ) );
+        preChangeResponse.validate().statusCode( 200 ).body( "disabled", is( false ) );
 
         ApiResponse response = userActions.post( userId + "/disabled", new Object(), null );
         response.validate().statusCode( 204 );
 
         ApiResponse getResponse = userActions.get( userId );
-        getResponse.validate().statusCode( 200 ).body( "userCredentials.disabled", is( true ) );
+        getResponse.validate().statusCode( 200 ).body( "disabled", is( true ) );
 
         loginActions.addAuthenticationHeader( userName, password );
         loginActions.getLoggedInUserInfo().validate().statusCode( 401 );
@@ -110,7 +109,7 @@ public class UserDisableTest
         enableResponse.validate().statusCode( 204 );
 
         ApiResponse getAfterEnabled = userActions.get( userId );
-        getAfterEnabled.validate().statusCode( 200 ).body( "userCredentials.disabled", is( false ) );
+        getAfterEnabled.validate().statusCode( 200 ).body( "disabled", is( false ) );
 
         loginActions.addAuthenticationHeader( userName, password );
         loginActions.getLoggedInUserInfo().validate().statusCode( 200 );

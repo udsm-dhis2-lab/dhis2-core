@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,8 +60,7 @@ public class FlywayConfig
 
         classicConfiguration.setDataSource( dataSource );
         classicConfiguration.setBaselineOnMigrate( true );
-        classicConfiguration.setOutOfOrder(
-            Boolean.parseBoolean( configurationProvider.getProperty( FLYWAY_OUT_OF_ORDER_MIGRATION ) ) );
+        classicConfiguration.setOutOfOrder( configurationProvider.isEnabled( FLYWAY_OUT_OF_ORDER_MIGRATION ) );
         classicConfiguration.setIgnoreMissingMigrations( true );
         classicConfiguration.setIgnoreFutureMigrations( false );
         classicConfiguration.setGroup( true );
@@ -69,7 +68,7 @@ public class FlywayConfig
         classicConfiguration.setMixed( true );
 
         return new DhisFlyway( classicConfiguration,
-            Boolean.parseBoolean( configurationProvider.getProperty( FLYWAY_REPAIR_BEFORE_MIGRATION ) ) );
+            configurationProvider.isEnabled( FLYWAY_REPAIR_BEFORE_MIGRATION ) );
 
     }
 

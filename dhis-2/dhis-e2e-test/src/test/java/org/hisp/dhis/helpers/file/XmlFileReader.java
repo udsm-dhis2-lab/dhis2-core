@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers.file;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,12 +25,12 @@ package org.hisp.dhis.helpers.file;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.helpers.file;
 
-import org.hisp.dhis.actions.IdGenerator;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.function.Function;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -46,10 +44,12 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-import java.io.File;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.util.function.Function;
+
+import org.hisp.dhis.actions.IdGenerator;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -60,7 +60,9 @@ public class XmlFileReader
     Document document;
 
     public XmlFileReader( File file )
-        throws ParserConfigurationException, IOException, SAXException
+        throws ParserConfigurationException,
+        IOException,
+        SAXException
     {
         document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse( file );
     }
@@ -85,7 +87,8 @@ public class XmlFileReader
 
         try
         {
-            NodeList nodes = (NodeList) xPath.evaluate( "//*[@" + propertyName + "]", document, XPathConstants.NODESET );
+            NodeList nodes = (NodeList) xPath.evaluate( "//*[@" + propertyName + "]", document,
+                XPathConstants.NODESET );
 
             for ( int i = 0; i < nodes.getLength(); i++ )
             {
@@ -106,6 +109,11 @@ public class XmlFileReader
         }
 
         return this;
+    }
+
+    @Override public FileReader replacePropertyValuesRecursivelyWith( String propertyName, String replacedValue )
+    {
+        return null;
     }
 
     @Override

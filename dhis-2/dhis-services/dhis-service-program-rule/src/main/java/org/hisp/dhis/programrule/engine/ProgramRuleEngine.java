@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,8 +50,6 @@ import org.hisp.dhis.rules.RuleEngineIntent;
 import org.hisp.dhis.rules.models.*;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 
-import com.google.api.client.util.Lists;
-
 /**
  * @author Zubair Asghar
  */
@@ -78,7 +76,7 @@ public class ProgramRuleEngine
 
     public List<RuleEffect> evaluate( ProgramInstance enrollment, Set<ProgramStageInstance> events )
     {
-        return evaluateProgramRules( enrollment, null, enrollment.getProgram(), Lists.newArrayList(),
+        return evaluateProgramRules( enrollment, null, enrollment.getProgram(), Collections.emptyList(),
             getRuleEvents( events, null ) );
     }
 
@@ -99,7 +97,7 @@ public class ProgramRuleEngine
         Set<ProgramStageInstance> events )
     {
         return evaluateProgramRules( enrollment, programStageInstance, enrollment.getProgram(),
-            Lists.newArrayList(), getRuleEvents( events, programStageInstance ) );
+            Collections.emptyList(), getRuleEvents( events, programStageInstance ) );
     }
 
     private List<RuleEffect> evaluateProgramRules( ProgramInstance enrollment,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@ package org.hisp.dhis.tracker.preheat.supplier;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.hisp.dhis.tracker.preheat.supplier.classStrategy.StrategyFor;
+import org.hisp.dhis.tracker.preheat.supplier.strategy.StrategyFor;
 
 import io.github.classgraph.AnnotationClassRef;
 import io.github.classgraph.AnnotationInfo;

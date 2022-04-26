@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,16 +27,20 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.hisp.dhis.tracker.TrackerType.ENROLLMENT;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1015;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1016;
+import static org.hisp.dhis.tracker.validation.hooks.AssertValidationErrorReporter.hasTrackerError;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramInstance;
@@ -46,27 +50,23 @@ import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.EnrollmentStatus;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
-import org.hisp.dhis.tracker.report.TrackerErrorCode;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
-public class EnrollmentInExistingValidationHookTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class EnrollmentInExistingValidationHookTest
 {
 
     private EnrollmentInExistingValidationHook hookToTest;
-
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Mock
-    private TrackerImportValidationContext validationContext;
 
     @Mock
     Enrollment enrollment;
@@ -80,7 +80,7 @@ public class EnrollmentInExistingValidationHookTest
     @Mock
     private TrackedEntityInstance trackedEntityInstance;
 
-    private ValidationErrorReporter validationErrorReporter;
+    private ValidationErrorReporter reporter;
 
     private static final String programUid = "program";
 
@@ -88,141 +88,211 @@ public class EnrollmentInExistingValidationHookTest
 
     private static final String enrollmentUid = "enrollment";
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         hookToTest = new EnrollmentInExistingValidationHook();
 
         when( bundle.getPreheat() ).thenReturn( preheat );
         when( bundle.getIdentifier() ).thenReturn( TrackerIdScheme.UID );
-        when( enrollment.getProgram() ).thenReturn( programUid );
+        when( enrollment.getProgram() ).thenReturn( MetadataIdentifier.ofUid( programUid ) );
         when( enrollment.getTrackedEntity() ).thenReturn( trackedEntity );
         when( enrollment.getStatus() ).thenReturn( EnrollmentStatus.ACTIVE );
         when( enrollment.getEnrollment() ).thenReturn( enrollmentUid );
+        when( enrollment.getUid() ).thenReturn( enrollmentUid );
+        when( enrollment.getTrackerType() ).thenCallRealMethod();
 
-        when( validationContext.getTrackedEntityInstance( trackedEntity ) ).thenReturn( trackedEntityInstance );
+        when( bundle.getTrackedEntityInstance( trackedEntity ) ).thenReturn( trackedEntityInstance );
         when( trackedEntityInstance.getUid() ).thenReturn( trackedEntity );
-
-        when( validationContext.getBundle() ).thenReturn( bundle );
 
         Program program = new Program();
         program.setOnlyEnrollOnce( false );
         program.setUid( programUid );
 
-        when( validationContext.getProgram( programUid ) ).thenReturn( program );
-        validationErrorReporter = new ValidationErrorReporter( validationContext );
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
+        reporter = new ValidationErrorReporter( bundle );
     }
 
     @Test
-    public void shouldExitCancelledStatus()
+    void shouldExitCancelledStatus()
     {
         when( enrollment.getStatus() ).thenReturn( EnrollmentStatus.CANCELLED );
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        hookToTest.validateEnrollment( reporter, enrollment );
 
-        verify( validationContext, times( 0 ) ).getProgram( programUid );
-    }
-
-    @Test( expected = NullPointerException.class )
-    public void shouldThrowProgramNotFound()
-    {
-        when( enrollment.getProgram() ).thenReturn( null );
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        verify( preheat, times( 0 ) ).getProgram( programUid );
     }
 
     @Test
-    public void shouldExitProgramOnlyEnrollOnce()
+    void shouldThrowProgramNotFound()
+    {
+        when( enrollment.getProgram() ).thenReturn( null );
+        assertThrows( NullPointerException.class,
+            () -> hookToTest.validateEnrollment( reporter, enrollment ) );
+    }
+
+    @Test
+    void shouldExitProgramOnlyEnrollOnce()
     {
         Program program = new Program();
         program.setOnlyEnrollOnce( false );
-
-        when( validationContext.getProgram( programUid ) ).thenReturn( program );
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
         when( enrollment.getStatus() ).thenReturn( EnrollmentStatus.COMPLETED );
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
 
-        verify( validationContext.getBundle(), times( 0 ) ).getPreheat();
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertFalse( reporter.hasErrors() );
     }
 
-    @Test( expected = NullPointerException.class )
-    public void shouldThrowTrackedEntityNotFound()
+    @Test
+    void shouldThrowTrackedEntityNotFound()
     {
         Program program = new Program();
         program.setOnlyEnrollOnce( true );
 
-        when( validationContext.getProgram( programUid ) ).thenReturn( program );
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
 
         when( enrollment.getTrackedEntity() ).thenReturn( null );
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        assertThrows( NullPointerException.class,
+            () -> hookToTest.validateEnrollment( reporter, enrollment ) );
     }
 
     @Test
-    public void shouldPassValidation()
+    void shouldPassValidation()
     {
         Program program = new Program();
         program.setOnlyEnrollOnce( true );
 
-        when( validationContext.getProgram( programUid ) ).thenReturn( program );
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
 
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void shouldFailEnrollmentAlreadyInPayload()
+    void shouldFailActiveEnrollmentAlreadyInPayload()
     {
-
         setEnrollmentInPayload( EnrollmentStatus.ACTIVE );
 
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        hookToTest.validateEnrollment( reporter, enrollment );
 
-        assertTrue( validationErrorReporter.hasErrors() );
-        assertEquals( 2, validationErrorReporter.getReportList().size() );
+        assertTrue( reporter.hasErrors() );
+        assertEquals( 1, reporter.getReportList().size() );
 
-        assertThat( validationErrorReporter.getReportList(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1015 ) ) ) );
-
-        assertThat( validationErrorReporter.getReportList(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1016 ) ) ) );
-
+        hasTrackerError( reporter, E1015, ENROLLMENT, enrollment.getUid() );
     }
 
     @Test
-    public void shouldFailEnrollmentAlreadyInDb()
+    void shouldFailNotActiveEnrollmentAlreadyInPayloadAndEnrollOnce()
     {
+        Program program = new Program();
+        program.setUid( programUid );
+        program.setOnlyEnrollOnce( true );
 
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
+        setEnrollmentInPayload( EnrollmentStatus.COMPLETED );
+
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertTrue( reporter.hasErrors() );
+        assertEquals( 1, reporter.getReportList().size() );
+
+        hasTrackerError( reporter, E1016, ENROLLMENT, enrollment.getUid() );
+    }
+
+    @Test
+    void shouldPassNotActiveEnrollmentAlreadyInPayloadAndNotEnrollOnce()
+    {
+        setEnrollmentInPayload( EnrollmentStatus.COMPLETED );
+
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertFalse( reporter.hasErrors() );
+    }
+
+    @Test
+    void shouldFailActiveEnrollmentAlreadyInDb()
+    {
         setTeiInDb();
 
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        hookToTest.validateEnrollment( reporter, enrollment );
 
-        assertTrue( validationErrorReporter.hasErrors() );
-        assertEquals( 2, validationErrorReporter.getReportList().size() );
+        assertTrue( reporter.hasErrors() );
+        assertEquals( 1, reporter.getReportList().size() );
 
-        assertThat( validationErrorReporter.getReportList(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1015 ) ) ) );
-
-        assertThat( validationErrorReporter.getReportList(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1016 ) ) ) );
-
+        hasTrackerError( reporter, E1015, ENROLLMENT, enrollment.getUid() );
     }
 
     @Test
-    public void shouldFailWithPriorityInPayload()
+    void shouldFailNotActiveEnrollmentAlreadyInDbAndEnrollOnce()
     {
+        Program program = new Program();
+        program.setUid( programUid );
+        program.setOnlyEnrollOnce( true );
 
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
+        setTeiInDb( ProgramStatus.COMPLETED );
+
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertTrue( reporter.hasErrors() );
+        assertEquals( 1, reporter.getReportList().size() );
+        hasTrackerError( reporter, E1016, ENROLLMENT, enrollment.getUid() );
+    }
+
+    @Test
+    void shouldPassNotActiveEnrollmentAlreadyInDbAndNotEnrollOnce()
+    {
+        setTeiInDb( ProgramStatus.COMPLETED );
+
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertFalse( reporter.hasErrors() );
+    }
+
+    @Test
+    void shouldFailAnotherEnrollmentAndEnrollOnce()
+    {
+        Program program = new Program();
+        program.setUid( programUid );
+        program.setOnlyEnrollOnce( true );
+
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
         setEnrollmentInPayload( EnrollmentStatus.COMPLETED );
         setTeiInDb();
 
-        hookToTest.validateEnrollment( validationErrorReporter, enrollment );
+        hookToTest.validateEnrollment( reporter, enrollment );
 
-        assertTrue( validationErrorReporter.hasErrors() );
-        assertEquals( 1, validationErrorReporter.getReportList().size() );
+        assertTrue( reporter.hasErrors() );
+        assertEquals( 1, reporter.getReportList().size() );
+        hasTrackerError( reporter, E1016, ENROLLMENT, enrollment.getUid() );
+    }
 
-        assertThat( validationErrorReporter.getReportList(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1016 ) ) ) );
+    @Test
+    void shouldPassWhenAnotherEnrollmentAndNotEnrollOnce()
+    {
+        Program program = new Program();
+        program.setUid( programUid );
+        program.setOnlyEnrollOnce( false );
+
+        when( preheat.getProgram( MetadataIdentifier.ofUid( programUid ) ) ).thenReturn( program );
+        setEnrollmentInPayload( EnrollmentStatus.COMPLETED );
+        setTeiInDb();
+
+        hookToTest.validateEnrollment( reporter, enrollment );
+
+        assertFalse( reporter.hasErrors() );
 
     }
 
     private void setTeiInDb()
     {
-        when( preheat.getTrackedEntityToProgramInstanceMap() ).thenReturn( new HashMap<String, List<ProgramInstance>>()
+        setTeiInDb( ProgramStatus.ACTIVE );
+    }
+
+    private void setTeiInDb( ProgramStatus programStatus )
+    {
+        when( preheat.getTrackedEntityToProgramInstanceMap() ).thenReturn( new HashMap<>()
         {
             {
                 ProgramInstance programInstance = new ProgramInstance();
@@ -231,7 +301,7 @@ public class EnrollmentInExistingValidationHookTest
                 program.setUid( programUid );
 
                 programInstance.setUid( "another_enrollment" );
-                programInstance.setStatus( ProgramStatus.ACTIVE );
+                programInstance.setStatus( programStatus );
                 programInstance.setProgram( program );
 
                 put( trackedEntity, Collections.singletonList( programInstance ) );
@@ -241,11 +311,12 @@ public class EnrollmentInExistingValidationHookTest
 
     private void setEnrollmentInPayload( EnrollmentStatus enrollmentStatus )
     {
-        Enrollment enrollmentInBundle = new Enrollment();
-        enrollmentInBundle.setProgram( programUid );
-        enrollmentInBundle.setTrackedEntity( trackedEntity );
-        enrollmentInBundle.setEnrollment( "another_enrollment" );
-        enrollmentInBundle.setStatus( enrollmentStatus );
+        Enrollment enrollmentInBundle = Enrollment.builder()
+            .enrollment( "another_enrollment" )
+            .program( MetadataIdentifier.ofUid( programUid ) )
+            .trackedEntity( trackedEntity )
+            .status( enrollmentStatus )
+            .build();
 
         when( bundle.getEnrollments() ).thenReturn( Collections.singletonList( enrollmentInBundle ) );
     }

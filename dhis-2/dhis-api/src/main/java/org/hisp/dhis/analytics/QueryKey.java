@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,16 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * @author Lars Helge Overland
  */
 public class QueryKey
 {
+    // Null Value
+    public static final String NV = "NV";
+
     private static final char VALUE_SEP = ':';
 
     private static final char COMPONENT_SEP = '-';
@@ -57,7 +60,7 @@ public class QueryKey
      */
     public QueryKey add( String property, Object value )
     {
-        String keyComponent = property + VALUE_SEP + String.valueOf( value );
+        String keyComponent = property + VALUE_SEP + value;
         this.keyComponents.add( keyComponent );
         return this;
     }

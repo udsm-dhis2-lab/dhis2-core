@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,7 @@
  */
 package org.hisp.dhis.webapi.filter;
 
-import static org.hisp.dhis.external.conf.ConfigurationKey.MONITORING_LOG_REQUESTID_ENABLED;
-import static org.hisp.dhis.external.conf.ConfigurationKey.MONITORING_LOG_REQUESTID_HASHALGO;
-import static org.hisp.dhis.external.conf.ConfigurationKey.MONITORING_LOG_REQUESTID_MAXSIZE;
+import static org.hisp.dhis.external.conf.ConfigurationKey.LOGGING_REQUEST_ID_ENABLED;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -58,30 +56,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Slf4j
 @Component
 public class RequestIdentifierFilter
-    extends
-    OncePerRequestFilter
+    extends OncePerRequestFilter
 {
-    private final static String SESSION_ID_KEY = "sessionId";
+    private static final String SESSION_ID_KEY = "sessionId";
 
     /**
-     * The hash algorithm to use (default is SHA-256)
+     * The hash algorithm to use.
      */
-    private final String hashAlgo;
+    private static final String HASH_ALGO = "SHA-256";
 
-    /**
-     * Set the maximum length of the String used as request id
-     */
-    private final int maxSize;
-
-    private final static String IDENTIFIER_PREFIX = "ID";
+    private static final String IDENTIFIER_PREFIX = "ID";
 
     private final boolean enabled;
 
     public RequestIdentifierFilter( DhisConfigurationProvider dhisConfig )
     {
-        this.hashAlgo = dhisConfig.getProperty( MONITORING_LOG_REQUESTID_HASHALGO );
-        this.maxSize = Integer.parseInt( dhisConfig.getProperty( MONITORING_LOG_REQUESTID_MAXSIZE ) );
-        this.enabled = dhisConfig.isEnabled( MONITORING_LOG_REQUESTID_ENABLED );
+        this.enabled = dhisConfig.isEnabled( LOGGING_REQUEST_ID_ENABLED );
     }
 
     @Override
@@ -93,29 +83,23 @@ public class RequestIdentifierFilter
         {
             try
             {
-                MDC.put( SESSION_ID_KEY, IDENTIFIER_PREFIX + truncate( hashToBase64( req.getSession().getId() ) ) );
+                MDC.put( SESSION_ID_KEY, IDENTIFIER_PREFIX + hashToBase64( req.getSession().getId() ) );
 
             }
             catch ( NoSuchAlgorithmException e )
             {
-                log.error( String.format( "Invalid Hash algorithm provided (%s)", hashAlgo ), e );
+                log.error( String.format( "Invalid Hash algorithm provided (%s)", HASH_ALGO ), e );
             }
         }
 
         chain.doFilter( req, res );
     }
 
-    private String truncate( String id )
-    {
-        // only truncate if MAX SIZE <> -1
-        return id.substring( 0, (this.maxSize == -1 ? id.length() : this.maxSize) );
-    }
-
     private String hashToBase64( String sessionId )
         throws NoSuchAlgorithmException
     {
         byte[] data = sessionId.getBytes();
-        MessageDigest digester = MessageDigest.getInstance( hashAlgo );
+        MessageDigest digester = MessageDigest.getInstance( HASH_ALGO );
         digester.update( data );
         return Base64.getEncoder().encodeToString( digester.digest() );
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,8 +29,8 @@ package org.hisp.dhis.webapi.json.domain;
 
 import java.time.LocalDateTime;
 
-import org.hisp.dhis.webapi.json.JsonDate;
-import org.hisp.dhis.webapi.json.JsonObject;
+import org.hisp.dhis.jsontree.JsonDate;
+import org.hisp.dhis.jsontree.JsonObject;
 
 /**
  * Web API equivalent of a {@link org.hisp.dhis.dataanalysis.FollowupValue}.
@@ -67,6 +67,11 @@ public interface JsonFollowupValue extends JsonObject
     default String getPe()
     {
         return getString( "pe" ).string();
+    }
+
+    default String getPeName()
+    {
+        return getString( "peName" ).string();
     }
 
     default String getPeType()

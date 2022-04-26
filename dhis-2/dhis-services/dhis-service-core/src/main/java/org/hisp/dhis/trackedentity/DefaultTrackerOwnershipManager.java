@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.hibernate.Hibernate;
 import org.hisp.dhis.cache.Cache;
 import org.hisp.dhis.cache.CacheProvider;
 import org.hisp.dhis.dxf2.events.event.EventContext;
@@ -50,7 +51,9 @@ import org.hisp.dhis.program.ProgramTempOwner;
 import org.hisp.dhis.program.ProgramTempOwnerService;
 import org.hisp.dhis.program.ProgramTempOwnershipAudit;
 import org.hisp.dhis.program.ProgramTempOwnershipAuditService;
+import org.hisp.dhis.program.ProgramType;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.AccessDeniedException;
@@ -62,7 +65,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service( "org.hisp.dhis.trackedentity.TrackerOwnershipManager" )
-public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
+public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager, CurrentUserServiceTarget
 {
     private static final int TEMPORARY_OWNERSHIP_VALIDITY_IN_HOURS = 3;
 
@@ -116,11 +119,7 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
         this.tempOwnerCache = cacheProvider.createProgramTempOwnerCache();
     }
 
-    /**
-     * Used only by test harness. Remove after test refactor.
-     *
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -172,6 +171,8 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
             {
                 trackedEntityProgramOwnerService.createTrackedEntityProgramOwner( entityInstance, program, orgUnit );
             }
+
+            ownerCache.invalidate( getOwnershipCacheKey( () -> entityInstance.getId(), program ) );
         }
         else
         {
@@ -215,6 +216,8 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
                 trackedEntityProgramOwnerService.createTrackedEntityProgramOwner( entityInstance, program,
                     organisationUnit );
             }
+
+            ownerCache.invalidate( getOwnershipCacheKey( () -> entityInstance.getId(), program ) );
         }
         else
         {
@@ -273,22 +276,20 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
 
     @Override
     @Transactional( readOnly = true )
-    public boolean hasAccess( User user, String entityInstance, OrganisationUnit organisationUnit, Program program )
+    public boolean hasAccess( User user, String entityInstance, OrganisationUnit owningOrgUnit, Program program )
     {
-        if ( canSkipOwnershipCheck( user, program ) || entityInstance == null )
+        if ( canSkipOwnershipCheck( user, program ) || entityInstance == null || owningOrgUnit == null )
         {
             return true;
         }
 
-        OrganisationUnit ou = getOwnerExpanded( entityInstance, organisationUnit, program );
-
         if ( program.isOpen() || program.isAudited() )
         {
-            return organisationUnitService.isInUserSearchHierarchyCached( user, ou );
+            return organisationUnitService.isInUserSearchHierarchyCached( user, owningOrgUnit );
         }
         else
         {
-            return organisationUnitService.isInUserHierarchyCached( user, ou )
+            return organisationUnitService.isInUserHierarchyCached( user, owningOrgUnit )
                 || hasTemporaryAccessWithUid( entityInstance, program, user );
         }
     }
@@ -332,7 +333,13 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
     @Override
     public boolean canSkipOwnershipCheck( User user, Program program )
     {
-        return user == null || user.isSuper() || program == null || program.isWithoutRegistration();
+        return program == null || canSkipOwnershipCheck( user, program.getProgramType() );
+    }
+
+    @Override
+    public boolean canSkipOwnershipCheck( User user, ProgramType programType )
+    {
+        return user == null || user.isSuper() || ProgramType.WITHOUT_REGISTRATION == programType;
     }
 
     // -------------------------------------------------------------------------
@@ -357,7 +364,7 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
                 ou = trackedEntityProgramOwner.getOrganisationUnit();
             }
             return ou;
-        } ).get();
+        } );
     }
 
     /**
@@ -378,10 +385,40 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
                     entityInstanceId, program.getId() );
 
             return Optional.ofNullable( trackedEntityProgramOwner )
-                .map( TrackedEntityProgramOwner::getOrganisationUnit )
+                .map( tepo -> {
+                    return recursivelyInitializeOrgUnit( tepo.getOrganisationUnit() );
+                } )
                 .orElseGet( orgUnitIfMissingSupplier );
 
-        } ).get();
+        } );
+    }
+
+    /**
+     * This method initializes the OrganisationUnit passed on in the arguments.
+     * All the parent OrganisationUnits are also recurseively initialized. This
+     * is done to be able to serialize and deserialize the ownership orgUnit
+     * into redis cache.
+     *
+     *
+     * @param organisationUnit
+     * @return
+     */
+    private OrganisationUnit recursivelyInitializeOrgUnit( OrganisationUnit organisationUnit )
+    {
+        // TODO: Modify the {@link
+        // OrganisationUnit#isDescendant(OrganisationUnit)} and {@link
+        // OrganisationUnit#isDescendant(Set)}
+        // methods to use path parameter instead of recursively visiting the
+        // parent OrganisationUnits.
+
+        Hibernate.initialize( organisationUnit );
+        OrganisationUnit current = organisationUnit;
+        while ( current.getParent() != null )
+        {
+            Hibernate.initialize( current.getParent() );
+            current = current.getParent();
+        }
+        return organisationUnit;
     }
 
     /**
@@ -402,7 +439,7 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
         return tempOwnerCache
             .get( getTempOwnershipCacheKey( entityInstance.getUid(), program.getUid(), user.getUid() ), s -> {
                 return (programTempOwnerService.getValidTempOwnerRecordCount( program, entityInstance, user ) > 0);
-            } ).orElse( false );
+            } );
     }
 
     private boolean hasTemporaryAccessWithUid( String entityInstanceUid, Program program, User user )
@@ -421,7 +458,7 @@ public class DefaultTrackerOwnershipManager implements TrackerOwnershipManager
                     return true;
                 }
                 return (programTempOwnerService.getValidTempOwnerRecordCount( program, entityInstance, user ) > 0);
-            } ).orElse( false );
+            } );
     }
 
     /**

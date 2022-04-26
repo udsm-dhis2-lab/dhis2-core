@@ -1,7 +1,5 @@
-package org.hisp.dhis.tracker.teis;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +25,13 @@ package org.hisp.dhis.tracker.teis;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.tracker.teis;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
+
+import java.io.File;
+
 import org.hamcrest.Matchers;
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
@@ -42,10 +44,8 @@ import org.hisp.dhis.helpers.file.FileReaderUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
-
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -70,7 +70,8 @@ public class TEIimportTest
         enrollmentActions = new RestApiActions( "/enrollments" );
 
         new LoginActions().loginAsSuperUser();
-        object = new FileReaderUtils().read( new File( "src/test/resources/tracker/teis/teisWithEventsAndEnrollments.json" ) )
+        object = new FileReaderUtils()
+            .read( new File( "src/test/resources/tracker/teis/teisWithEventsAndEnrollments.json" ) )
             .get( JsonObject.class );
         teiActions.post( object ).validate().statusCode( 200 );
     }
@@ -110,17 +111,17 @@ public class TEIimportTest
                 "status", Matchers.equalTo( "SUCCESS" ),
                 "reference", notNullValue(),
                 "importCount.deleted", Matchers.equalTo( 1 ),
-                "description", Matchers.stringContainsInOrder( "Deletion of event", "was successful" )
-            )
-            .extract().path( "response.importSummaries[0].enrollments.importSummaries[0].events.importSummaries[0].reference" );
+                "description", Matchers.stringContainsInOrder( "Deletion of event", "was successful" ) )
+            .extract()
+            .path( "response.importSummaries[0].enrollments.importSummaries[0].events.importSummaries[0].reference" );
 
         String enrollmentId = response.validate()
             .rootPath( "response.importSummaries[1].enrollments.importSummaries[0]" )
             .body(
                 "status", Matchers.equalTo( "SUCCESS" ),
                 "reference", notNullValue(),
-                "importCount.updated", Matchers.equalTo( 1 )
-            ).extract().path( "response.importSummaries[1].enrollments.importSummaries[0].reference" );
+                "importCount.updated", Matchers.equalTo( 1 ) )
+            .extract().path( "response.importSummaries[1].enrollments.importSummaries[0].reference" );
 
         // check if updates on event and enrollment were done.
 

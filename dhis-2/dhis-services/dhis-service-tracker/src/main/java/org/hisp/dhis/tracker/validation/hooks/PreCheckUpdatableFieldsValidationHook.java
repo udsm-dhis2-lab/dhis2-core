@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,9 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static org.hisp.dhis.tracker.report.TrackerErrorCode.*;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1126;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1127;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1128;
 
 import lombok.RequiredArgsConstructor;
 
@@ -42,7 +44,6 @@ import org.hisp.dhis.tracker.domain.Event;
 import org.hisp.dhis.tracker.domain.Relationship;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -57,42 +58,38 @@ public class PreCheckUpdatableFieldsValidationHook
     public void validateTrackedEntity( ValidationErrorReporter reporter,
         TrackedEntity trackedEntity )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
-        TrackedEntityInstance trackedEntityInstance = context
+        TrackedEntityInstance trackedEntityInstance = reporter.getBundle()
             .getTrackedEntityInstance( trackedEntity.getTrackedEntity() );
 
-        addErrorIf( () -> !trackedEntityInstance.getTrackedEntityType().getUid()
-            .equals( trackedEntity.getTrackedEntityType() ), reporter, E1126, "trackedEntityType" );
+        reporter.addErrorIf( () -> !trackedEntityInstance.getTrackedEntityType().getUid()
+            .equals( trackedEntity.getTrackedEntityType() ), trackedEntity, E1126, "trackedEntityType" );
     }
 
     @Override
     public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
-        ProgramInstance pi = context.getProgramInstance( enrollment.getEnrollment() );
+        ProgramInstance pi = reporter.getBundle().getProgramInstance( enrollment.getEnrollment() );
         Program program = pi.getProgram();
         TrackedEntityInstance trackedEntityInstance = pi.getEntityInstance();
 
-        addErrorIf( () -> !program.getUid().equals( enrollment.getProgram() ), reporter, E1127, "program" );
-        addErrorIf( () -> !trackedEntityInstance.getUid().equals( enrollment.getTrackedEntity() ), reporter, E1127,
-            "trackedEntity" );
+        reporter.addErrorIf( () -> !enrollment.getProgram().isEqualTo( program ), enrollment, E1127,
+            "program" );
+        reporter.addErrorIf( () -> !trackedEntityInstance.getUid().equals( enrollment.getTrackedEntity() ), enrollment,
+            E1127, "trackedEntity" );
     }
 
     @Override
     public void validateEvent( ValidationErrorReporter reporter, Event event )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
-        ProgramStageInstance programStageInstance = context.getProgramStageInstance( event.getEvent() );
+        ProgramStageInstance programStageInstance = reporter.getBundle().getProgramStageInstance( event.getEvent() );
         ProgramStage programStage = programStageInstance.getProgramStage();
         ProgramInstance programInstance = programStageInstance.getProgramInstance();
 
-        addErrorIf( () -> !event.getProgramStage().equals( programStage.getUid() ), reporter, E1128,
+        reporter.addErrorIf( () -> !event.getProgramStage().isEqualTo( programStage ), event, E1128,
             "programStage" );
-        addErrorIf( () -> !event.getEnrollment().equals( programInstance.getUid() ), reporter, E1128,
-            "enrollment" );
+        reporter.addErrorIf(
+            () -> event.getEnrollment() != null && !event.getEnrollment().equals( programInstance.getUid() ),
+            event, E1128, "enrollment" );
     }
 
     @Override

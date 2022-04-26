@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,14 +28,26 @@
 package org.hisp.dhis.webapi.controller.user;
 
 import static org.hisp.dhis.common.IdentifiableObjectUtils.getUids;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.conflict;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.created;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.error;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.importReport;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.validateAndThrowErrors;
+import static org.springframework.beans.BeanUtils.copyProperties;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
+import static org.springframework.http.MediaType.TEXT_XML_VALUE;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -46,6 +58,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.attribute.AttributeValue;
 import org.hisp.dhis.common.CodeGenerator;
+import org.hisp.dhis.common.DhisApiVersion;
 import org.hisp.dhis.common.MergeMode;
 import org.hisp.dhis.common.Pager;
 import org.hisp.dhis.commons.collection.CollectionUtils;
@@ -53,17 +66,18 @@ import org.hisp.dhis.dxf2.common.TranslateParams;
 import org.hisp.dhis.dxf2.metadata.MetadataImportParams;
 import org.hisp.dhis.dxf2.metadata.feedback.ImportReport;
 import org.hisp.dhis.dxf2.metadata.feedback.ImportReportMode;
+import org.hisp.dhis.dxf2.webmessage.WebMessage;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.feedback.ObjectReport;
 import org.hisp.dhis.feedback.Status;
-import org.hisp.dhis.feedback.TypeReport;
 import org.hisp.dhis.fieldfilter.Defaults;
 import org.hisp.dhis.hibernate.exception.CreateAccessDeniedException;
 import org.hisp.dhis.hibernate.exception.UpdateAccessDeniedException;
 import org.hisp.dhis.importexport.ImportStrategy;
 import org.hisp.dhis.node.types.RootNode;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
+import org.hisp.dhis.patch.Mutation;
+import org.hisp.dhis.patch.Patch;
 import org.hisp.dhis.query.Order;
 import org.hisp.dhis.query.Pagination;
 import org.hisp.dhis.query.Query;
@@ -73,11 +87,13 @@ import org.hisp.dhis.schema.descriptors.UserSchemaDescriptor;
 import org.hisp.dhis.security.RestoreOptions;
 import org.hisp.dhis.security.SecurityService;
 import org.hisp.dhis.system.util.ValidationUtils;
+import org.hisp.dhis.user.CurrentUser;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.UserCredentialsDto;
 import org.hisp.dhis.user.UserGroupService;
 import org.hisp.dhis.user.UserInvitationStatus;
 import org.hisp.dhis.user.UserQueryParams;
+import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.UserSetting;
 import org.hisp.dhis.user.UserSettingKey;
@@ -92,9 +108,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -235,36 +254,32 @@ public class UserController
         List<User> users = Lists.newArrayList();
         Optional<User> user = Optional.ofNullable( userService.getUser( uid ) );
 
-        if ( user.isPresent() )
-        {
-            users.add( user.get() );
-        }
+        user.ifPresent( users::add );
 
         return users;
     }
 
     @Override
-    @RequestMapping( value = "/{uid}/{property}", method = RequestMethod.GET )
+    @GetMapping( "/{uid}/{property}" )
     public @ResponseBody RootNode getObjectProperty(
         @PathVariable( "uid" ) String pvUid, @PathVariable( "property" ) String pvProperty,
         @RequestParam Map<String, String> rpParameters,
         TranslateParams translateParams,
+        @CurrentUser User currentUser,
         HttpServletResponse response )
         throws Exception
     {
         if ( !"dataApprovalWorkflows".equals( pvProperty ) )
         {
-            return super.getObjectProperty( pvUid, pvProperty, rpParameters, translateParams, response );
+            return super.getObjectProperty( pvUid, pvProperty, rpParameters, translateParams, currentUser, response );
         }
 
         User user = userService.getUser( pvUid );
 
         if ( user == null || user.getUserCredentials() == null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "User not found: " + pvUid ) );
+            throw new WebMessageException( conflict( "User not found: " + pvUid ) );
         }
-
-        User currentUser = currentUserService.getCurrentUser();
 
         if ( !aclService.canRead( currentUser, user ) )
         {
@@ -279,76 +294,112 @@ public class UserController
     // -------------------------------------------------------------------------
 
     @Override
-    @RequestMapping( method = RequestMethod.POST, consumes = { "application/xml", "text/xml" } )
-    public void postXmlObject( HttpServletRequest request, HttpServletResponse response )
+    @PostMapping( consumes = { APPLICATION_XML_VALUE, TEXT_XML_VALUE } )
+    @ResponseBody
+    public WebMessage postXmlObject( HttpServletRequest request )
         throws Exception
     {
-        postObject( request, response, renderService.fromXml( request.getInputStream(), getEntityClass() ) );
+        return postObject( renderService.fromXml( request.getInputStream(), getEntityClass() ) );
     }
 
     @Override
-    @RequestMapping( method = RequestMethod.POST, consumes = "application/json" )
-    public void postJsonObject( HttpServletRequest request, HttpServletResponse response )
+    @PostMapping( consumes = APPLICATION_JSON_VALUE )
+    @ResponseBody
+    public WebMessage postJsonObject( HttpServletRequest request )
         throws Exception
     {
-        postObject( request, response, renderService.fromJson( request.getInputStream(), getEntityClass() ) );
+        return postObject( renderService.fromJson( request.getInputStream(), getEntityClass() ) );
     }
 
-    private void postObject( HttpServletRequest request, HttpServletResponse response, User user )
+    private WebMessage postObject( User user )
         throws WebMessageException
     {
+        populateUserCredentialsDtoFields( user );
+
         User currentUser = currentUserService.getCurrentUser();
 
         validateCreateUser( user, currentUser );
 
-        postObject( request, response, getObjectReport( createUser( user, currentUser ) ) );
+        return postObject( getObjectReport( createUser( user, currentUser ) ) );
     }
 
-    @RequestMapping( value = INVITE_PATH, method = RequestMethod.POST, consumes = "application/json" )
-    public void postJsonInvite( HttpServletRequest request, HttpServletResponse response )
+    private void populateUserCredentialsDtoFields( User user )
+    {
+        UserCredentialsDto userCredentialsRaw = user.getUserCredentialsRaw();
+        if ( userCredentialsRaw != null )
+        {
+            copyProperties( userCredentialsRaw, user, KEY_PASSWORD, "userRoles" );
+            if ( userCredentialsRaw.getPassword() != null )
+            {
+                user.setPassword( userCredentialsRaw.getPassword() );
+            }
+
+            Set<UserRole> userRoles = userCredentialsRaw.getUserRoles();
+            if ( userRoles != null )
+            {
+                user.setUserRoles( userRoles );
+            }
+        }
+    }
+
+    @PostMapping( value = INVITE_PATH, consumes = APPLICATION_JSON_VALUE )
+    @ResponseBody
+    public WebMessage postJsonInvite( HttpServletRequest request )
         throws Exception
     {
-        postInvite( request, response, renderService.fromJson( request.getInputStream(), getEntityClass() ) );
+        User user = renderService.fromJson( request.getInputStream(), getEntityClass() );
+        return postInvite( request, user );
     }
 
-    @RequestMapping( value = INVITE_PATH, method = RequestMethod.POST, consumes = { "application/xml", "text/xml" } )
-    public void postXmlInvite( HttpServletRequest request, HttpServletResponse response )
+    @PostMapping( value = INVITE_PATH, consumes = { APPLICATION_XML_VALUE, TEXT_XML_VALUE } )
+    @ResponseBody
+    public WebMessage postXmlInvite( HttpServletRequest request )
         throws Exception
     {
-        postInvite( request, response, renderService.fromXml( request.getInputStream(), getEntityClass() ) );
+        User user = renderService.fromXml( request.getInputStream(), getEntityClass() );
+        return postInvite( request, user );
     }
 
-    private void postInvite( HttpServletRequest request, HttpServletResponse response, User user )
+    private WebMessage postInvite( HttpServletRequest request, User user )
         throws WebMessageException
     {
+        populateUserCredentialsDtoFields( user );
+
         User currentUser = currentUserService.getCurrentUser();
 
         validateInviteUser( user, currentUser );
 
-        postObject( request, response, inviteUser( user, currentUser, request ) );
+        return postObject( inviteUser( user, currentUser, request ) );
     }
 
-    @RequestMapping( value = BULK_INVITE_PATH, method = RequestMethod.POST, consumes = "application/json" )
+    @PostMapping( value = BULK_INVITE_PATH, consumes = APPLICATION_JSON_VALUE )
     @ResponseStatus( HttpStatus.NO_CONTENT )
-    public void postJsonInvites( HttpServletRequest request, HttpServletResponse response )
+    public void postJsonInvites( HttpServletRequest request )
         throws Exception
     {
-        postInvites( request, renderService.fromJson( request.getInputStream(), Users.class ) );
+        Users users = renderService.fromJson( request.getInputStream(), Users.class );
+        postInvites( request, users );
     }
 
-    @RequestMapping( value = BULK_INVITE_PATH, method = RequestMethod.POST, consumes = { "application/xml",
-        "text/xml" } )
+    @PostMapping( value = BULK_INVITE_PATH, consumes = { APPLICATION_XML_VALUE,
+        TEXT_XML_VALUE } )
     @ResponseStatus( HttpStatus.NO_CONTENT )
-    public void postXmlInvites( HttpServletRequest request, HttpServletResponse response )
+    public void postXmlInvites( HttpServletRequest request )
         throws Exception
     {
-        postInvites( request, renderService.fromXml( request.getInputStream(), Users.class ) );
+        Users users = renderService.fromXml( request.getInputStream(), Users.class );
+        postInvites( request, users );
     }
 
     private void postInvites( HttpServletRequest request, Users users )
         throws WebMessageException
     {
         User currentUser = currentUserService.getCurrentUser();
+
+        for ( User user : users.getUsers() )
+        {
+            populateUserCredentialsDtoFields( user );
+        }
 
         for ( User user : users.getUsers() )
         {
@@ -361,7 +412,7 @@ public class UserController
         }
     }
 
-    @RequestMapping( value = "/{id}" + INVITE_PATH, method = RequestMethod.POST )
+    @PostMapping( value = "/{id}" + INVITE_PATH )
     @ResponseStatus( HttpStatus.NO_CONTENT )
     public void resendInvite( @PathVariable String id, HttpServletRequest request )
         throws Exception
@@ -370,35 +421,30 @@ public class UserController
 
         if ( user == null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "User not found: " + id ) );
+            throw new WebMessageException( conflict( "User not found: " + id ) );
         }
 
-        if ( user.getUserCredentials() == null || !user.getUserCredentials().isInvitation() )
+        if ( !user.isInvitation() )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "User account is not an invitation: " + id ) );
+            throw new WebMessageException( conflict( "User account is not an invitation: " + id ) );
         }
 
-        String valid = securityService.validateRestore( user.getUserCredentials() );
+        String valid = securityService.validateRestore( user );
 
         if ( valid != null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( valid ) );
+            throw new WebMessageException( conflict( valid ) );
         }
 
-        boolean isInviteUsername = securityService.isInviteUsername( user.getUsername() );
-
-        RestoreOptions restoreOptions = isInviteUsername ? RestoreOptions.INVITE_WITH_USERNAME_CHOICE
-            : RestoreOptions.INVITE_WITH_DEFINED_USERNAME;
-
         if ( !securityService
-            .sendRestoreOrInviteMessage( user.getUserCredentials(), ContextUtils.getContextPath( request ),
-                restoreOptions ) )
+            .sendRestoreOrInviteMessage( user, ContextUtils.getContextPath( request ),
+                RestoreOptions.INVITE_WITH_DEFINED_USERNAME ) )
         {
-            throw new WebMessageException( WebMessageUtils.error( "Failed to send invite message" ) );
+            throw new WebMessageException( error( "Failed to send invite message" ) );
         }
     }
 
-    @RequestMapping( value = "/{id}/reset", method = RequestMethod.POST )
+    @PostMapping( "/{id}/reset" )
     @ResponseStatus( HttpStatus.NO_CONTENT )
     public void resetToInvite( @PathVariable String id, HttpServletRequest request )
         throws Exception
@@ -408,10 +454,10 @@ public class UserController
         {
             throw NotFoundException.notFoundUid( id );
         }
-        String valid = securityService.validateRestore( user.getUserCredentials() );
+        String valid = securityService.validateRestore( user );
         if ( valid != null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( valid ) );
+            throw new WebMessageException( conflict( valid ) );
         }
         User currentUser = currentUserService.getCurrentUser();
         if ( !aclService.canUpdate( currentUser, user ) )
@@ -424,28 +470,24 @@ public class UserController
                 "You must have permissions manage at least one user group for the user." );
         }
 
-        RestoreOptions restoreOptions = securityService.isInviteUsername( user.getUsername() )
-            ? RestoreOptions.INVITE_WITH_USERNAME_CHOICE
-            : RestoreOptions.INVITE_WITH_DEFINED_USERNAME;
-
         securityService.prepareUserForInvite( user );
-        securityService.sendRestoreOrInviteMessage( user.getUserCredentials(), ContextUtils.getContextPath( request ),
-            restoreOptions );
+        securityService.sendRestoreOrInviteMessage( user, ContextUtils.getContextPath( request ),
+            RestoreOptions.RECOVER_PASSWORD_OPTION );
     }
 
     @SuppressWarnings( "unchecked" )
     @PreAuthorize( "hasRole('ALL') or hasRole('F_REPLICATE_USER')" )
-    @RequestMapping( value = "/{uid}/replica", method = RequestMethod.POST )
-    public void replicateUser( @PathVariable String uid,
+    @PostMapping( "/{uid}/replica" )
+    @ResponseBody
+    public WebMessage replicateUser( @PathVariable String uid,
         HttpServletRequest request, HttpServletResponse response )
         throws IOException,
         WebMessageException
     {
         User existingUser = userService.getUser( uid );
-
-        if ( existingUser == null || existingUser.getUserCredentials() == null )
+        if ( existingUser == null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "User not found: " + uid ) );
+            return conflict( "User not found: " + uid );
         }
 
         User currentUser = currentUserService.getCurrentUser();
@@ -459,50 +501,40 @@ public class UserController
 
         if ( auth == null || username == null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "Username must be specified" ) );
+            return conflict( "Username must be specified" );
         }
 
-        if ( userService.getUserCredentialsByUsername( username ) != null )
+        if ( userService.getUserByUsername( username ) != null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "Username already taken: " + username ) );
+            return conflict( "Username already taken: " + username );
         }
 
         if ( password == null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "Password must be specified" ) );
+            return conflict( "Password must be specified" );
         }
 
         if ( !ValidationUtils.passwordIsValid( password ) )
         {
-            throw new WebMessageException(
-                WebMessageUtils.conflict( "Password must have at least 8 characters, one digit, one uppercase" ) );
+            return conflict( "Password must have at least 8 characters, one digit, one uppercase" );
         }
 
         User userReplica = new User();
         mergeService.merge( new MergeParams<>( existingUser, userReplica )
             .setMergeMode( MergeMode.MERGE ) );
         copyAttributeValues( userReplica );
+        userReplica.setId( 0 );
+        userReplica.setUuid( UUID.randomUUID() );
         userReplica.setUid( CodeGenerator.generateUid() );
         userReplica.setCode( null );
         userReplica.setCreated( new Date() );
-
-        UserCredentials credentialsReplica = new UserCredentials();
-        mergeService.merge( new MergeParams<>( existingUser.getUserCredentials(), credentialsReplica )
-            .setMergeMode( MergeMode.MERGE ) );
-        credentialsReplica.setUid( CodeGenerator.generateUid() );
-        credentialsReplica.setCode( null );
-        credentialsReplica.setCreated( new Date() );
-        credentialsReplica.setLdapId( null );
-        credentialsReplica.setOpenId( null );
-
-        credentialsReplica.setUsername( username );
-        userService.encodeAndSetPassword( credentialsReplica, password );
-
-        userReplica.setUserCredentials( credentialsReplica );
-        credentialsReplica.setUserInfo( userReplica );
+        userReplica.setLdapId( null );
+        userReplica.setOpenId( null );
+        userReplica.setUsername( username );
+        userService.encodeAndSetPassword( userReplica, password );
 
         userService.addUser( userReplica );
-        userService.addUserCredentials( credentialsReplica );
+
         userGroupService.addUserToGroups( userReplica, getUids( existingUser.getGroups() ),
             currentUser );
 
@@ -511,7 +543,6 @@ public class UserController
         // ---------------------------------------------------------------------
 
         List<UserSetting> settings = userSettingService.getUserSettings( existingUser );
-
         for ( UserSetting setting : settings )
         {
             Optional<UserSettingKey> key = UserSettingKey.getByName( setting.getName() );
@@ -519,11 +550,11 @@ public class UserController
                 userReplica ) );
         }
 
-        response.addHeader( "Location", UserSchemaDescriptor.API_ENDPOINT + "/" + userReplica.getUid() );
-        webMessageService.send( WebMessageUtils.created( "User replica created" ), response, request );
+        return created( "User replica created" )
+            .setLocation( UserSchemaDescriptor.API_ENDPOINT + "/" + userReplica.getUid() );
     }
 
-    @RequestMapping( value = "/{uid}/enabled", method = RequestMethod.POST )
+    @PostMapping( "/{uid}/enabled" )
     @ResponseStatus( value = HttpStatus.NO_CONTENT )
     public void enableUser( @PathVariable( "uid" ) String uid )
         throws Exception
@@ -531,7 +562,7 @@ public class UserController
         setDisabled( uid, false );
     }
 
-    @RequestMapping( value = "/{uid}/disabled", method = RequestMethod.POST )
+    @PostMapping( "/{uid}/disabled" )
     @ResponseStatus( value = HttpStatus.NO_CONTENT )
     public void disableUser( @PathVariable( "uid" ) String uid )
         throws Exception
@@ -539,7 +570,7 @@ public class UserController
         setDisabled( uid, true );
     }
 
-    @RequestMapping( value = "/{uid}/expired", method = RequestMethod.POST )
+    @PostMapping( "/{uid}/expired" )
     @ResponseStatus( value = HttpStatus.NO_CONTENT )
     public void expireUser( @PathVariable( "uid" ) String uid, @RequestParam( "date" ) Date accountExpiry )
         throws Exception
@@ -547,7 +578,7 @@ public class UserController
         setExpires( uid, accountExpiry );
     }
 
-    @RequestMapping( value = "/{uid}/unexpired", method = RequestMethod.POST )
+    @PostMapping( "/{uid}/unexpired" )
     @ResponseStatus( value = HttpStatus.NO_CONTENT )
     public void unexpireUser( @PathVariable( "uid" ) String uid )
         throws Exception
@@ -556,35 +587,103 @@ public class UserController
     }
 
     // -------------------------------------------------------------------------
+    // PATCH
+    //
+
+    @PatchMapping( value = "/{uid}" )
+    @ResponseStatus( value = HttpStatus.NO_CONTENT )
+    public void partialUpdateObject(
+        @PathVariable( "uid" ) String pvUid, @RequestParam Map<String, String> rpParameters,
+        @CurrentUser User currentUser, HttpServletRequest request )
+        throws Exception
+    {
+        WebOptions options = new WebOptions( rpParameters );
+        List<User> entities = getEntity( pvUid, options );
+
+        if ( entities.isEmpty() )
+        {
+            throw new WebMessageException( notFound( getEntityClass(), pvUid ) );
+        }
+
+        User persistedObject = entities.get( 0 );
+
+        if ( !aclService.canUpdate( currentUser, persistedObject ) )
+        {
+            throw new UpdateAccessDeniedException( "You don't have the proper permissions to update this object." );
+        }
+
+        Patch patch = diff( request );
+
+        mergeUserCredentialsMutations( patch );
+
+        prePatchEntity( persistedObject );
+        patchService.apply( patch, persistedObject );
+        validateAndThrowErrors( () -> schemaValidator.validate( persistedObject ) );
+        manager.update( persistedObject );
+        postPatchEntity( persistedObject );
+    }
+
+    /*
+     * This method is used to merge the user credentials with the user object.
+     */
+    private void mergeUserCredentialsMutations( Patch patch )
+    {
+        List<Mutation> mutations = patch.getMutations();
+        List<Mutation> filteredMutations = new ArrayList<>();
+        for ( Mutation mutation : mutations )
+        {
+            Mutation.Operation operation = mutation.getOperation();
+            String path = mutation.getPath();
+            Object value = mutation.getValue();
+
+            if ( path.startsWith( "userCredentials" ) )
+            {
+                path = path.replace( "userCredentials.", "" );
+
+                Mutation filtered = new Mutation( path, value, operation );
+                filteredMutations.add( filtered );
+            }
+            else
+            {
+                filteredMutations.add( mutation );
+            }
+
+            patch.setMutations( filteredMutations );
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // PUT
     // -------------------------------------------------------------------------
 
     @Override
-    @RequestMapping( value = "/{uid}", method = RequestMethod.PUT, consumes = { "application/xml", "text/xml" } )
-    public void putXmlObject( @PathVariable( "uid" ) String pvUid, HttpServletRequest request,
+    @PutMapping( value = "/{uid}", consumes = { APPLICATION_XML_VALUE,
+        TEXT_XML_VALUE }, produces = APPLICATION_XML_VALUE )
+    @ResponseBody
+    public WebMessage putXmlObject( @PathVariable( "uid" ) String pvUid, @CurrentUser User currentUser,
+        HttpServletRequest request,
         HttpServletResponse response )
         throws Exception
     {
         User parsed = renderService.fromXml( request.getInputStream(), getEntityClass() );
 
-        ImportReport importReport = updateUser( pvUid, parsed );
-
-        response.setContentType( "application/xml" );
-        renderService.toXml( response.getOutputStream(), importReport );
+        return importReport( updateUser( pvUid, parsed ) )
+            .withPlainResponseBefore( DhisApiVersion.V38 );
     }
 
     @Override
-    @RequestMapping( value = "/{uid}", method = RequestMethod.PUT, consumes = "application/json" )
-    public void putJsonObject( @PathVariable( "uid" ) String pvUid, HttpServletRequest request,
-        HttpServletResponse response )
+    @PutMapping( value = "/{uid}", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE )
+    @ResponseBody
+    public WebMessage putJsonObject( @PathVariable( "uid" ) String pvUid, @CurrentUser User currentUser,
+        HttpServletRequest request )
         throws Exception
     {
         User parsed = renderService.fromJson( request.getInputStream(), getEntityClass() );
 
-        ImportReport importReport = updateUser( pvUid, parsed );
+        populateUserCredentialsDtoFields( parsed );
 
-        response.setContentType( "application/json" );
-        renderService.toJson( response.getOutputStream(), importReport );
+        return importReport( updateUser( pvUid, parsed ) )
+            .withPlainResponseBefore( DhisApiVersion.V38 );
     }
 
     protected ImportReport updateUser( String userUid, User parsedUserObject )
@@ -595,11 +694,11 @@ public class UserController
         if ( users.isEmpty() )
         {
             throw new WebMessageException(
-                WebMessageUtils.conflict( getEntityName() + " does not exist: " + userUid ) );
+                conflict( getEntityName() + " does not exist: " + userUid ) );
         }
 
         User currentUser = currentUserService.getCurrentUser();
-        // TODO: Can we disallow currentUser == NULL ?
+
         if ( !aclService.canUpdate( currentUser, users.get( 0 ) ) )
         {
             throw new UpdateAccessDeniedException( "You don't have the proper permissions to update this user." );
@@ -608,23 +707,20 @@ public class UserController
         // force initialization of all authorities of current user in order to
         // prevent cases where user must be reloaded later
         // (in case it gets detached)
-        if ( currentUser != null )
-        {
-            currentUser.getUserCredentials().getAllAuthorities();
-        }
+        currentUser.getAllAuthorities();
 
+        parsedUserObject.setId( users.get( 0 ).getId() );
         parsedUserObject.setUid( userUid );
-        parsedUserObject = mergeLastLoginAttribute( users.get( 0 ), parsedUserObject );
+        mergeLastLoginAttribute( users.get( 0 ), parsedUserObject );
 
-        boolean isPasswordChangeAttempt = parsedUserObject.getUserCredentials() != null &&
-            parsedUserObject.getUserCredentials().getPassword() != null;
+        boolean isPasswordChangeAttempt = parsedUserObject.getPassword() != null;
 
         List<String> groupsUids = getUids( parsedUserObject.getGroups() );
 
         if ( !userService.canAddOrUpdateUser( groupsUids, currentUser )
-            || !currentUser.getUserCredentials().canModifyUser( users.get( 0 ).getUserCredentials() ) )
+            || !currentUser.canModifyUser( users.get( 0 ) ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict(
+            throw new WebMessageException( conflict(
                 "You must have permissions to create user, " +
                     "or ability to manage at least one user group for the user." ) );
         }
@@ -646,7 +742,7 @@ public class UserController
             // same. i.e. no before & after equals pw check
             if ( isPasswordChangeAttempt )
             {
-                userService.expireActiveSessions( parsedUserObject.getUserCredentials() );
+                userService.expireActiveSessions( parsedUserObject );
             }
         }
 
@@ -665,7 +761,9 @@ public class UserController
             currentUser = currentUserService.getCurrentUser();
         }
 
-        userGroupService.updateUserGroups( user, getUids( parsed.getGroups() ), currentUser );
+        List<String> uids = getUids( parsed.getGroups() );
+
+        userGroupService.updateUserGroups( user, uids, currentUser );
     }
 
     // -------------------------------------------------------------------------
@@ -679,23 +777,21 @@ public class UserController
         User currentUser = currentUserService.getCurrentUser();
 
         if ( !userService.canAddOrUpdateUser( getUids( entity.getGroups() ), currentUser )
-            || !currentUser.getUserCredentials().canModifyUser( entity.getUserCredentials() ) )
+            || !currentUser.canModifyUser( entity ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict(
+            throw new WebMessageException( conflict(
                 "You must have permissions to create user, or ability to manage at least one user group for the user." ) );
         }
     }
 
     @Override
-    protected void postPatchEntity( User entity )
+    protected void postPatchEntity( User user )
     {
-        UserCredentials credentials = entity.getUserCredentials();
-
         // Make sure we always expire all of the user's active sessions if we
         // have disabled the user.
-        if ( credentials != null && credentials.isDisabled() )
+        if ( user != null && user.isDisabled() )
         {
-            userService.expireActiveSessions( credentials );
+            userService.expireActiveSessions( user );
         }
     }
 
@@ -710,15 +806,15 @@ public class UserController
         User currentUser = currentUserService.getCurrentUser();
 
         if ( !userService.canAddOrUpdateUser( getUids( entity.getGroups() ), currentUser )
-            || !currentUser.getUserCredentials().canModifyUser( entity.getUserCredentials() ) )
+            || !currentUser.canModifyUser( entity ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict(
+            throw new WebMessageException( conflict(
                 "You must have permissions to create user, or ability to manage at least one user group for the user." ) );
         }
 
-        if ( userService.isLastSuperUser( entity.getUserCredentials() ) )
+        if ( userService.isLastSuperUser( entity ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "Can not remove the last super user." ) );
+            throw new WebMessageException( conflict( "Can not remove the last super user." ) );
         }
     }
 
@@ -741,7 +837,7 @@ public class UserController
 
         if ( !userService.canAddOrUpdateUser( getUids( user.getGroups() ), currentUser ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict(
+            throw new WebMessageException( conflict(
                 "You must have permissions to create user, or ability to manage at least one user group for the user." ) );
         }
 
@@ -752,7 +848,7 @@ public class UserController
             if ( !userGroupService.canAddOrRemoveMember( uid, currentUser ) )
             {
                 throw new WebMessageException(
-                    WebMessageUtils.conflict( "You don't have permissions to add user to user group: " + uid ) );
+                    conflict( "You don't have permissions to add user to user group: " + uid ) );
             }
         }
     }
@@ -787,22 +883,18 @@ public class UserController
     private void validateInviteUser( User user, User currentUser )
         throws WebMessageException
     {
-        validateCreateUser( user, currentUser );
-
-        UserCredentials credentials = user.getUserCredentials();
-
-        if ( credentials == null )
+        if ( user == null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "User credentials is not present" ) );
+            throw new WebMessageException( conflict( "User is not present" ) );
         }
 
-        credentials.setUserInfo( user );
+        validateCreateUser( user, currentUser );
 
-        String validateMessage = securityService.validateInvite( user.getUserCredentials() );
+        String validateMessage = securityService.validateInvite( user );
 
         if ( validateMessage != null )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( validateMessage ) );
+            throw new WebMessageException( conflict( validateMessage ) );
         }
     }
 
@@ -813,10 +905,6 @@ public class UserController
      */
     private ObjectReport inviteUser( User user, User currentUser, HttpServletRequest request )
     {
-        RestoreOptions restoreOptions = user.getUsername() == null || user.getUsername().isEmpty()
-            ? RestoreOptions.INVITE_WITH_USERNAME_CHOICE
-            : RestoreOptions.INVITE_WITH_DEFINED_USERNAME;
-
         securityService.prepareUserForInvite( user );
 
         ImportReport importReport = createUser( user, currentUser );
@@ -827,8 +915,8 @@ public class UserController
             objectReport != null )
         {
             securityService
-                .sendRestoreOrInviteMessage( user.getUserCredentials(), ContextUtils.getContextPath( request ),
-                    restoreOptions );
+                .sendRestoreOrInviteMessage( user, ContextUtils.getContextPath( request ),
+                    RestoreOptions.INVITE_WITH_DEFINED_USERNAME );
 
             log.info( String.format( "An invite email was successfully sent to: %s", user.getEmail() ) );
         }
@@ -836,23 +924,13 @@ public class UserController
         return objectReport;
     }
 
-    private ObjectReport getObjectReport( ImportReport importReport )
+    private static ObjectReport getObjectReport( ImportReport importReport )
     {
-        if ( !importReport.getTypeReports().isEmpty() )
-        {
-            TypeReport typeReport = importReport.getTypeReports().get( 0 );
-
-            if ( !typeReport.getObjectReports().isEmpty() )
-            {
-                return typeReport.getObjectReports().get( 0 );
-            }
-        }
-
-        return null;
+        return importReport.getFirstObjectReport();
     }
 
     /**
-     * Make a copy of any existing attribute values so they can be saved as new
+     * Make a copy of any existing attribute values, so they can be saved as new
      * attribute values. Don't copy unique values.
      *
      * @param userReplica user for which to copy attribute values.
@@ -886,19 +964,19 @@ public class UserController
 
     private User mergeLastLoginAttribute( User source, User target )
     {
-        if ( target.getUserCredentials() == null )
+        if ( target == null )
         {
             return target;
         }
 
-        if ( target.getUserCredentials().getLastLogin() != null )
+        if ( target.getLastLogin() != null )
         {
             return target;
         }
 
-        if ( source.getUserCredentials() != null && source.getUserCredentials().getLastLogin() != null )
+        if ( source != null && source.getLastLogin() != null )
         {
-            target.getUserCredentials().setLastLogin( source.getUserCredentials().getLastLogin() );
+            target.setLastLogin( source.getLastLogin() );
         }
 
         return target;
@@ -909,6 +987,7 @@ public class UserController
      *
      * @param uid the unique id of the user to enable or disable
      * @param disable boolean value, true for disable, false for enable
+     *
      * @throws WebMessageException thrown if "current" user is not allowed to
      *         modify the user
      */
@@ -918,16 +997,15 @@ public class UserController
         User userToModify = userService.getUser( uid );
         checkCurrentUserCanModify( userToModify );
 
-        UserCredentials credentials = userToModify.getUserCredentials();
-        if ( credentials.isDisabled() != disable )
+        if ( userToModify.isDisabled() != disable )
         {
-            credentials.setDisabled( disable );
-            userService.updateUserCredentials( credentials );
+            userToModify.setDisabled( disable );
+            userService.updateUser( userToModify );
         }
 
         if ( disable )
         {
-            userService.expireActiveSessions( credentials );
+            userService.expireActiveSessions( userToModify );
         }
     }
 
@@ -942,9 +1020,9 @@ public class UserController
         }
 
         if ( !userService.canAddOrUpdateUser( getUids( userToModify.getGroups() ), currentUser )
-            || !currentUser.getUserCredentials().canModifyUser( userToModify.getUserCredentials() ) )
+            || !currentUser.canModifyUser( userToModify ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict(
+            throw new WebMessageException( conflict(
                 "You must have permissions to create user, or ability to manage at least one user group for the user." ) );
         }
     }
@@ -955,13 +1033,13 @@ public class UserController
         User userToModify = userService.getUser( uid );
         checkCurrentUserCanModify( userToModify );
 
-        UserCredentials credentials = userToModify.getUserCredentials();
-        credentials.setAccountExpiry( accountExpiry );
-        userService.updateUserCredentials( credentials );
+        User user = userToModify;
+        user.setAccountExpiry( accountExpiry );
+        userService.updateUser( user );
 
-        if ( userService.isAccountExpired( credentials ) )
+        if ( userService.isAccountExpired( user ) )
         {
-            userService.expireActiveSessions( credentials );
+            userService.expireActiveSessions( user );
         }
     }
 }

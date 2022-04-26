@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ public class SettingUpgrader
     public void execute()
         throws Exception
     {
-        String startModule = (String) manager.getSystemSetting( SettingKey.START_MODULE );
+        String startModule = manager.getStringSetting( SettingKey.START_MODULE );
 
         if ( "dhis-web-dashboard-integration".equals( startModule ) )
         {

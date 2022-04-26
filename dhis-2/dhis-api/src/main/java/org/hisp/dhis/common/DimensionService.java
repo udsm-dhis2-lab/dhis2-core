@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,18 +90,6 @@ public interface DimensionService
      * @return a dimensional item object.
      */
     DimensionalItemObject getDataDimensionalItemObject( DimensionalItemId dimensionalItemId );
-
-    /**
-     * Gets a set of dimension item objects from their ids. In case of two
-     * {@see DimensionalItemId} having the same ids, this function always
-     * returns a {@see DimensionalItemObject} corresponding to the
-     * {@see DimensionalItemId} with the Period Offset property higher/lower
-     * than 0.
-     *
-     * @param itemIds a set of ids of the dimension item objects to get.
-     * @return the set of dimension item objects built from the ids.
-     */
-    Set<DimensionalItemObject> getDataDimensionalItemObjects( Set<DimensionalItemId> itemIds );
 
     /**
      * Gets a map from dimension item ids to their dimension item objects.

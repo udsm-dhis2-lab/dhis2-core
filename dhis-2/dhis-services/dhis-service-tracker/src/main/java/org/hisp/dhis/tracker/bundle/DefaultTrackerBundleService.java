@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,24 +28,23 @@
 package org.hisp.dhis.tracker.bundle;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Date;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.stream.Stream;
-
-import javax.annotation.PostConstruct;
+import java.util.Map;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hisp.dhis.rules.models.RuleEffects;
+import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.tracker.ParamsConverter;
 import org.hisp.dhis.tracker.TrackerImportParams;
-import org.hisp.dhis.tracker.TrackerObjectDeletionService;
 import org.hisp.dhis.tracker.TrackerProgramRuleService;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.bundle.persister.CommitService;
+import org.hisp.dhis.tracker.bundle.persister.TrackerObjectDeletionService;
 import org.hisp.dhis.tracker.job.TrackerSideEffectDataBundle;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.preheat.TrackerPreheatService;
@@ -55,8 +54,6 @@ import org.hisp.dhis.tracker.sideeffect.SideEffectHandlerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.google.common.collect.ImmutableMap;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
@@ -76,39 +73,14 @@ public class DefaultTrackerBundleService
 
     private final TrackerObjectDeletionService deletionService;
 
+    private final TrackedEntityInstanceService trackedEntityInstanceService;
+
     private List<SideEffectHandlerService> sideEffectHandlers = new ArrayList<>();
 
     @Autowired( required = false )
     public void setSideEffectHandlers( List<SideEffectHandlerService> sideEffectHandlers )
     {
         this.sideEffectHandlers = sideEffectHandlers;
-    }
-
-    private ImmutableMap<TrackerType, BiFunction<TrackerBundle, TrackerType, TrackerTypeReport>> DELETION_MAPPER;
-
-    private ImmutableMap<TrackerType, BiFunction<Session, TrackerBundle, TrackerTypeReport>> COMMIT_MAPPER;
-
-    @PostConstruct
-    public void initMaps()
-    {
-
-        COMMIT_MAPPER = new ImmutableMap.Builder<TrackerType, BiFunction<Session, TrackerBundle, TrackerTypeReport>>()
-            .put( TrackerType.ENROLLMENT,
-                (( session, bundle ) -> commitService.getEnrollmentPersister().persist( session, bundle )) )
-            .put( TrackerType.EVENT,
-                (( session, bundle ) -> commitService.getEventPersister().persist( session, bundle )) )
-            .put( TrackerType.TRACKED_ENTITY,
-                (( session, bundle ) -> commitService.getTrackerPersister().persist( session, bundle )) )
-            .put( TrackerType.RELATIONSHIP,
-                (( session, bundle ) -> commitService.getRelationshipPersister().persist( session, bundle )) )
-            .build();
-
-        DELETION_MAPPER = new ImmutableMap.Builder<TrackerType, BiFunction<TrackerBundle, TrackerType, TrackerTypeReport>>()
-            .put( TrackerType.ENROLLMENT, deletionService::deleteEnrollments )
-            .put( TrackerType.EVENT, deletionService::deleteEvents )
-            .put( TrackerType.TRACKED_ENTITY, deletionService::deleteTrackedEntityInstances )
-            .put( TrackerType.RELATIONSHIP, deletionService::deleteRelationShips )
-            .build();
     }
 
     @Override
@@ -143,12 +115,29 @@ public class DefaultTrackerBundleService
         }
 
         Session session = sessionFactory.getCurrentSession();
-
-        Stream.of( TrackerType.values() )
-            .forEach( t -> bundleReport.getTypeReportMap().put( t, COMMIT_MAPPER.get( t )
-                .apply( session, bundle ) ) );
+        Map<TrackerType, TrackerTypeReport> report = bundleReport.getTypeReportMap();
+        report.put( TrackerType.TRACKED_ENTITY,
+            commitService.getTrackerPersister().persist( session, bundle ) );
+        report.put( TrackerType.ENROLLMENT,
+            commitService.getEnrollmentPersister().persist( session, bundle ) );
+        report.put( TrackerType.EVENT,
+            commitService.getEventPersister().persist( session, bundle ) );
+        report.put( TrackerType.RELATIONSHIP,
+            commitService.getRelationshipPersister().persist( session, bundle ) );
 
         return bundleReport;
+    }
+
+    @Override
+    public void postCommit( TrackerBundle bundle )
+    {
+        updateTeisLastUpdated( bundle );
+    }
+
+    private void updateTeisLastUpdated( TrackerBundle bundle )
+    {
+        Optional.ofNullable( bundle.getUpdatedTeis() ).filter( ut -> !ut.isEmpty() ).ifPresent(
+            teis -> trackedEntityInstanceService.updateTrackedEntityInstanceLastUpdated( teis, new Date() ) );
     }
 
     @Override
@@ -168,9 +157,12 @@ public class DefaultTrackerBundleService
             return bundleReport;
         }
 
-        Stream.of( TrackerType.values() ).sorted( Collections.reverseOrder() )
-            .forEach( t -> bundleReport.getTypeReportMap().put( t, DELETION_MAPPER.get( t )
-                .apply( bundle, t ) ) );
+        Map<TrackerType, TrackerTypeReport> report = bundleReport.getTypeReportMap();
+        report.put( TrackerType.RELATIONSHIP, deletionService.deleteRelationShips( bundle ) );
+        report.put( TrackerType.EVENT, deletionService.deleteEvents( bundle ) );
+        report.put( TrackerType.ENROLLMENT, deletionService.deleteEnrollments( bundle ) );
+        report.put( TrackerType.TRACKED_ENTITY,
+            deletionService.deleteTrackedEntityInstances( bundle ) );
 
         return bundleReport;
     }

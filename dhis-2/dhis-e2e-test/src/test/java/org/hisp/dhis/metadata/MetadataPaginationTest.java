@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,13 @@ package org.hisp.dhis.metadata;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata;
+
+import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FIELDS;
+import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FILTER;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.hisp.dhis.ApiTest;
@@ -36,12 +41,6 @@ import org.hisp.dhis.actions.metadata.OptionActions;
 import org.hisp.dhis.dto.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FIELDS;
-import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FILTER;
 
 /**
  * @author Luciano Fiandesio
@@ -53,7 +52,9 @@ public class MetadataPaginationTest
     private MetadataPaginationActions paginationActions;
 
     private int startPage = 1;
+
     private int pageSize = 5;
+
     @BeforeEach
     public void setUp()
     {
@@ -72,34 +73,40 @@ public class MetadataPaginationTest
     @Test
     public void checkPaginationResultsForcingInMemoryPagination()
     {
-        // this test forces the metadata query engine to execute an "in memory" sorting and pagination
-        // since the sort ("order") value is set to 'displayName' that is a "virtual" field (that is, not a database column)
-        // The metadata query engine can not execute a sql query using this field, since it does not exist
-        // on the table. Therefore, the engine loads the entire content of the table in memory and
+        // this test forces the metadata query engine to execute an "in memory"
+        // sorting and pagination
+        // since the sort ("order") value is set to 'displayName' that is a
+        // "virtual" field (that is, not a database column)
+        // The metadata query engine can not execute a sql query using this
+        // field, since it does not exist
+        // on the table. Therefore, the engine loads the entire content of the
+        // table in memory and
         // executes a sort + pagination "in memory"
 
         ApiResponse response = paginationActions.getPaginated( startPage, pageSize );
 
         response.validate().statusCode( 200 );
 
-        paginationActions.assertPagination( response, 100, 100 / pageSize, pageSize, startPage);
+        paginationActions.assertPagination( response, 100, 100 / pageSize, pageSize, startPage );
     }
 
     @Test
     public void checkPaginationResultsForcingDatabaseOnlyPagination()
     {
-        // this test forces the metadata query engine to execute the query (including pagination) on the database only.
-        // The sort ("order") value is set to 'id' that is mapped to a DB column.
+        // this test forces the metadata query engine to execute the query
+        // (including pagination) on the database only.
+        // The sort ("order") value is set to 'id' that is mapped to a DB
+        // column.
 
         ApiResponse response = paginationActions.getPaginated(
             Arrays.asList( DEFAULT_METADATA_FILTER.split( "," ) ),
             Arrays.asList( DEFAULT_METADATA_FIELDS.split( "," ) ),
-            Collections.singletonList("id:ASC"),
+            Collections.singletonList( "id:ASC" ),
             startPage, pageSize );
 
         response.validate().statusCode( 200 );
 
-        paginationActions.assertPagination( response, 100, 100 / pageSize, pageSize, startPage);
+        paginationActions.assertPagination( response, 100, 100 / pageSize, pageSize, startPage );
     }
 
 }

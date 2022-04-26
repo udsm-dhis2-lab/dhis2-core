@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,18 +27,28 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static org.hisp.dhis.tracker.report.TrackerErrorCode.*;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1002;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1030;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1032;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1063;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1080;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1081;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1082;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1113;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1114;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E4015;
 
 import org.hisp.dhis.program.ProgramInstance;
 import org.hisp.dhis.program.ProgramStageInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.tracker.TrackerImportStrategy;
+import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.Event;
 import org.hisp.dhis.tracker.domain.Relationship;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
+import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -51,89 +61,88 @@ public class PreCheckExistenceValidationHook
     @Override
     public void validateTrackedEntity( ValidationErrorReporter reporter, TrackedEntity trackedEntity )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-        TrackerImportStrategy importStrategy = context.getStrategy( trackedEntity );
+        TrackerImportStrategy importStrategy = reporter.getBundle().getStrategy( trackedEntity );
 
-        TrackedEntityInstance existingTe = context
+        TrackedEntityInstance existingTe = reporter.getBundle()
             .getTrackedEntityInstance( trackedEntity.getTrackedEntity() );
 
         // If the tracked entity is soft-deleted no operation is allowed
         if ( existingTe != null && existingTe.isDeleted() )
         {
-            addError( reporter, E1114, trackedEntity.getTrackedEntity() );
+            reporter.addError( trackedEntity, E1114, trackedEntity.getTrackedEntity() );
             return;
         }
 
         if ( existingTe != null && importStrategy.isCreate() )
         {
-            addError( reporter, E1002, trackedEntity.getTrackedEntity() );
+            reporter.addError( trackedEntity, E1002, trackedEntity.getTrackedEntity() );
         }
         else if ( existingTe == null && importStrategy.isUpdateOrDelete() )
         {
-            addError( reporter, E1063, trackedEntity.getTrackedEntity() );
+            reporter.addError( trackedEntity, E1063, trackedEntity.getTrackedEntity() );
         }
     }
 
     @Override
     public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-        TrackerImportStrategy importStrategy = context.getStrategy( enrollment );
+        TrackerImportStrategy importStrategy = reporter.getBundle().getStrategy( enrollment );
 
-        ProgramInstance existingPi = context.getProgramInstance( enrollment.getEnrollment() );
+        ProgramInstance existingPi = reporter.getBundle().getProgramInstance( enrollment.getEnrollment() );
 
         // If the tracked entity is soft-deleted no operation is allowed
         if ( existingPi != null && existingPi.isDeleted() )
         {
-            addError( reporter, E1113, enrollment.getEnrollment() );
+            reporter.addError( enrollment, E1113, enrollment.getEnrollment() );
             return;
         }
 
         if ( existingPi != null && importStrategy.isCreate() )
         {
-            addError( reporter, E1080, enrollment.getEnrollment() );
+            reporter.addError( enrollment, E1080, enrollment.getEnrollment() );
         }
         else if ( existingPi == null && importStrategy.isUpdateOrDelete() )
         {
-            addError( reporter, E1081, enrollment.getEnrollment() );
+            reporter.addError( enrollment, E1081, enrollment.getEnrollment() );
         }
     }
 
     @Override
     public void validateEvent( ValidationErrorReporter reporter, Event event )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-        TrackerImportStrategy importStrategy = context.getStrategy( event );
+        TrackerImportStrategy importStrategy = reporter.getBundle().getStrategy( event );
 
-        ProgramStageInstance existingPsi = context.getProgramStageInstance( event.getEvent() );
+        ProgramStageInstance existingPsi = reporter.getBundle().getProgramStageInstance( event.getEvent() );
 
         // If the event is soft-deleted no operation is allowed
         if ( existingPsi != null && existingPsi.isDeleted() )
         {
-            addError( reporter, E1082, event.getEvent() );
+            reporter.addError( event, E1082, event.getEvent() );
             return;
         }
 
         if ( existingPsi != null && importStrategy.isCreate() )
         {
-            addError( reporter, E1030, event.getEvent() );
+            reporter.addError( event, E1030, event.getEvent() );
         }
         else if ( existingPsi == null && importStrategy.isUpdateOrDelete() )
         {
-            addError( reporter, E1032, event.getEvent() );
+            reporter.addError( event, E1032, event.getEvent() );
         }
     }
 
     @Override
     public void validateRelationship( ValidationErrorReporter reporter, Relationship relationship )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
-        org.hisp.dhis.relationship.Relationship existingRelationship = context.getRelationship( relationship );
+        TrackerBundle bundle = reporter.getBundle();
+        TrackerPreheat preheat = bundle.getPreheat();
+        org.hisp.dhis.relationship.Relationship existingRelationship = preheat.getRelationship(
+            relationship );
 
         if ( existingRelationship != null )
         {
-            addWarning( reporter, E4015, relationship.getRelationship() );
+            reporter.addWarning( relationship, E4015,
+                relationship.getRelationship() );
         }
     }
 

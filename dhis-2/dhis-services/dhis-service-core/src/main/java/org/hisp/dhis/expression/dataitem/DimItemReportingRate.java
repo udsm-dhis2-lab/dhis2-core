@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,5 @@ public class DimItemReportingRate
         return new DimensionalItemId( REPORTING_RATE,
             ctx.uid0.getText(),
             ctx.REPORTING_RATE_TYPE().getText() );
-    }
-
-    @Override
-    public String getId( ExprContext ctx, CommonExpressionVisitor visitor )
-    {
-        return ctx.uid0.getText() + "." +
-            ctx.REPORTING_RATE_TYPE().getText() +
-            (visitor.getPeriodOffset() == 0 ? "" : "." + visitor.getPeriodOffset());
     }
 }

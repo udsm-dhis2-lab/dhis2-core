@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,26 +27,44 @@
  */
 package org.hisp.dhis.webapi.controller;
 
-import javax.servlet.http.HttpServletResponse;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import java.util.List;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.NotNull;
+
+import lombok.AllArgsConstructor;
+
+import org.hisp.dhis.analytics.analyze.ExecutionPlanStore;
+import org.hisp.dhis.analytics.dimension.DimensionFilteringAndPagingService;
+import org.hisp.dhis.analytics.dimension.DimensionMapperService;
+import org.hisp.dhis.analytics.dimensions.AnalyticsDimensionsPagingWrapper;
+import org.hisp.dhis.analytics.event.EnrollmentAnalyticsDimensionsService;
 import org.hisp.dhis.analytics.event.EnrollmentAnalyticsService;
 import org.hisp.dhis.analytics.event.EventDataQueryService;
 import org.hisp.dhis.analytics.event.EventQueryParams;
 import org.hisp.dhis.common.DhisApiVersion;
+import org.hisp.dhis.common.DimensionsCriteria;
 import org.hisp.dhis.common.EnrollmentAnalyticsQueryCriteria;
 import org.hisp.dhis.common.EventDataQueryRequest;
 import org.hisp.dhis.common.Grid;
+import org.hisp.dhis.common.RequestTypeAware;
 import org.hisp.dhis.common.cache.CacheStrategy;
+import org.hisp.dhis.setting.SettingKey;
+import org.hisp.dhis.setting.SystemSettingManager;
 import org.hisp.dhis.system.grid.GridUtils;
 import org.hisp.dhis.webapi.mvc.annotation.ApiVersion;
 import org.hisp.dhis.webapi.utils.ContextUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * @author Markus Bekken
@@ -54,42 +72,80 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 @ApiVersion( { DhisApiVersion.DEFAULT, DhisApiVersion.ALL } )
 @RequestMapping( "/analytics/enrollments" )
+@AllArgsConstructor
 public class EnrollmentAnalyticsController
 {
-    @Autowired
-    private EventDataQueryService eventDataQueryService;
+    @NotNull
+    private final EventDataQueryService eventDataQueryService;
 
-    @Autowired
-    private EnrollmentAnalyticsService analyticsService;
+    @NotNull
+    private final EnrollmentAnalyticsService analyticsService;
 
-    @Autowired
-    private ContextUtils contextUtils;
+    @NotNull
+    private final ContextUtils contextUtils;
 
-    @RequestMapping( value = "/query/{program}", method = RequestMethod.GET, produces = {
-        "application/json", "application/javascript" } )
+    @NotNull
+    private final ExecutionPlanStore executionPlanStore;
+
+    @NotNull
+    private DimensionFilteringAndPagingService dimensionFilteringAndPagingService;
+
+    @NotNull
+    private EnrollmentAnalyticsDimensionsService enrollmentAnalyticsDimensionsService;
+
+    @NotNull
+    private DimensionMapperService dimensionMapperService;
+
+    @NotNull
+    private final SystemSettingManager systemSettingManager;
+
+    @PreAuthorize( "hasRole('ALL') or hasRole('F_PERFORM_ANALYTICS_EXPLAIN')" )
+    @GetMapping( value = "/query/{program}/explain", produces = { APPLICATION_JSON_VALUE, "application/javascript" } )
+    public @ResponseBody Grid getExplainQueryJson( // JSON, JSONP
+        @PathVariable String program,
+        EnrollmentAnalyticsQueryCriteria criteria,
+        DhisApiVersion apiVersion,
+        HttpServletResponse response )
+    {
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, true );
+
+        Grid grid = analyticsService.getEnrollments( params );
+        contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_JSON,
+            CacheStrategy.RESPECT_SYSTEM_SETTING );
+
+        if ( params.analyzeOnly() )
+        {
+            String key = params.getExplainOrderId();
+            grid.maybeAddPerformanceMetrics( executionPlanStore.getExecutionPlans( key ) );
+        }
+
+        return grid;
+    }
+
+    @GetMapping( value = "/query/{program}", produces = { APPLICATION_JSON_VALUE, "application/javascript" } )
     public @ResponseBody Grid getQueryJson( // JSON, JSONP
         @PathVariable String program,
         EnrollmentAnalyticsQueryCriteria criteria,
         DhisApiVersion apiVersion,
         HttpServletResponse response )
     {
-        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion );
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, false );
 
         contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_JSON,
             CacheStrategy.RESPECT_SYSTEM_SETTING );
+
         return analyticsService.getEnrollments( params );
     }
 
-    @RequestMapping( value = "/query/{program}.xml", method = RequestMethod.GET )
+    @GetMapping( "/query/{program}.xml" )
     public void getQueryXml(
         @PathVariable String program,
         EnrollmentAnalyticsQueryCriteria criteria,
         DhisApiVersion apiVersion,
-        Model model,
         HttpServletResponse response )
         throws Exception
     {
-        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion );
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, false );
 
         contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_XML, CacheStrategy.RESPECT_SYSTEM_SETTING,
             "enrollments.xml", false );
@@ -97,16 +153,15 @@ public class EnrollmentAnalyticsController
         GridUtils.toXml( grid, response.getOutputStream() );
     }
 
-    @RequestMapping( value = "/query/{program}.xls", method = RequestMethod.GET )
+    @GetMapping( "/query/{program}.xls" )
     public void getQueryXls(
         @PathVariable String program,
         EnrollmentAnalyticsQueryCriteria criteria,
         DhisApiVersion apiVersion,
-        Model model,
         HttpServletResponse response )
         throws Exception
     {
-        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion );
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, false );
 
         contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_EXCEL, CacheStrategy.RESPECT_SYSTEM_SETTING,
             "enrollments.xls", true );
@@ -114,16 +169,15 @@ public class EnrollmentAnalyticsController
         GridUtils.toXls( grid, response.getOutputStream() );
     }
 
-    @RequestMapping( value = "/query/{program}.csv", method = RequestMethod.GET )
+    @GetMapping( "/query/{program}.csv" )
     public void getQueryCsv(
         @PathVariable String program,
         EnrollmentAnalyticsQueryCriteria criteria,
         DhisApiVersion apiVersion,
-        Model model,
         HttpServletResponse response )
         throws Exception
     {
-        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion );
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, false );
 
         contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_CSV, CacheStrategy.RESPECT_SYSTEM_SETTING,
             "enrollments.csv", true );
@@ -131,16 +185,15 @@ public class EnrollmentAnalyticsController
         GridUtils.toCsv( grid, response.getWriter() );
     }
 
-    @RequestMapping( value = "/query/{program}.html", method = RequestMethod.GET )
+    @GetMapping( "/query/{program}.html" )
     public void getQueryHtml(
         @PathVariable String program,
         EnrollmentAnalyticsQueryCriteria criteria,
         DhisApiVersion apiVersion,
-        Model model,
         HttpServletResponse response )
         throws Exception
     {
-        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion );
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, false );
 
         contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_HTML, CacheStrategy.RESPECT_SYSTEM_SETTING,
             "enrollments.html", false );
@@ -148,16 +201,15 @@ public class EnrollmentAnalyticsController
         GridUtils.toHtml( grid, response.getWriter() );
     }
 
-    @RequestMapping( value = "/query/{program}.html+css", method = RequestMethod.GET )
+    @GetMapping( "/query/{program}.html+css" )
     public void getQueryHtmlCss(
         @PathVariable String program,
         EnrollmentAnalyticsQueryCriteria criteria,
         DhisApiVersion apiVersion,
-        Model model,
         HttpServletResponse response )
         throws Exception
     {
-        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion );
+        EventQueryParams params = getEventQueryParams( program, criteria, apiVersion, false );
 
         contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_HTML, CacheStrategy.RESPECT_SYSTEM_SETTING,
             "enrollments.html", false );
@@ -165,16 +217,55 @@ public class EnrollmentAnalyticsController
         GridUtils.toHtmlCss( grid, response.getWriter() );
     }
 
-    private EventQueryParams getEventQueryParams( @PathVariable String program,
-        EnrollmentAnalyticsQueryCriteria criteria, DhisApiVersion apiVersion )
+    @ResponseBody
+    @GetMapping( "/query/dimensions" )
+    public AnalyticsDimensionsPagingWrapper<ObjectNode> getQueryDimensions(
+        @RequestParam String programId,
+        @RequestParam( defaultValue = "*" ) List<String> fields,
+        DimensionsCriteria dimensionsCriteria,
+        HttpServletResponse response )
     {
+        contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_JSON,
+            CacheStrategy.RESPECT_SYSTEM_SETTING );
+        return dimensionFilteringAndPagingService
+            .pageAndFilter(
+                dimensionMapperService.toDimensionResponse(
+                    enrollmentAnalyticsDimensionsService.getQueryDimensionsByProgramStageId( programId ) ),
+                dimensionsCriteria,
+                fields );
+    }
+
+    @ResponseBody
+    @GetMapping( "/aggregate/dimensions" )
+    public AnalyticsDimensionsPagingWrapper<ObjectNode> getAggregateDimensions(
+        @RequestParam String programId,
+        @RequestParam( defaultValue = "*" ) List<String> fields,
+        DimensionsCriteria dimensionsCriteria,
+        HttpServletResponse response )
+    {
+        contextUtils.configureResponse( response, ContextUtils.CONTENT_TYPE_JSON,
+            CacheStrategy.RESPECT_SYSTEM_SETTING );
+        return dimensionFilteringAndPagingService
+            .pageAndFilter(
+                dimensionMapperService.toDimensionResponse(
+                    enrollmentAnalyticsDimensionsService.getAggregateDimensionsByProgramStageId( programId ) ),
+                dimensionsCriteria,
+                fields );
+    }
+
+    private EventQueryParams getEventQueryParams( @PathVariable String program,
+        EnrollmentAnalyticsQueryCriteria criteria, DhisApiVersion apiVersion, boolean analyzeOnly )
+    {
+        criteria
+            .definePageSize( systemSettingManager.getIntSetting( SettingKey.ANALYTICS_MAX_LIMIT ) );
+
         EventDataQueryRequest request = EventDataQueryRequest.builder()
-            .fromCriteria( criteria )
+            .fromCriteria( (EnrollmentAnalyticsQueryCriteria) criteria.withQueryEndpointAction()
+                .withEndpointItem( RequestTypeAware.EndpointItem.ENROLLMENT ) )
             .program( program )
             .apiVersion( apiVersion )
             .build();
 
-        return eventDataQueryService.getFromRequest( request );
+        return eventDataQueryService.getFromRequest( request, analyzeOnly );
     }
-
 }

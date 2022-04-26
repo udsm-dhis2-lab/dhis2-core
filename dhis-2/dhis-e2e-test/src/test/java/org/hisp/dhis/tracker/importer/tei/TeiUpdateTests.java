@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.tracker.importer.tei;
 
 import com.google.gson.JsonObject;
 import org.hamcrest.Matchers;
-import org.hisp.dhis.actions.RestApiActions;
+import org.hisp.dhis.actions.metadata.TrackedEntityTypeActions;
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.helpers.file.FileReaderUtils;
 import org.hisp.dhis.tracker.TrackerNtiApiTest;
-import org.hisp.dhis.utils.DataGenerator;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -65,12 +63,8 @@ public class TeiUpdateTests
     {
         // arrange
         String tei = importTei();
-        String trackedEntityType = new RestApiActions( "/trackedEntityTypes" )
-            .post( DataGenerator.generateObjectForEndpoint( "trackedEntityType" ) ).extractUid();
-        JsonObject body = trackerActions.get( "/trackedEntities/" + tei ).getBody();
-
-        // act
-        body = JsonObjectBuilder.jsonObject( body )
+        String trackedEntityType = new TrackedEntityTypeActions().create();
+        JsonObject body = trackerActions.getTrackedEntity( tei ).getBodyAsJsonBuilder()
             .addProperty( "trackedEntity", tei )
             .addProperty( "trackedEntityType", trackedEntityType )
             .wrapIntoArray( "trackedEntities" );
@@ -89,7 +83,7 @@ public class TeiUpdateTests
         // arrange
         String teiId = importTei();
 
-        JsonObject teiBody = trackerActions.get( "/trackedEntities/" + teiId ).getBody();
+        JsonObject teiBody = trackerActions.getTrackedEntity( teiId ).getBody();
         teiBody = JsonObjectBuilder.jsonObject( teiBody )
             .addProperty( "trackedEntity", teiId )
             .wrapIntoArray( "trackedEntities" );
@@ -113,7 +107,8 @@ public class TeiUpdateTests
             .readJsonAndGenerateData( new File( "src/test/resources/tracker/importer/teis/tei.json" ) );
 
         ApiResponse response = trackerActions
-            .postAndGetJobReport( teiBody, new QueryParamsBuilder().add( String.format( "importStrategy=%s", importStrategy ) ) );
+            .postAndGetJobReport( teiBody,
+                new QueryParamsBuilder().add( String.format( "importStrategy=%s", importStrategy ) ) );
 
         response.validate().statusCode( 200 )
             .body( "status", equalTo( "ERROR" ) )

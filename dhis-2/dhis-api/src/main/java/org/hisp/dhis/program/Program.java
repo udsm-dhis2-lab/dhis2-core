@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,10 @@
 package org.hisp.dhis.program;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -54,7 +56,7 @@ import org.hisp.dhis.schema.annotation.PropertyRange;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.translation.Translatable;
-import org.hisp.dhis.user.UserAuthorityGroup;
+import org.hisp.dhis.user.UserRole;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -93,7 +95,7 @@ public class Program
 
     private List<ProgramTrackedEntityAttribute> programAttributes = new ArrayList<>();
 
-    private Set<UserAuthorityGroup> userRoles = new HashSet<>();
+    private Set<UserRole> userRoles = new HashSet<>();
 
     private Set<ProgramIndicator> programIndicators = new HashSet<>();
 
@@ -165,6 +167,12 @@ public class Program
     private int completeEventsExpiryDays;
 
     /**
+     * Number of days to open for data capture that are after the category
+     * option's end date.
+     */
+    private int openDaysAfterCoEndDate;
+
+    /**
      * Property indicating minimum number of attributes required to fill before
      * search is triggered
      */
@@ -207,6 +215,22 @@ public class Program
     {
         organisationUnits.add( organisationUnit );
         organisationUnit.getPrograms().add( this );
+    }
+
+    public void addOrganisationUnits( Set<OrganisationUnit> organisationUnits )
+    {
+        organisationUnits.forEach( this::addOrganisationUnit );
+    }
+
+    public boolean removeOrganisationUnit( OrganisationUnit organisationUnit )
+    {
+        organisationUnits.remove( organisationUnit );
+        return organisationUnit.getPrograms().remove( this );
+    }
+
+    public void removeOrganisationUnits( Set<OrganisationUnit> organisationUnits )
+    {
+        organisationUnits.forEach( this::removeOrganisationUnit );
     }
 
     /**
@@ -260,12 +284,27 @@ public class Program
     }
 
     /**
+     * Returns all data elements which are part of the stages of this program
+     * and is not skipped in analytics.
+     */
+    public Set<DataElement> getAnalyticsDataElements()
+    {
+        return programStages.stream()
+            .map( ProgramStage::getProgramStageDataElements )
+            .flatMap( Collection::stream )
+            .filter( Objects::nonNull )
+            .filter( psde -> !psde.getSkipAnalytics() )
+            .map( ProgramStageDataElement::getDataElement )
+            .collect( Collectors.toSet() );
+    }
+
+    /**
      * Returns data elements which are part of the stages of this program which
      * have a legend set and is of numeric value type.
      */
-    public Set<DataElement> getDataElementsWithLegendSet()
+    public Set<DataElement> getAnalyticsDataElementsWithLegendSet()
     {
-        return getDataElements().stream()
+        return getAnalyticsDataElements().stream()
             .filter( de -> de.hasLegendSet() && de.isNumericType() )
             .collect( Collectors.toSet() );
     }
@@ -530,12 +569,12 @@ public class Program
     @JsonSerialize( contentAs = BaseIdentifiableObject.class )
     @JacksonXmlElementWrapper( localName = "userRoles", namespace = DxfNamespaces.DXF_2_0 )
     @JacksonXmlProperty( localName = "userRole", namespace = DxfNamespaces.DXF_2_0 )
-    public Set<UserAuthorityGroup> getUserRoles()
+    public Set<UserRole> getUserRoles()
     {
         return userRoles;
     }
 
-    public void setUserRoles( Set<UserAuthorityGroup> userRoles )
+    public void setUserRoles( Set<UserRole> userRoles )
     {
         this.userRoles = userRoles;
     }
@@ -687,7 +726,7 @@ public class Program
      * Indicates whether this program has a category combination which is
      * different from the default category combination.
      */
-    public boolean hasCategoryCombo()
+    public boolean hasNonDefaultCategoryCombo()
     {
         return categoryCombo != null && !CategoryCombo.DEFAULT_CATEGORY_COMBO_NAME.equals( categoryCombo.getName() );
     }
@@ -776,6 +815,18 @@ public class Program
     public void setCompleteEventsExpiryDays( int completeEventsExpiryDays )
     {
         this.completeEventsExpiryDays = completeEventsExpiryDays;
+    }
+
+    @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public int getOpenDaysAfterCoEndDate()
+    {
+        return openDaysAfterCoEndDate;
+    }
+
+    public void setOpenDaysAfterCoEndDate( int openDaysAfterCoEndDate )
+    {
+        this.openDaysAfterCoEndDate = openDaysAfterCoEndDate;
     }
 
     @JsonProperty

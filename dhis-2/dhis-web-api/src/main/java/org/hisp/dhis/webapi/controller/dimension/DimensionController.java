@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +29,16 @@ package org.hisp.dhis.webapi.controller.dimension;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.hisp.dhis.common.CodeGenerator.isValidUid;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletResponse;
 
 import org.hisp.dhis.analytics.dimension.AnalyticsDimensionService;
 import org.hisp.dhis.common.DataQueryRequest;
@@ -47,10 +46,10 @@ import org.hisp.dhis.common.DimensionService;
 import org.hisp.dhis.common.DimensionalItemObject;
 import org.hisp.dhis.common.DimensionalObject;
 import org.hisp.dhis.common.IdentifiableObjectManager;
+import org.hisp.dhis.commons.jackson.domain.JsonRoot;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.dxf2.common.OrderParams;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.fieldfilter.Defaults;
 import org.hisp.dhis.fieldfilter.FieldFilterParams;
 import org.hisp.dhis.node.AbstractNode;
@@ -66,13 +65,15 @@ import org.hisp.dhis.webapi.controller.AbstractCrudController;
 import org.hisp.dhis.webapi.webdomain.WebMetadata;
 import org.hisp.dhis.webapi.webdomain.WebOptions;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * @author Lars Helge Overland
@@ -133,7 +134,7 @@ public class DimensionController
     }
 
     @SuppressWarnings( "unchecked" )
-    @RequestMapping( value = "/{uid}/items", method = RequestMethod.GET )
+    @GetMapping( "/{uid}/items" )
     public @ResponseBody RootNode getItems( @PathVariable String uid, @RequestParam Map<String, String> parameters,
         OrderParams orderParams )
         throws QueryParserException
@@ -171,7 +172,7 @@ public class DimensionController
         RootNode rootNode = NodeUtils.createMetadata();
 
         CollectionNode collectionNode = rootNode
-            .addChild( fieldFilterService.toCollectionNode( DimensionalItemObject.class,
+            .addChild( oldFieldFilterService.toCollectionNode( DimensionalItemObject.class,
                 new FieldFilterParams( paginatedItems, fields ) ) );
         collectionNode.setName( "items" );
 
@@ -187,11 +188,11 @@ public class DimensionController
         return rootNode;
     }
 
-    @RequestMapping( value = "/constraints", method = RequestMethod.GET )
-    public @ResponseBody RootNode getDimensionConstraints(
-        @RequestParam( value = "links", defaultValue = "true", required = false ) Boolean links )
+    @GetMapping( "/constraints" )
+    public @ResponseBody ResponseEntity<JsonRoot> getDimensionConstraints(
+        @RequestParam( value = "links", defaultValue = "true", required = false ) Boolean links,
+        @RequestParam( defaultValue = "*" ) List<String> fields )
     {
-        List<String> fields = newArrayList( contextService.getParameterValues( "fields" ) );
         List<DimensionalObject> dimensionConstraints = dimensionService.getDimensionConstraints();
 
         if ( links )
@@ -199,17 +200,16 @@ public class DimensionController
             linkService.generateLinks( dimensionConstraints, false );
         }
 
-        RootNode rootNode = NodeUtils.createMetadata();
-        rootNode.addChild( fieldFilterService.toCollectionNode( getEntityClass(),
-            new FieldFilterParams( dimensionConstraints, fields ) ) );
+        List<ObjectNode> objectNodes = fieldFilterService.toObjectNodes( dimensionConstraints, fields );
 
-        return rootNode;
+        return ResponseEntity.ok( new JsonRoot( "dimensions", objectNodes ) );
     }
 
-    @RequestMapping( value = "/recommendations", method = RequestMethod.GET )
-    public @ResponseBody RootNode getRecommendedDimensions( @RequestParam Set<String> dimension )
+    @GetMapping( "/recommendations" )
+    public ResponseEntity<JsonRoot> getRecommendedDimensions(
+        @RequestParam Set<String> dimension,
+        @RequestParam( defaultValue = "id,displayName" ) List<String> fields )
     {
-        List<String> fields = newArrayList( contextService.getParameterValues( "fields" ) );
         DataQueryRequest request = DataQueryRequest.newBuilder().dimension( dimension ).build();
 
         if ( fields.isEmpty() )
@@ -218,52 +218,45 @@ public class DimensionController
         }
 
         List<DimensionalObject> dimensions = analyticsDimensionService.getRecommendedDimensions( request );
+        List<ObjectNode> objectNodes = fieldFilterService.toObjectNodes( dimensions, fields );
 
-        RootNode rootNode = NodeUtils.createMetadata();
-        rootNode.addChild(
-            fieldFilterService.toCollectionNode( getEntityClass(), new FieldFilterParams( dimensions, fields ) ) );
-
-        return rootNode;
+        return ResponseEntity.ok( new JsonRoot( "dimensions", objectNodes ) );
     }
 
-    @RequestMapping( value = "/dataSet/{uid}", method = RequestMethod.GET )
-    public @ResponseBody RootNode getDimensionsForDataSet( @PathVariable String uid,
+    @GetMapping( "/dataSet/{uid}" )
+    public ResponseEntity<JsonRoot> getDimensionsForDataSet( @PathVariable String uid,
         @RequestParam( value = "links", defaultValue = "true", required = false ) Boolean links,
-        Model model, HttpServletResponse response )
+        @RequestParam( defaultValue = "*" ) List<String> fields )
         throws WebMessageException
     {
         WebMetadata metadata = new WebMetadata();
-        List<String> fields = newArrayList( contextService.getParameterValues( "fields" ) );
 
         DataSet dataSet = identifiableObjectManager.get( DataSet.class, uid );
 
         if ( dataSet == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "Data set not found: " + uid ) );
+            throw new WebMessageException( notFound( "Data set not found: " + uid ) );
         }
 
         List<DimensionalObject> dimensions = new ArrayList<>();
         dimensions.addAll( dataSet.getCategoryCombo().getCategories().stream()
             .filter( ca -> !ca.isDefault() )
-            .collect( Collectors.toList() ) );
+            .collect( toList() ) );
         dimensions.addAll( dataSet.getCategoryOptionGroupSets() );
 
         dimensions = dimensionService.getCanReadObjects( dimensions );
 
-        for ( DimensionalObject dim : dimensions )
-        {
-            metadata.getDimensions().add( dimensionService.getDimensionalObjectCopy( dim.getUid(), true ) );
-        }
+        metadata.setDimensions( dimensions.stream()
+            .map( dim -> dimensionService.getDimensionalObjectCopy( dim.getUid(), true ) )
+            .collect( toList() ) );
 
         if ( links )
         {
             linkService.generateLinks( metadata, false );
         }
 
-        RootNode rootNode = NodeUtils.createMetadata();
-        rootNode.addChild( fieldFilterService.toCollectionNode( getEntityClass(),
-            new FieldFilterParams( metadata.getDimensions(), fields ) ) );
+        List<ObjectNode> objectNodes = fieldFilterService.toObjectNodes( metadata.getDimensions(), fields );
 
-        return rootNode;
+        return ResponseEntity.ok( new JsonRoot( "dimensions", objectNodes ) );
     }
 }

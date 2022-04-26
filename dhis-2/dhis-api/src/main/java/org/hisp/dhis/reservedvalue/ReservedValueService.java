@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,13 +33,15 @@ import java.util.Map;
 
 import org.hisp.dhis.textpattern.TextPattern;
 import org.hisp.dhis.textpattern.TextPatternGenerationException;
+import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 
 /**
  * @author Stian Sandvold
  */
 public interface ReservedValueService
 {
-    List<ReservedValue> reserve( TextPattern textPattern, int numberOfReservations, Map<String, String> values,
+    List<ReservedValue> reserve( TrackedEntityAttribute trackedEntityAttribute, int numberOfReservations,
+        Map<String, String> values,
         Date expires )
         throws ReserveValueException,
         TextPatternGenerationException;
@@ -48,7 +50,7 @@ public interface ReservedValueService
 
     boolean isReserved( TextPattern textPattern, String value );
 
-    void removeExpiredReservations();
-
     void deleteReservedValueByUid( String uid );
+
+    void removeUsedOrExpiredReservations();
 }

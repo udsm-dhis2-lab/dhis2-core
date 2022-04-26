@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,7 @@ package org.hisp.dhis.category.hibernate;
 import java.util.List;
 import java.util.Set;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Root;
-
+import org.hibernate.NonUniqueResultException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -60,7 +55,7 @@ public class HibernateCategoryOptionComboStore
     extends HibernateIdentifiableObjectStore<CategoryOptionCombo>
     implements CategoryOptionComboStore
 {
-    private DbmsManager dbmsManager;
+    private final DbmsManager dbmsManager;
 
     public HibernateCategoryOptionComboStore( SessionFactory sessionFactory, JdbcTemplate jdbcTemplate,
         ApplicationEventPublisher publisher, CurrentUserService currentUserService,
@@ -75,14 +70,16 @@ public class HibernateCategoryOptionComboStore
     public CategoryOptionCombo getCategoryOptionCombo( CategoryCombo categoryCombo,
         Set<CategoryOption> categoryOptions )
     {
-        String hql = "from CategoryOptionCombo co where co.categoryCombo = :categoryCombo";
+        StringBuilder hql = new StringBuilder( "from CategoryOptionCombo co where co.categoryCombo = :categoryCombo" );
 
         for ( CategoryOption option : categoryOptions )
         {
-            hql += " and :option" + option.getId() + " in elements (co.categoryOptions)";
+            hql.append( " and :option" );
+            hql.append( option.getId() );
+            hql.append( " in elements (co.categoryOptions)" );
         }
 
-        Query<CategoryOptionCombo> query = getQuery( hql );
+        Query<CategoryOptionCombo> query = getQuery( hql.toString() );
 
         query.setParameter( "categoryCombo", categoryCombo );
 
@@ -91,7 +88,21 @@ public class HibernateCategoryOptionComboStore
             query.setParameter( "option" + option.getId(), option );
         }
 
-        return query.uniqueResult();
+        CategoryOptionCombo categoryOptionCombo = null;
+        try
+        {
+            categoryOptionCombo = query.uniqueResult();
+        }
+        catch ( NonUniqueResultException e )
+        {
+            // given only a subset of category options multiple
+            // categoryOptionCombos could be found
+            // from the perspective of the clients the categoryOptionCombo has
+            // not been found as only one is expected
+            // (see signature). Return null in that case, as when no result has
+            // been found.
+        }
+        return categoryOptionCombo;
     }
 
     @Override
@@ -115,15 +126,20 @@ public class HibernateCategoryOptionComboStore
     }
 
     @Override
-    public List<CategoryOptionCombo> getCategoryOptionCombosByGroupUid( String groupUid )
+    public List<CategoryOptionCombo> getCategoryOptionCombosByGroupUid( String groupUid, String dataElementUid )
     {
-        CriteriaBuilder builder = getCriteriaBuilder();
-        CriteriaQuery<CategoryOptionCombo> query = builder.createQuery( CategoryOptionCombo.class );
-        Root<CategoryOptionCombo> root = query.from( CategoryOptionCombo.class );
-        Join<Object, Object> joinCatOption = root.join( "categoryOptions", JoinType.INNER );
-        Join<Object, Object> joinCatOptionGroup = joinCatOption.join( "groups", JoinType.INNER );
-        query.where( builder.equal( joinCatOptionGroup.get( "uid" ), groupUid ) );
-        return getSession().createQuery( query ).list();
+        final String hql = "select coc from DataElement de "
+            + "join de.categoryCombo cc "
+            + "join cc.optionCombos coc "
+            + "join coc.categoryOptions co "
+            + "join co.groups cog "
+            + "where cog.uid = :groupUid "
+            + "and de.uid = :dataElementUid";
+
+        return getQuery( hql )
+            .setParameter( "groupUid", groupUid )
+            .setParameter( "dataElementUid", dataElementUid )
+            .list();
     }
 
     @Override

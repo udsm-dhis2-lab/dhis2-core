@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,10 +34,10 @@ import org.hisp.dhis.webapi.controller.event.webrequest.PagingAndSortingCriteria
 
 import com.google.common.base.CaseFormat;
 
-class FieldTranslatorSupport
+public class FieldTranslatorSupport
 {
 
-    static Optional<String> translate( String dtoFieldName,
+    public static Optional<String> translate( String dtoFieldName,
         Enum<? extends PagingAndSortingCriteriaAdapter.EntityNameSupplier>[] translator )
     {
         String upperSnakeCase = CaseFormat.LOWER_CAMEL.to( CaseFormat.UPPER_UNDERSCORE, dtoFieldName );

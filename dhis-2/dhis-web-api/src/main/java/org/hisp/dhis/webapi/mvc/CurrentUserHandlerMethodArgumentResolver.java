@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,12 @@
  */
 package org.hisp.dhis.webapi.mvc;
 
+import lombok.AllArgsConstructor;
+
+import org.hisp.dhis.user.CurrentUser;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
+import org.hisp.dhis.webapi.controller.exception.NotAuthenticatedException;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -37,23 +41,24 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
 /**
- * @author Morten Olav Hansen <mortenoh@gmail.com>
+ * Makes {@link CurrentUser} annotation have its effect.
+ *
+ * @author Morten Olav Hansen (initial version)
+ * @author Jan Bernitt (annotation based version)
  */
 @Component
+@AllArgsConstructor
 public class CurrentUserHandlerMethodArgumentResolver implements HandlerMethodArgumentResolver
 {
     private final CurrentUserService currentUserService;
 
-    public CurrentUserHandlerMethodArgumentResolver( CurrentUserService currentUserService )
-    {
-        this.currentUserService = currentUserService;
-    }
-
     @Override
     public boolean supportsParameter( MethodParameter parameter )
     {
-        return "currentUser".equals( parameter.getParameterName() )
-            && User.class.isAssignableFrom( parameter.getParameterType() );
+        Class<?> type = parameter.getParameterType();
+        return parameter.getParameterAnnotation( CurrentUser.class ) != null
+            && (type == String.class
+                || User.class.isAssignableFrom( type ));
     }
 
     @Override
@@ -61,6 +66,21 @@ public class CurrentUserHandlerMethodArgumentResolver implements HandlerMethodAr
         NativeWebRequest webRequest, WebDataBinderFactory binderFactory )
         throws Exception
     {
-        return currentUserService.getCurrentUser();
+        Class<?> type = parameter.getParameterType();
+        if ( type == String.class )
+        {
+            return currentUserService.getCurrentUsername();
+        }
+        User user = currentUserService.getCurrentUser();
+        CurrentUser annotation = parameter.getParameterAnnotation( CurrentUser.class );
+        if ( user == null && annotation != null && annotation.required() )
+        {
+            throw new NotAuthenticatedException();
+        }
+        if ( User.class.isAssignableFrom( type ) )
+        {
+            return user;
+        }
+        throw new UnsupportedOperationException( "Not yet supported @CurrentUser type: " + type );
     }
 }

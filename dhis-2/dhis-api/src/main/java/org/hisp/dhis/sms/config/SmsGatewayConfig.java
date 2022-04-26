@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,9 @@ public abstract class SmsGatewayConfig
     @JsonView( SmsConfigurationViews.Public.class )
     private String urlTemplate;
 
+    @JsonView( SmsConfigurationViews.Public.class )
+    private String maxSmsLength;
+
     public String getUrlTemplate()
     {
         return urlTemplate;
@@ -144,6 +147,16 @@ public abstract class SmsGatewayConfig
     public void setSendUrlParameters( boolean sendUrlParameters )
     {
         this.sendUrlParameters = sendUrlParameters;
+    }
+
+    public String getMaxSmsLength()
+    {
+        return maxSmsLength;
+    }
+
+    public void setMaxSmsLength( String maxSmsLength )
+    {
+        this.maxSmsLength = maxSmsLength;
     }
 
     @Override

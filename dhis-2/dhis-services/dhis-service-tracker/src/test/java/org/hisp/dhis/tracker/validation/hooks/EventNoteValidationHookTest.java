@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,18 +29,19 @@ package org.hisp.dhis.tracker.validation.hooks;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.hisp.dhis.random.BeanRandomizer;
 import org.hisp.dhis.trackedentitycomment.TrackedEntityComment;
+import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.ValidationMode;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Event;
@@ -48,50 +49,48 @@ import org.hisp.dhis.tracker.domain.Note;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.TrackerErrorCode;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Luciano Fiandesio
  */
-public class EventNoteValidationHookTest
+@ExtendWith( MockitoExtension.class )
+class EventNoteValidationHookTest
 {
+
     // Class under test
     private EventNoteValidationHook hook;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    private BeanRandomizer rnd;
-
     private Event event;
 
-    @Before
+    private final BeanRandomizer rnd = BeanRandomizer.create();
+
+    private TrackerBundle bundle;
+
+    private TrackerPreheat preheat;
+
+    @BeforeEach
     public void setUp()
     {
         this.hook = new EventNoteValidationHook();
-        rnd = new BeanRandomizer();
-        event = rnd.randomObject( Event.class );
+        event = rnd.nextObject( Event.class );
+
+        bundle = mock( TrackerBundle.class );
+        preheat = mock( TrackerPreheat.class );
+        when( bundle.getValidationMode() ).thenReturn( ValidationMode.FULL );
+        when( bundle.getPreheat() ).thenReturn( preheat );
     }
 
     @Test
-    public void testNoteWithExistingUidWarnings()
+    void testNoteWithExistingUidWarnings()
     {
         // Given
-        final Note note = rnd.randomObject( Note.class );
-
-        TrackerBundle trackerBundle = mock( TrackerBundle.class );
-        TrackerImportValidationContext ctx = mock( TrackerImportValidationContext.class );
-        TrackerPreheat preheat = mock( TrackerPreheat.class );
-        when( ctx.getBundle() ).thenReturn( trackerBundle );
-        when( trackerBundle.getValidationMode() ).thenReturn( ValidationMode.FULL );
-        when( trackerBundle.getPreheat() ).thenReturn( preheat );
-        when( ctx.getNote( note.getNote() ) ).thenReturn( Optional.of( new TrackedEntityComment() ) );
-        ValidationErrorReporter reporter = new ValidationErrorReporter( ctx, event );
+        final Note note = rnd.nextObject( Note.class );
+        when( preheat.getNote( note.getNote() ) ).thenReturn( Optional.of( new TrackedEntityComment() ) );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         event.setNotes( Collections.singletonList( note ) );
 
@@ -100,23 +99,19 @@ public class EventNoteValidationHookTest
 
         // Then
         assertTrue( reporter.hasWarnings() );
-        assertThat( reporter.getWarningsReportList().get( 0 ).getWarningCode(), is( TrackerErrorCode.E1119 ) );
+        assertTrue( reporter.hasWarningReport( r -> TrackerErrorCode.E1119.equals( r.getWarningCode() ) &&
+            TrackerType.EVENT.equals( r.getTrackerType() ) &&
+            event.getUid().equals( r.getUid() ) ) );
         assertThat( event.getNotes(), hasSize( 0 ) );
     }
 
     @Test
-    public void testNoteWithExistingUidAndNoTextIsIgnored()
+    void testNoteWithExistingUidAndNoTextIsIgnored()
     {
         // Given
-        final Note note = rnd.randomObject( Note.class );
+        final Note note = rnd.nextObject( Note.class );
         note.setValue( null );
-        TrackerBundle trackerBundle = mock( TrackerBundle.class );
-        TrackerImportValidationContext ctx = mock( TrackerImportValidationContext.class );
-
-        when( ctx.getBundle() ).thenReturn( trackerBundle );
-        when( trackerBundle.getValidationMode() ).thenReturn( ValidationMode.FULL );
-        when( ctx.getNote( note.getNote() ) ).thenReturn( Optional.of( new TrackedEntityComment() ) );
-        ValidationErrorReporter reporter = new ValidationErrorReporter( ctx, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         event.setNotes( Collections.singletonList( note ) );
 
@@ -129,16 +124,11 @@ public class EventNoteValidationHookTest
     }
 
     @Test
-    public void testNotesAreValidWhenUidDoesNotExist()
+    void testNotesAreValidWhenUidDoesNotExist()
     {
         // Given
-        final List<Note> notes = rnd.randomObjects( Note.class, 5 );
-        TrackerBundle trackerBundle = mock( TrackerBundle.class );
-        TrackerImportValidationContext ctx = mock( TrackerImportValidationContext.class );
-
-        when( ctx.getBundle() ).thenReturn( trackerBundle );
-        when( trackerBundle.getValidationMode() ).thenReturn( ValidationMode.FULL );
-        ValidationErrorReporter reporter = new ValidationErrorReporter( ctx, event );
+        final List<Note> notes = rnd.objects( Note.class, 5 ).collect( Collectors.toList() );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         event.setNotes( notes );
 

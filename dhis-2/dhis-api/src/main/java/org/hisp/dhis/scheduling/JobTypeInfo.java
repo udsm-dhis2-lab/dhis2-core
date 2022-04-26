@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,6 @@ public class JobTypeInfo
 
     private JobType jobType;
 
-    private String key;
-
     private SchedulingType schedulingType;
 
     private List<Property> jobParameters = new ArrayList<>();
@@ -69,7 +67,6 @@ public class JobTypeInfo
     {
         this.name = name;
         this.jobType = jobType;
-        this.key = jobType.getKey();
         this.schedulingType = jobType.getSchedulingType();
         this.jobParameters = jobParameters;
     }
@@ -84,12 +81,6 @@ public class JobTypeInfo
     public JobType getJobType()
     {
         return jobType;
-    }
-
-    @JsonProperty
-    public String getKey()
-    {
-        return key;
     }
 
     @JsonProperty

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.setting;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -40,11 +41,9 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.cache.Cache;
 import org.hisp.dhis.cache.CacheProvider;
 import org.hisp.dhis.system.util.SerializableOptional;
-import org.hisp.dhis.system.util.ValidationUtils;
 import org.jasypt.encryption.pbe.PBEStringEncryptor;
 import org.jasypt.exceptions.EncryptionOperationNotPossibleException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -142,7 +141,7 @@ public class DefaultSystemSettingManager
 
         if ( setting == null && !translation.isEmpty() )
         {
-            throw new IllegalStateException( "No entry found for key: " + key );
+            throw new IllegalStateException( "No entry found for key: " + key.getName() );
         }
         else if ( setting != null )
         {
@@ -180,25 +179,14 @@ public class DefaultSystemSettingManager
      * cache hits.
      */
     @Override
+    @SuppressWarnings( "unchecked" )
     @Transactional( readOnly = true )
-    public Serializable getSystemSetting( SettingKey key )
-    {
-        return getSystemSetting( key, key.getDefaultValue() );
-    }
-
-    /**
-     * Note: No transaction for this method, transaction is instead initiated at
-     * the store level behind the cache to avoid the transaction overhead for
-     * cache hits.
-     */
-    @Override
-    @Transactional( readOnly = true )
-    public Serializable getSystemSetting( SettingKey key, Serializable defaultValue )
+    public <T extends Serializable> T getSystemSetting( SettingKey key, T defaultValue )
     {
         SerializableOptional value = settingCache.get( key.getName(),
-            k -> getSystemSettingOptional( k, defaultValue ) ).get();
+            k -> getSystemSettingOptional( k, defaultValue ) );
 
-        return value.get();
+        return defaultIfNull( (T) value.get(), defaultValue );
     }
 
     /**
@@ -212,17 +200,17 @@ public class DefaultSystemSettingManager
      */
     private SerializableOptional getSystemSettingOptional( String name, Serializable defaultValue )
     {
-        SystemSetting setting = systemSettingStore.getByName( name );
+        Serializable displayValue = getSettingDisplayValue( name );
 
-        if ( setting != null && setting.hasValue() )
+        if ( displayValue != null )
         {
             if ( isConfidential( name ) )
             {
                 try
                 {
-                    return SerializableOptional.of( pbeStringEncryptor.decrypt( (String) setting.getDisplayValue() ) );
+                    return SerializableOptional.of( pbeStringEncryptor.decrypt( (String) displayValue ) );
                 }
-                catch ( EncryptionOperationNotPossibleException e )
+                catch ( ClassCastException | EncryptionOperationNotPossibleException e )
                 {
                     log.warn( "Could not decrypt system setting '" + name + "'" );
                     return SerializableOptional.empty();
@@ -230,13 +218,25 @@ public class DefaultSystemSettingManager
             }
             else
             {
-                return SerializableOptional.of( setting.getDisplayValue() );
+                return SerializableOptional.of( displayValue );
             }
         }
         else
         {
             return SerializableOptional.of( defaultValue );
         }
+    }
+
+    private Serializable getSettingDisplayValue( String name )
+    {
+        SystemSetting setting = systemSettingStore.getByName( name );
+
+        if ( setting != null && setting.hasValue() )
+        {
+            return setting.getDisplayValue();
+        }
+
+        return null;
     }
 
     @Override
@@ -305,7 +305,7 @@ public class DefaultSystemSettingManager
 
         for ( SettingKey setting : keys )
         {
-            Serializable value = getSystemSetting( setting );
+            Serializable value = getSystemSetting( setting, setting.getClazz() );
 
             if ( value != null )
             {
@@ -331,103 +331,6 @@ public class DefaultSystemSettingManager
     {
         Collections.sort( flags );
         return flags;
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public String getFlagImage()
-    {
-        String flag = (String) getSystemSetting( SettingKey.FLAG );
-
-        return flag != null ? flag + ".png" : null;
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public String getEmailHostName()
-    {
-        return StringUtils.trimToNull( (String) getSystemSetting( SettingKey.EMAIL_HOST_NAME ) );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public int getEmailPort()
-    {
-        return (Integer) getSystemSetting( SettingKey.EMAIL_PORT );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public String getEmailUsername()
-    {
-        return StringUtils.trimToNull( (String) getSystemSetting( SettingKey.EMAIL_USERNAME ) );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public boolean getEmailTls()
-    {
-        return (Boolean) getSystemSetting( SettingKey.EMAIL_TLS );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public String getEmailSender()
-    {
-        return StringUtils.trimToNull( (String) getSystemSetting( SettingKey.EMAIL_SENDER ) );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public boolean accountRecoveryEnabled()
-    {
-        return (Boolean) getSystemSetting( SettingKey.ACCOUNT_RECOVERY );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public boolean selfRegistrationNoRecaptcha()
-    {
-        return (Boolean) getSystemSetting( SettingKey.SELF_REGISTRATION_NO_RECAPTCHA );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public boolean emailConfigured()
-    {
-        return StringUtils.isNotBlank( getEmailHostName() )
-            && StringUtils.isNotBlank( getEmailUsername() );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public boolean systemNotificationEmailValid()
-    {
-        String address = (String) getSystemSetting( SettingKey.SYSTEM_NOTIFICATIONS_EMAIL );
-
-        return address != null && ValidationUtils.emailIsValid( address );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public boolean hideUnapprovedDataInAnalytics()
-    {
-        // -1 means approval is disabled
-        return (int) getSystemSetting( SettingKey.IGNORE_ANALYTICS_APPROVAL_YEAR_THRESHOLD ) >= 0;
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public String googleAnalyticsUA()
-    {
-        return StringUtils.trimToNull( (String) getSystemSetting( SettingKey.GOOGLE_ANALYTICS_UA ) );
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public Integer credentialsExpires()
-    {
-        return (Integer) getSystemSetting( SettingKey.CREDENTIALS_EXPIRES );
     }
 
     @Override

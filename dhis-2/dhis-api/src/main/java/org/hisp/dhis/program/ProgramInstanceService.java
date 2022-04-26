@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,6 +98,14 @@ public interface ProgramInstanceService
      * @return the ProgramInstance with the given UID, or null if no match.
      */
     ProgramInstance getProgramInstance( String uid );
+
+    /**
+     * Returns a list of existing ProgramInstances from the provided UIDs
+     *
+     * @param uids PSI UIDs to check
+     * @return ProgramInstance list
+     */
+    List<ProgramInstance> getProgramInstances( List<String> uids );
 
     /**
      * Checks for the existence of a PI by UID. Deleted values are not taken

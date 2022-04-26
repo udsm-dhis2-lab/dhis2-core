@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -136,18 +136,6 @@ public class HibernatePeriodStore
     }
 
     @Override
-    public List<Period> getIntersectingPeriodsByPeriodType( PeriodType periodType, Date startDate, Date endDate )
-    {
-        String query = "from Period p where p.startDate <=:endDate and p.endDate >=:startDate and p.periodType.id =:periodType";
-
-        Query<Period> typedQuery = getQuery( query )
-            .setParameter( "startDate", startDate )
-            .setParameter( "endDate", endDate )
-            .setParameter( "periodType", reloadPeriodType( periodType ).getId() );
-        return getList( typedQuery );
-    }
-
-    @Override
     public List<Period> getIntersectingPeriods( Date startDate, Date endDate )
     {
         String query = "from Period p where p.startDate <=:endDate and p.endDate >=:startDate";
@@ -192,8 +180,7 @@ public class HibernatePeriodStore
 
         Long id = periodIdCache
             .get( period.getCacheKey(),
-                key -> getPeriodId( period.getStartDate(), period.getEndDate(), period.getPeriodType() ) )
-            .orElse( null );
+                key -> getPeriodId( period.getStartDate(), period.getEndDate(), period.getPeriodType() ) );
 
         Period storedPeriod = id != null ? getSession().get( Period.class, id ) : null;
 

@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +25,16 @@ package org.hisp.dhis.helpers;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.helpers;
+
+import java.util.*;
+import java.util.logging.Logger;
 
 import org.hisp.dhis.TestRunStorage;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.MaintenanceActions;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.dto.ApiResponse;
-
-import java.util.*;
-import java.util.logging.Logger;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -47,7 +46,8 @@ public class TestCleanUp
     private int deleteCount = 0;
 
     /**
-     * Deletes entities created during test run. Entities deleted one by one starting from last created one.
+     * Deletes entities created during test run. Entities deleted one by one
+     * starting from last created one.
      */
     public void deleteCreatedEntities()
     {

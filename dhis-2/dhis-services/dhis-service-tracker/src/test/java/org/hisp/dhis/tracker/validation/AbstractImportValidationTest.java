@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,9 +28,6 @@
 package org.hisp.dhis.tracker.validation;
 
 import java.io.IOException;
-import java.io.InputStream;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleValidationService;
@@ -39,14 +36,11 @@ import org.hisp.dhis.tracker.TrackerTest;
 import org.hisp.dhis.tracker.bundle.TrackerBundleService;
 import org.hisp.dhis.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 
 /**
  * @author Morten Svanæs <msvanaes@dhis2.org>
  */
-@Slf4j
-public abstract class AbstractImportValidationTest
-    extends TrackerTest
+public abstract class AbstractImportValidationTest extends TrackerTest
 {
     @Autowired
     protected TrackerBundleService trackerBundleService;
@@ -74,12 +68,14 @@ public abstract class AbstractImportValidationTest
 
     public static final String USER_6 = "VfaA5WwHLdP";
 
+    public static final String USER_7 = "E5AiPnHG3t5";
+
+    public static final String USER_8 = "xbgFeL0l3Ap";
+
     protected TrackerImportParams createBundleFromJson( String jsonFile )
         throws IOException
     {
-        InputStream inputStream = new ClassPathResource( jsonFile ).getInputStream();
-
-        TrackerImportParams params = renderService.fromJson( inputStream, TrackerImportParams.class );
+        TrackerImportParams params = _fromJson( jsonFile );
 
         User user = userService.getUser( ADMIN_USER_UID );
         params.setUser( user );

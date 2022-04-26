@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions.metadata;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,19 +25,20 @@ package org.hisp.dhis.actions.metadata;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import org.hisp.dhis.actions.RestApiActions;
-import org.hisp.dhis.dto.ApiResponse;
-import org.hisp.dhis.helpers.QueryParamsBuilder;
-import org.hisp.dhis.helpers.config.TestConfiguration;
-
-import java.util.Arrays;
-import java.util.List;
+package org.hisp.dhis.actions.metadata;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.startsWith;
+
+import java.util.Arrays;
+import java.util.List;
+
+import org.hisp.dhis.actions.RestApiActions;
+import org.hisp.dhis.dto.ApiResponse;
+import org.hisp.dhis.helpers.QueryParamsBuilder;
+import org.hisp.dhis.helpers.config.TestConfiguration;
 
 /**
  * @author Luciano Fiandesio
@@ -62,9 +61,10 @@ public class MetadataPaginationActions
     /**
      * Executes a metadata request using pagination directives
      *
-     * @param filter a List of String, containing the expressions to filter metadata
-     *        on
-     * @param fields a List of String, containing the name of the fields to return
+     * @param filter a List of String, containing the expressions to filter
+     *        metadata on
+     * @param fields a List of String, containing the name of the fields to
+     *        return
      * @param sort a List of String, containing the sort expressions
      * @param page the page to return
      * @param pageSize the number of elements to return for each page
@@ -88,7 +88,8 @@ public class MetadataPaginationActions
      * Executes a metadata request using pagination directives. Uses a default
      * filter expression
      *
-     * @param fields a List of String, containing the name of the fields to return
+     * @param fields a List of String, containing the name of the fields to
+     *        return
      * @param sort a List of String, containing the sort expressions
      * @param page the page to return
      * @param pageSize the number of elements to return for each page
@@ -103,7 +104,8 @@ public class MetadataPaginationActions
      * Executes a metadata request using pagination directives. Uses a default
      * filter and sort expression
      *
-     * @param fields a List of String, containing the name of the fields to return
+     * @param fields a List of String, containing the name of the fields to
+     *        return
      * @param page the page to return
      * @param pageSize the number of elements to return for each page
      * @return an {@see ApiResponse} object
@@ -116,10 +118,10 @@ public class MetadataPaginationActions
 
     public ApiResponse getPaginatedWithFiltersOnly( List<String> filters, int page, int pageSize )
     {
-        return getPaginated( filters, toParamList( DEFAULT_METADATA_FIELDS ), toParamList( DEFAULT_METADATA_SORT ), page,
+        return getPaginated( filters, toParamList( DEFAULT_METADATA_FIELDS ), toParamList( DEFAULT_METADATA_SORT ),
+            page,
             pageSize );
     }
-
 
     /**
      * Executes a metadata request using pagination directives. Uses a default

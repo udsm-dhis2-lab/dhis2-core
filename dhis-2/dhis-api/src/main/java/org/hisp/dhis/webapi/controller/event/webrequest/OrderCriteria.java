@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,6 +88,10 @@ public class OrderCriteria
         if ( props.length == 2 )
         {
             return OrderCriteria.of( props[0], SortDirection.of( props[1] ) );
+        }
+        if ( props.length == 1 )
+        {
+            return OrderCriteria.of( props[0], SortDirection.ASC );
         }
         return null;
     }

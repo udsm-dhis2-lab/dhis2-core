@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,9 @@ import org.flywaydb.core.api.output.MigrateResult;
  *
  */
 public class DhisFlyway
-    extends
-    Flyway
+    extends Flyway
 {
-    private boolean repairBeforeMigrate = false;
+    private boolean repairBeforeMigrate;
 
     public DhisFlyway( Configuration configuration, boolean repairBeforeMigrate )
     {
@@ -58,6 +57,7 @@ public class DhisFlyway
         {
             super.repair();
         }
+
         return super.migrate();
     }
 }

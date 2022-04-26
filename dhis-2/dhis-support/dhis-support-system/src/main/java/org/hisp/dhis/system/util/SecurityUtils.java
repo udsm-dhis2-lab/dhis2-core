@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,18 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.hisp.dhis.user.UserAuthorityGroup;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.User;
+import org.hisp.dhis.user.UserRole;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 public class SecurityUtils
 {
-    public static Collection<GrantedAuthority> getGrantedAuthorities( UserCredentials credentials )
+    public static Collection<GrantedAuthority> getGrantedAuthorities( User user )
     {
         Set<GrantedAuthority> authorities = new HashSet<>();
 
-        for ( UserAuthorityGroup group : credentials.getUserAuthorityGroups() )
+        for ( UserRole group : user.getUserRoles() )
         {
             for ( String authority : group.getAuthorities() )
             {

@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers.file;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +25,7 @@ package org.hisp.dhis.helpers.file;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import com.opencsv.CSVReader;
-import com.opencsv.CSVWriterBuilder;
-import org.hisp.dhis.actions.IdGenerator;
+package org.hisp.dhis.helpers.file;
 
 import java.io.File;
 import java.io.FileReader;
@@ -39,6 +34,11 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+
+import org.hisp.dhis.actions.IdGenerator;
+
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriterBuilder;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -77,8 +77,7 @@ public class CsvFileReader
 
         String lastColumnOriginalValue = "";
         String lastColumnReplacedValue = "";
-        for ( String[] row : csvTable
-        )
+        for ( String[] row : csvTable )
         {
             if ( row[columnIndex].equals( propertyName ) )
             {
@@ -103,6 +102,12 @@ public class CsvFileReader
         }
 
         return this;
+    }
+
+    @Override public org.hisp.dhis.helpers.file.FileReader replacePropertyValuesRecursivelyWith( String propertyName,
+        String replacedValue )
+    {
+        return null;
     }
 
     @Override

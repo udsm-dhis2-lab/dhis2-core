@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,10 +77,15 @@ public class DataApprovalLevel
     {
     }
 
-    public DataApprovalLevel( String name, int orgUnitLevel, CategoryOptionGroupSet categoryOptionGroupSet )
+    public DataApprovalLevel( String name, int orgUnitLevel )
     {
         this.name = name;
         this.orgUnitLevel = orgUnitLevel;
+    }
+
+    public DataApprovalLevel( String name, int orgUnitLevel, CategoryOptionGroupSet categoryOptionGroupSet )
+    {
+        this( name, orgUnitLevel );
         this.categoryOptionGroupSet = categoryOptionGroupSet;
     }
 

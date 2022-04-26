@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,11 +87,6 @@ public class ImportCount
         return ignored;
     }
 
-    public void setIgnored( int ignored )
-    {
-        this.ignored = ignored;
-    }
-
     @JsonProperty
     @JacksonXmlProperty( isAttribute = true )
     public int getDeleted()
@@ -148,5 +143,10 @@ public class ImportCount
     public void incrementDeleted( int n )
     {
         deleted += n;
+    }
+
+    public int getTotalCount()
+    {
+        return imported + updated + ignored + deleted;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,19 +79,6 @@ public class ItemConstant
         if ( constant == null )
         {
             throw new ParserExceptionWithoutContext( "Can't find constant for SQL " + ctx.uid0.getText() );
-        }
-
-        return Double.valueOf( constant.getValue() ).toString();
-    }
-
-    @Override
-    public Object regenerate( ExprContext ctx, CommonExpressionVisitor visitor )
-    {
-        Constant constant = visitor.getConstantMap().get( ctx.uid0.getText() );
-
-        if ( constant == null )
-        {
-            return ctx.getText();
         }
 
         return Double.valueOf( constant.getValue() ).toString();

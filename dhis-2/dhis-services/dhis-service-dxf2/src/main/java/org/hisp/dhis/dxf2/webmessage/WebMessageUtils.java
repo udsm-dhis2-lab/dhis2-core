@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@ package org.hisp.dhis.dxf2.webmessage;
 import java.util.List;
 import java.util.function.Supplier;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.hisp.dhis.dxf2.importsummary.ImportStatus;
 import org.hisp.dhis.dxf2.importsummary.ImportSummaries;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
@@ -50,33 +52,33 @@ import org.springframework.http.HttpStatus;
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
+@Slf4j
 public final class WebMessageUtils
 {
     public static WebMessage createWebMessage( String message, Status status, HttpStatus httpStatus )
     {
-        WebMessage webMessage = new WebMessage( status, httpStatus );
-        webMessage.setMessage( message );
-
-        return webMessage;
+        return new WebMessage( status, httpStatus )
+            .setMessage( message );
     }
 
     public static WebMessage createWebMessage( String message, Status status, HttpStatus httpStatus,
         ErrorCode errorCode )
     {
-        WebMessage webMessage = new WebMessage( status, httpStatus );
-        webMessage.setErrorCode( errorCode );
-        webMessage.setMessage( message );
-
-        return webMessage;
+        return new WebMessage( status, httpStatus )
+            .setErrorCode( errorCode )
+            .setMessage( message );
     }
 
     public static WebMessage createWebMessage( String message, String devMessage, Status status, HttpStatus httpStatus )
     {
-        WebMessage webMessage = new WebMessage( status, httpStatus );
-        webMessage.setMessage( message );
-        webMessage.setDevMessage( devMessage );
+        return new WebMessage( status, httpStatus )
+            .setMessage( message )
+            .setDevMessage( devMessage );
+    }
 
-        return webMessage;
+    public static WebMessage ok()
+    {
+        return ok( null );
     }
 
     public static WebMessage ok( String message )
@@ -87,6 +89,11 @@ public final class WebMessageUtils
     public static WebMessage ok( String message, String devMessage )
     {
         return createWebMessage( message, devMessage, Status.OK, HttpStatus.OK );
+    }
+
+    public static WebMessage created()
+    {
+        return created( null );
     }
 
     public static WebMessage created( String message )
@@ -165,181 +172,112 @@ public final class WebMessageUtils
         return createWebMessage( message, Status.ERROR, HttpStatus.SERVICE_UNAVAILABLE );
     }
 
-    public static WebMessage serviceUnavailable( String message, String devMessage )
-    {
-        return createWebMessage( message, devMessage, Status.ERROR, HttpStatus.SERVICE_UNAVAILABLE );
-    }
-
-    public static WebMessage unprocessableEntity( String message )
-    {
-        return createWebMessage( message, Status.ERROR, HttpStatus.UNPROCESSABLE_ENTITY );
-    }
-
-    public static WebMessage unprocessableEntity( String message, String devMessage )
-    {
-        return createWebMessage( message, devMessage, Status.ERROR, HttpStatus.UNPROCESSABLE_ENTITY );
-    }
-
-    public static WebMessage unathorized( String message )
+    public static WebMessage unauthorized( String message )
     {
         return createWebMessage( message, Status.ERROR, HttpStatus.UNAUTHORIZED );
     }
 
-    public static WebMessage unathorized( String message, String devMessage )
-    {
-        return createWebMessage( message, devMessage, Status.ERROR, HttpStatus.UNAUTHORIZED );
-    }
-
     public static WebMessage importSummary( ImportSummary importSummary )
     {
-        WebMessage webMessage = new WebMessage();
-
         if ( importSummary.isStatus( ImportStatus.ERROR ) )
         {
-            webMessage.setMessage( "An error occurred, please check import summary." );
-            webMessage.setStatus( Status.ERROR );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
+            return conflict( "An error occurred, please check import summary." )
+                .setResponse( importSummary );
         }
-        else if ( importSummary.isStatus( ImportStatus.WARNING ) )
+        if ( importSummary.isStatus( ImportStatus.WARNING ) )
         {
-            webMessage.setMessage( "One more conflicts encountered, please check import summary." );
-            webMessage.setStatus( Status.WARNING );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
+            return new WebMessage( Status.WARNING, HttpStatus.CONFLICT )
+                .setMessage( "One more conflicts encountered, please check import summary." )
+                .setResponse( importSummary );
         }
-        else
-        {
-            webMessage.setMessage( "Import was successful." );
-            webMessage.setStatus( Status.OK );
-            webMessage.setHttpStatus( HttpStatus.OK );
-        }
-
-        webMessage.setResponse( importSummary );
-
-        return webMessage;
+        return ok( "Import was successful." )
+            .setResponse( importSummary );
     }
 
     public static WebMessage importSummaries( ImportSummaries importSummaries )
     {
-        WebMessage webMessage = new WebMessage();
-
         if ( importSummaries.isStatus( ImportStatus.ERROR ) )
         {
-            webMessage.setMessage( "An error occurred, please check import summary." );
-            webMessage.setStatus( Status.ERROR );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
+            return conflict( "An error occurred, please check import summary." )
+                .setResponse( importSummaries );
         }
-        else if ( importSummaries.isStatus( ImportStatus.WARNING ) )
+        if ( importSummaries.isStatus( ImportStatus.WARNING ) )
         {
-            webMessage.setMessage( "One or more conflicts encountered, please check import summary." );
-            webMessage.setStatus( Status.WARNING );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
+            return new WebMessage( Status.WARNING, HttpStatus.CONFLICT )
+                .setMessage( "One or more conflicts encountered, please check import summary." )
+                .setResponse( importSummaries );
         }
-        else
-        {
-            webMessage.setMessage( "Import was successful." );
-            webMessage.setStatus( Status.OK );
-            webMessage.setHttpStatus( HttpStatus.OK );
-        }
-
-        webMessage.setResponse( importSummaries );
-
-        return webMessage;
+        return ok( "Import was successful." )
+            .setResponse( importSummaries );
     }
 
     public static WebMessage importReport( ImportReport importReport )
     {
-        WebMessage webMessage = new WebMessage();
-        webMessage.setResponse( new ImportReportWebMessageResponse( importReport ) );
-
-        webMessage.setStatus( importReport.getStatus() );
-
-        if ( webMessage.getStatus() != Status.OK )
+        if ( importReport.getStatus() != Status.OK )
         {
-            webMessage.setMessage( "One more more errors occurred, please see full details in import report." );
-            webMessage.setStatus( Status.WARNING );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
+            return new WebMessage( Status.WARNING, HttpStatus.CONFLICT )
+                .setMessage( "One or more errors occurred, please see full details in import report." )
+                .setResponse( new ImportReportWebMessageResponse( importReport ) );
         }
-
-        return webMessage;
+        return ok()
+            .setResponse( new ImportReportWebMessageResponse( importReport ) );
     }
 
     public static WebMessage typeReport( TypeReport typeReport )
     {
-        WebMessage webMessage = new WebMessage();
-        webMessage.setResponse( new TypeReportWebMessageResponse( typeReport ) );
-
-        if ( typeReport.getErrorReports().isEmpty() )
+        if ( !typeReport.hasErrorReports() )
         {
-            webMessage.setStatus( Status.OK );
-            webMessage.setHttpStatus( HttpStatus.OK );
+            return ok()
+                .setResponse( new TypeReportWebMessageResponse( typeReport ) );
         }
-        else
-        {
-            webMessage.setMessage( "One more more errors occurred, please see full details in import report." );
-            webMessage.setStatus( Status.ERROR );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
-        }
-
-        return webMessage;
+        return conflict( "One or more errors occurred, please see full details in import report." )
+            .setResponse( new TypeReportWebMessageResponse( typeReport ) );
     }
 
     public static WebMessage objectReport( ImportReport importReport )
     {
-        WebMessage webMessage = new WebMessage( Status.OK, HttpStatus.OK );
-
-        if ( !importReport.getTypeReports().isEmpty() )
-        {
-            TypeReport typeReport = importReport.getTypeReports().get( 0 );
-
-            if ( !typeReport.getObjectReports().isEmpty() )
-            {
-                return objectReport( typeReport.getObjectReports().get( 0 ) );
-            }
-        }
-
-        return webMessage;
+        ObjectReport firstObjectReport = importReport.getFirstObjectReport();
+        return firstObjectReport == null
+            ? ok()
+            : objectReport( firstObjectReport );
     }
 
     public static WebMessage objectReport( ObjectReport objectReport )
     {
-        WebMessage webMessage = new WebMessage();
-        webMessage.setResponse( new ObjectReportWebMessageResponse( objectReport ) );
-
         if ( objectReport.isEmpty() )
         {
-            webMessage.setStatus( Status.OK );
-            webMessage.setHttpStatus( HttpStatus.OK );
+            return ok()
+                .setResponse( new ObjectReportWebMessageResponse( objectReport ) );
         }
-        else
-        {
-            webMessage.setMessage( "One more more errors occurred, please see full details in import report." );
-            webMessage.setStatus( Status.WARNING );
-            webMessage.setHttpStatus( HttpStatus.CONFLICT );
-        }
-
-        return webMessage;
+        return new WebMessage( Status.WARNING, HttpStatus.CONFLICT )
+            .setMessage( "One or more errors occurred, please see full details in import report." )
+            .setResponse( new ObjectReportWebMessageResponse( objectReport ) );
     }
 
     public static WebMessage jobConfigurationReport( JobConfiguration jobConfiguration )
     {
-        WebMessage webMessage = WebMessageUtils.ok( "Initiated " + jobConfiguration.getName() );
-        webMessage.setResponse( new JobConfigurationWebMessageResponse( jobConfiguration ) );
-
-        return webMessage;
+        return ok( "Initiated " + jobConfiguration.getName() )
+            .setResponse( new JobConfigurationWebMessageResponse( jobConfiguration ) );
     }
 
     public static WebMessage errorReports( List<ErrorReport> errorReports )
     {
-        WebMessage webMessage = new WebMessage();
-        webMessage.setResponse( new ErrorReportsWebMessageResponse( errorReports ) );
-
         if ( !errorReports.isEmpty() )
         {
-            webMessage.setStatus( Status.ERROR );
-            webMessage.setHttpStatus( HttpStatus.BAD_REQUEST );
+            return badRequest( null )
+                .setResponse( new ErrorReportsWebMessageResponse( errorReports ) );
         }
+        return ok()
+            .setResponse( new ErrorReportsWebMessageResponse( errorReports ) );
+    }
 
-        return webMessage;
+    public static TypeReport typeReport( Class clazz, List<ErrorReport> errorReports )
+    {
+        ObjectReport objectReport = new ObjectReport( clazz, 0 );
+        objectReport.addErrorReports( errorReports );
+        TypeReport typeReport = new TypeReport( clazz );
+        typeReport.addObjectReport( objectReport );
+        return typeReport;
     }
 
     /**

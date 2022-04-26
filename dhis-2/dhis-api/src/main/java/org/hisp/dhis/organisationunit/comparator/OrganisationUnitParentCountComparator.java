@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ public class OrganisationUnitParentCountComparator
     @Override
     public int compare( IdentifiableObject organisationUnit1, IdentifiableObject organisationUnit2 )
     {
-        Integer parents1 = ((OrganisationUnit) organisationUnit1).getAncestors().size();
-        Integer parents2 = ((OrganisationUnit) organisationUnit2).getAncestors().size();
+        int parents1 = ((OrganisationUnit) organisationUnit1).getAncestors().size();
+        int parents2 = ((OrganisationUnit) organisationUnit2).getAncestors().size();
 
-        return parents1.compareTo( parents2 );
+        return Integer.compare( parents1, parents2 );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,15 @@
  */
 package org.hisp.dhis.analytics.table.scheduling;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.Date;
+
+import lombok.AllArgsConstructor;
 
 import org.hisp.dhis.analytics.AnalyticsTableGenerator;
 import org.hisp.dhis.analytics.AnalyticsTableUpdateParams;
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.scheduling.parameters.AnalyticsJobParameters;
 import org.springframework.stereotype.Component;
@@ -42,22 +43,11 @@ import org.springframework.stereotype.Component;
 /**
  * @author Lars Helge Overland
  */
-@Component( "analyticsTableJob" )
-public class AnalyticsTableJob
-    extends AbstractJob
+@Component
+@AllArgsConstructor
+public class AnalyticsTableJob implements Job
 {
     private final AnalyticsTableGenerator analyticsTableGenerator;
-
-    public AnalyticsTableJob( AnalyticsTableGenerator analyticsTableGenerator )
-    {
-        checkNotNull( analyticsTableGenerator );
-
-        this.analyticsTableGenerator = analyticsTableGenerator;
-    }
-
-    // -------------------------------------------------------------------------
-    // Implementation
-    // -------------------------------------------------------------------------
 
     @Override
     public JobType getJobType()
@@ -66,7 +56,7 @@ public class AnalyticsTableJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
         AnalyticsJobParameters parameters = (AnalyticsJobParameters) jobConfiguration.getJobParameters();
 
@@ -74,10 +64,11 @@ public class AnalyticsTableJob
             .withLastYears( parameters.getLastYears() )
             .withSkipResourceTables( parameters.isSkipResourceTables() )
             .withSkipTableTypes( parameters.getSkipTableTypes() )
+            .withSkipPrograms( parameters.getSkipPrograms() )
             .withJobId( jobConfiguration )
             .withStartTime( new Date() )
             .build();
 
-        analyticsTableGenerator.generateTables( params );
+        analyticsTableGenerator.generateTables( params, progress );
     }
 }

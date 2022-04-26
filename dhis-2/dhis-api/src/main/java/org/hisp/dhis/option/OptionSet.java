@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,20 @@ package org.hisp.dhis.option;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.hisp.dhis.common.*;
+import org.hisp.dhis.common.BaseIdentifiableObject;
+import org.hisp.dhis.common.DxfNamespaces;
+import org.hisp.dhis.common.IdScheme;
+import org.hisp.dhis.common.MetadataObject;
+import org.hisp.dhis.common.ValueType;
+import org.hisp.dhis.common.VersionedObject;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
@@ -121,17 +129,17 @@ public class OptionSet
 
     public List<String> getOptionValues()
     {
-        return options.stream().map( Option::getName ).collect( Collectors.toList() );
+        return options.stream().filter( Objects::nonNull ).map( Option::getName ).collect( Collectors.toList() );
     }
 
     public List<String> getOptionCodes()
     {
-        return options.stream().map( Option::getCode ).collect( Collectors.toList() );
+        return options.stream().filter( Objects::nonNull ).map( Option::getCode ).collect( Collectors.toList() );
     }
 
     public Set<String> getOptionCodesAsSet()
     {
-        return options.stream().map( Option::getCode ).collect( Collectors.toSet() );
+        return options.stream().filter( Objects::nonNull ).map( Option::getCode ).collect( Collectors.toSet() );
     }
 
     public Option getOptionByCode( String code )
@@ -147,9 +155,23 @@ public class OptionSet
         return null;
     }
 
+    public Option getOptionByUid( String uid )
+    {
+        for ( Option option : options )
+        {
+            if ( option != null && option.getUid().equals( uid ) )
+            {
+                return option;
+            }
+        }
+
+        return null;
+    }
+
     public Map<String, String> getOptionCodePropertyMap( IdScheme idScheme )
     {
-        return options.stream().collect( Collectors.toMap( Option::getCode, o -> o.getPropertyValue( idScheme ) ) );
+        return options.stream().filter( Objects::nonNull )
+            .collect( Collectors.toMap( Option::getCode, o -> o.getPropertyValue( idScheme ) ) );
     }
 
     // -------------------------------------------------------------------------
@@ -165,6 +187,7 @@ public class OptionSet
         return options;
     }
 
+    @JsonSetter( contentNulls = Nulls.SKIP )
     public void setOptions( List<Option> options )
     {
         this.options = options;

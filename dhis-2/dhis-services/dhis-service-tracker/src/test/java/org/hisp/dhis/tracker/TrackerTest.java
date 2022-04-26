@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,14 @@
  */
 package org.hisp.dhis.tracker;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.TransactionalIntegrationTest;
 import org.hisp.dhis.common.IdentifiableObject;
@@ -45,6 +48,7 @@ import org.hisp.dhis.dxf2.metadata.objectbundle.feedback.ObjectBundleValidationR
 import org.hisp.dhis.importexport.ImportStrategy;
 import org.hisp.dhis.render.RenderFormat;
 import org.hisp.dhis.render.RenderService;
+import org.hisp.dhis.tracker.report.TrackerErrorReport;
 import org.hisp.dhis.tracker.report.TrackerImportReport;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
@@ -55,8 +59,10 @@ import org.springframework.core.io.ClassPathResource;
 /**
  * @author Luciano Fiandesio
  */
+@Slf4j
 public abstract class TrackerTest extends TransactionalIntegrationTest
 {
+
     @Autowired
     protected IdentifiableObjectManager manager;
 
@@ -79,14 +85,10 @@ public abstract class TrackerTest extends TransactionalIntegrationTest
     protected void setUpTest()
         throws IOException
     {
-
         preCreateInjectAdminUserWithoutPersistence();
-
         renderService = _renderService;
         userService = _userService;
-
         initTest();
-
         // Clear the session to simulate different API call after the setup
         manager.clear();
     }
@@ -97,21 +99,18 @@ public abstract class TrackerTest extends TransactionalIntegrationTest
     protected ObjectBundle setUpMetadata( String path )
         throws IOException
     {
-
-        Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata = renderService.fromMetadata(
-            new ClassPathResource( path ).getInputStream(), RenderFormat.JSON );
-
+        Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata = renderService
+            .fromMetadata( new ClassPathResource( path ).getInputStream(), RenderFormat.JSON );
         ObjectBundleParams params = new ObjectBundleParams();
         params.setObjectBundleMode( ObjectBundleMode.COMMIT );
         params.setImportStrategy( ImportStrategy.CREATE );
         params.setObjects( metadata );
-
         ObjectBundle bundle = objectBundleService.create( params );
         ObjectBundleValidationReport validationReport = objectBundleValidationService.validate( bundle );
-        assertTrue( validationReport.getErrorReports().isEmpty() );
-
+        validationReport.forEachErrorReport( errorReport -> log.error( errorReport.toString() ) );
+        boolean condition = validationReport.hasErrorReports();
+        assertFalse( condition );
         objectBundleService.commit( bundle );
-
         return bundle;
     }
 
@@ -142,12 +141,22 @@ public abstract class TrackerTest extends TransactionalIntegrationTest
     protected TrackerImportParams _fromJson( String path )
         throws IOException
     {
-        return renderService.fromJson( new ClassPathResource( path ).getInputStream(), TrackerImportParams.class );
+        return renderService.fromJson( new ClassPathResource( path ).getInputStream(),
+            TrackerImportParams.class );
     }
 
     protected void assertNoImportErrors( TrackerImportReport report )
     {
-        assertTrue( report.getValidationReport().getErrorReports().isEmpty() );
+        List<TrackerErrorReport> errorReports = report.getValidationReport().getErrors();
+        boolean empty = errorReports.isEmpty();
+        if ( !empty )
+        {
+            for ( TrackerErrorReport errorReport : errorReports )
+            {
+                log.error( "Import errors: " + errorReport.getErrorMessage() );
+            }
+        }
+        assertTrue( empty );
     }
 
     @Override

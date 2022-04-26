@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@ package org.hisp.dhis.webapi.controller.scheduling;
 
 import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.createWebMessage;
 import static org.hisp.dhis.scheduling.JobStatus.DISABLED;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.util.Map;
 
@@ -49,8 +50,8 @@ import org.hisp.dhis.webapi.webdomain.JobTypes;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -75,31 +76,28 @@ public class JobConfigurationController
         this.schedulingManager = schedulingManager;
     }
 
-    @RequestMapping( value = "/jobTypesExtended", method = RequestMethod.GET, produces = { "application/json",
+    @GetMapping( value = "/jobTypesExtended", produces = { APPLICATION_JSON_VALUE,
         "application/javascript" } )
     public @ResponseBody Map<String, Map<String, Property>> getJobTypesExtended()
     {
         return jobConfigurationService.getJobParametersSchema();
     }
 
-    @GetMapping( value = "/jobTypes", produces = "application/json" )
+    @GetMapping( value = "/jobTypes", produces = APPLICATION_JSON_VALUE )
     public JobTypes getJobTypeInfo()
     {
         return new JobTypes( jobConfigurationService.getJobTypeInfo() );
     }
 
-    @RequestMapping( value = "{uid}/execute", method = RequestMethod.GET, produces = { "application/json",
-        "application/javascript" } )
+    @PostMapping( value = "{uid}/execute", produces = { APPLICATION_JSON_VALUE, "application/javascript" } )
     public ObjectReport executeJobConfiguration( @PathVariable( "uid" ) String uid )
         throws WebMessageException
     {
         JobConfiguration jobConfiguration = jobConfigurationService.getJobConfigurationByUid( uid );
 
-        checkConfigurable( jobConfiguration, HttpStatus.FORBIDDEN, "Job %s is a system job that cannot be executed." );
-
         ObjectReport objectReport = new ObjectReport( JobConfiguration.class, 0 );
 
-        boolean success = schedulingManager.executeJob( jobConfiguration );
+        boolean success = schedulingManager.executeNow( jobConfiguration );
 
         if ( !success )
         {
@@ -154,12 +152,12 @@ public class JobConfigurationController
     {
         if ( !jobConfiguration.isEnabled() )
         {
-            schedulingManager.stopJob( jobConfiguration );
+            schedulingManager.stop( jobConfiguration );
         }
         jobConfigurationService.refreshScheduling( jobConfiguration );
         if ( jobConfiguration.getJobStatus() != DISABLED )
         {
-            schedulingManager.scheduleJob( jobConfiguration );
+            schedulingManager.schedule( jobConfiguration );
         }
     }
 

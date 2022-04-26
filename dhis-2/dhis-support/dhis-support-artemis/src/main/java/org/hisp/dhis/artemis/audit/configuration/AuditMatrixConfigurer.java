@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@ import org.hisp.dhis.audit.AuditScope;
 import org.hisp.dhis.audit.AuditType;
 import org.hisp.dhis.external.conf.ConfigurationKey;
 import org.hisp.dhis.external.conf.DhisConfigurationProvider;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import com.google.common.collect.ImmutableMap;
@@ -63,7 +62,6 @@ import com.google.common.collect.ImmutableMap;
  * @author Luciano Fiandesio
  */
 @Component
-@DependsOn( "dhisConfigurationProvider" )
 public class AuditMatrixConfigurer
 {
     private final DhisConfigurationProvider config;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,6 @@ import org.hisp.dhis.schema.SchemaDescriptor;
 
 public class ProgramStageInstanceSchemaDescriptor implements SchemaDescriptor
 {
-
     public static final String SINGULAR = "programStageInstance";
 
     public static final String PLURAL = "programStageInstances";
@@ -43,9 +42,6 @@ public class ProgramStageInstanceSchemaDescriptor implements SchemaDescriptor
     @Override
     public Schema getSchema()
     {
-        Schema schema = new Schema( ProgramStageInstance.class, SINGULAR, PLURAL );
-        schema.setRelativeApiEndpoint( API_ENDPOINT );
-
-        return schema;
+        return new Schema( ProgramStageInstance.class, SINGULAR, PLURAL );
     }
 }

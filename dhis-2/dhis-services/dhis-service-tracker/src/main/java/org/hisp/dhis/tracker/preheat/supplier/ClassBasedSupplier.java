@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@ import lombok.RequiredArgsConstructor;
 import org.hisp.dhis.tracker.TrackerIdentifierCollector;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
-import org.hisp.dhis.tracker.preheat.supplier.classStrategy.ClassBasedSupplierStrategy;
-import org.hisp.dhis.tracker.preheat.supplier.classStrategy.GenericStrategy;
+import org.hisp.dhis.tracker.preheat.supplier.strategy.ClassBasedSupplierStrategy;
+import org.hisp.dhis.tracker.preheat.supplier.strategy.GenericStrategy;
 import org.hisp.dhis.tracker.util.Constant;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -67,7 +67,7 @@ public class ClassBasedSupplier
     private final TrackerIdentifierCollector identifierCollector;
 
     /**
-     * A Map correlating a Tracker class name to the Preheat strategy class name
+     * A Map correlating a Tracker class name to the preheat strategy class name
      * to use to load the data
      */
     @Qualifier( "preheatStrategies" )

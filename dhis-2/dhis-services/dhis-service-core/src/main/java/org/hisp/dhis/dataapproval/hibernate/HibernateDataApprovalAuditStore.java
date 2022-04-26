@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ import org.hisp.dhis.dataapproval.DataApprovalAuditStore;
 import org.hisp.dhis.hibernate.HibernateGenericStore;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -55,7 +56,7 @@ import org.springframework.stereotype.Repository;
 @Repository( "org.hisp.dhis.dataapproval.DataApprovalAuditStore" )
 public class HibernateDataApprovalAuditStore
     extends HibernateGenericStore<DataApprovalAudit>
-    implements DataApprovalAuditStore
+    implements DataApprovalAuditStore, CurrentUserServiceTarget
 {
     // -------------------------------------------------------------------------
     // Dependencies
@@ -73,10 +74,7 @@ public class HibernateDataApprovalAuditStore
         this.currentUserService = currentUserService;
     }
 
-    /**
-     * Used only for testing, remove when test is refactored
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;

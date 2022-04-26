@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,9 +115,9 @@ public class ImportSummaries extends AbstractWebMessageResponse
 
     public boolean hasConflicts()
     {
-        for ( ImportSummary importSummary : importSummaries )
+        for ( ImportConflicts importConflicts : importSummaries )
         {
-            if ( importSummary.getConflicts().size() > 0 )
+            if ( importConflicts.hasConflicts() )
             {
                 return true;
             }

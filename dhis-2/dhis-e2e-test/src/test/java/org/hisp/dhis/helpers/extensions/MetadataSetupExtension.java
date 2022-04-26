@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers.extensions;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,8 @@ package org.hisp.dhis.helpers.extensions;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.helpers.extensions;
+
 
 import org.hisp.dhis.Constants;
 import org.hisp.dhis.TestRunStorage;
@@ -67,7 +67,8 @@ public class MetadataSetupExtension
             started = true;
             logger.info( "Importing metadata for tests" );
 
-            // The following line registers a callback hook when the root test context is shut down
+            // The following line registers a callback hook when the root test
+            // context is shut down
             context.getRoot().getStore( GLOBAL ).put( "MetadataSetupExtension", this );
 
             MetadataActions metadataActions = new MetadataActions();
@@ -77,6 +78,9 @@ public class MetadataSetupExtension
             String[] files = {
                 "src/test/resources/setup/userGroups.json",
                 "src/test/resources/setup/metadata.json",
+                // importing for the second time to make sure all sharing is set up correctly - there are bugs in metadata importer
+                "src/test/resources/setup/metadata.json",
+                "src/test/resources/setup/tracker_metadata.json",
                 "src/test/resources/setup/userRoles.json",
                 "src/test/resources/setup/users.json"
             };
@@ -110,7 +114,7 @@ public class MetadataSetupExtension
         for ( String user : users )
         {
             String userId = userActions.get( String.format(
-                "?filter=userCredentials.username:eq:%s", user ) )
+                "?filter=username:eq:%s", user ) )
                 .extractString( "users.id[0]" );
 
             if ( userId == null )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@ package org.hisp.dhis.configuration;
 import org.hisp.dhis.condition.RedisEnabledCondition;
 import org.hisp.dhis.external.conf.ConfigurationKey;
 import org.hisp.dhis.external.conf.ConfigurationPropertyFactoryBean;
+import org.hisp.dhis.external.conf.DhisConfigurationProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
@@ -58,7 +59,7 @@ public class RedisConfiguration
     public LettuceConnectionFactory lettuceConnectionFactory()
     {
         LettuceClientConfigurationBuilder builder = LettuceClientConfiguration.builder();
-        if ( Boolean.parseBoolean( (String) redisSslEnabled().getObject() ) )
+        if ( DhisConfigurationProvider.isOn( (String) redisSslEnabled().getObject() ) )
         {
             builder.useSsl();
         }

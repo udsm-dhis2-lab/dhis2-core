@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.time.Duration.ofDays;
 import static java.time.Instant.now;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1031;
@@ -47,8 +47,8 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.security.Authorities;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.hisp.dhis.user.User;
 import org.springframework.stereotype.Component;
 
@@ -62,19 +62,19 @@ public class EventDateValidationHook
     @Override
     public void validateEvent( ValidationErrorReporter reporter, Event event )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
+        TrackerPreheat preheat = reporter.getBundle().getPreheat();
 
-        Program program = context.getProgramStage( event.getProgramStage() ).getProgram();
+        Program program = preheat.getProgram( event.getProgram() );
 
         if ( event.getOccurredAt() == null && occuredAtDateIsMandatory( event, program ) )
         {
-            addError( reporter, E1031, event );
+            reporter.addError( event, E1031, event );
             return;
         }
 
         if ( event.getScheduledAt() == null && EventStatus.SCHEDULE == event.getStatus() )
         {
-            addError( reporter, E1050, event );
+            reporter.addError( event, E1050, event );
             return;
         }
 
@@ -84,8 +84,7 @@ public class EventDateValidationHook
 
     private void validateExpiryDays( ValidationErrorReporter reporter, Event event, Program program )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-        User actingUser = context.getBundle().getUser();
+        User actingUser = reporter.getBundle().getUser();
 
         checkNotNull( actingUser, TrackerImporterAssertErrors.USER_CANT_BE_NULL );
         checkNotNull( event, TrackerImporterAssertErrors.EVENT_CANT_BE_NULL );
@@ -100,13 +99,13 @@ public class EventDateValidationHook
         {
             if ( event.getCompletedAt() == null )
             {
-                addErrorIfNull( event.getCompletedAt(), reporter, E1042, event );
+                reporter.addErrorIfNull( event.getCompletedAt(), event, E1042, event );
             }
             else
             {
                 if ( now().isAfter( event.getCompletedAt().plus( ofDays( program.getCompleteEventsExpiryDays() ) ) ) )
                 {
-                    addError( reporter, E1043, event );
+                    reporter.addError( event, E1043, event );
                 }
             }
         }
@@ -131,7 +130,7 @@ public class EventDateValidationHook
 
         if ( referenceDate == null )
         {
-            addError( reporter, E1046, event );
+            reporter.addError( event, E1046, event );
             return;
         }
 
@@ -139,7 +138,7 @@ public class EventDateValidationHook
 
         if ( referenceDate.isBefore( period.getStartDate().toInstant() ) )
         {
-            addError( reporter, E1047, event );
+            reporter.addError( event, E1047, event );
         }
     }
 

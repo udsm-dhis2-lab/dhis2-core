@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,6 +82,8 @@ public interface MessageService
 
     List<MessageConversation> getMessageConversations( int first, int max );
 
+    List<MessageConversation> getMatchingExtId( String extId );
+
     List<MessageConversation> getMessageConversations( User user, Collection<String> uids );
 
     void deleteMessages( User sender );
@@ -95,4 +97,8 @@ public interface MessageService
      * @return true if user is part of the feedback recipients group.
      */
     boolean hasAccessToManageFeedbackMessages( User user );
+
+    Set<User> getFeedbackRecipients();
+
+    Set<User> getSystemUpdateNotificationRecipients();
 }

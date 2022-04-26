@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,9 @@ import lombok.Data;
 import org.hisp.dhis.artemis.Message;
 import org.hisp.dhis.artemis.MessageType;
 import org.hisp.dhis.common.BaseIdentifiableObject;
+import org.hisp.dhis.program.Program;
+import org.hisp.dhis.program.ProgramInstance;
+import org.hisp.dhis.program.ProgramStageInstance;
 import org.hisp.dhis.scheduling.JobConfiguration;
 import org.hisp.dhis.tracker.TrackerImportStrategy;
 import org.hisp.dhis.tracker.sideeffect.TrackerRuleEngineSideEffect;
@@ -66,6 +69,15 @@ public class TrackerSideEffectDataBundle implements Message
 
     @JsonProperty
     private JobConfiguration jobConfiguration;
+
+    @JsonProperty
+    private Program program;
+
+    @JsonProperty
+    private ProgramInstance programInstance;
+
+    @JsonProperty
+    private ProgramStageInstance programStageInstance;
 
     @JsonProperty
     @Builder.Default

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,12 +27,14 @@
  */
 package org.hisp.dhis.dxf2.datavalueset;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.hisp.dhis.commons.collection.CollectionUtils.isEmpty;
+import static org.hisp.dhis.commons.util.StreamUtils.wrapAndCheckCompressionFormat;
 import static org.hisp.dhis.external.conf.ConfigurationKey.CHANGELOG_AGGREGATE;
 import static org.hisp.dhis.system.notification.NotificationLevel.ERROR;
 import static org.hisp.dhis.system.notification.NotificationLevel.INFO;
 import static org.hisp.dhis.system.notification.NotificationLevel.WARN;
+import static org.hisp.dhis.system.util.ValidationUtils.dataValueIsZeroAndInsignificant;
 import static org.hisp.dhis.util.DateUtils.parseDate;
 
 import java.io.InputStream;
@@ -43,9 +45,10 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.function.Function;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.BooleanUtils;
@@ -53,6 +56,7 @@ import org.hisp.dhis.calendar.CalendarService;
 import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.category.CategoryService;
 import org.hisp.dhis.common.AuditType;
+import org.hisp.dhis.common.BatchHandlerFactoryTarget;
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.common.IdScheme;
 import org.hisp.dhis.common.IdSchemes;
@@ -60,7 +64,6 @@ import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.IdentifiableProperty;
 import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.commons.util.DebugUtils;
-import org.hisp.dhis.commons.util.StreamUtils;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementGroup;
 import org.hisp.dhis.dataset.CompleteDataSetRegistration;
@@ -73,11 +76,9 @@ import org.hisp.dhis.datavalue.DataValueAudit;
 import org.hisp.dhis.datavalue.DataValueService;
 import org.hisp.dhis.dxf2.common.ImportOptions;
 import org.hisp.dhis.dxf2.datavalueset.ImportContext.DataSetContext;
-import org.hisp.dhis.dxf2.importsummary.ImportConflict;
 import org.hisp.dhis.dxf2.importsummary.ImportCount;
 import org.hisp.dhis.dxf2.importsummary.ImportStatus;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
-import org.hisp.dhis.dxf2.pdfform.PdfDataEntryFormUtil;
 import org.hisp.dhis.dxf2.util.InputUtils;
 import org.hisp.dhis.external.conf.DhisConfigurationProvider;
 import org.hisp.dhis.feedback.ErrorCode;
@@ -98,6 +99,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.schema.SchemaService;
 import org.hisp.dhis.security.Authorities;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.setting.SettingKey;
@@ -109,7 +111,9 @@ import org.hisp.dhis.system.notification.NotificationLevel;
 import org.hisp.dhis.system.notification.Notifier;
 import org.hisp.dhis.system.util.Clock;
 import org.hisp.dhis.system.util.CsvUtils;
+import org.hisp.dhis.system.util.ValidationUtils;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.util.DateUtils;
 import org.hisp.dhis.util.ObjectUtils;
@@ -118,8 +122,8 @@ import org.hisp.staxwax.factory.XMLFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.csvreader.CsvReader;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 
 /**
  * Note that a mock BatchHandler factory is being injected.
@@ -128,8 +132,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Slf4j
 @Service( "org.hisp.dhis.dxf2.datavalueset.DataValueSetService" )
+@AllArgsConstructor
 public class DefaultDataValueSetService
-    implements DataValueSetService
+    implements DataValueSetService, CurrentUserServiceTarget, BatchHandlerFactoryTarget
 {
     private static final String ERROR_OBJECT_NEEDED_TO_COMPLETE = "Must be provided to complete data set";
 
@@ -175,84 +180,15 @@ public class DefaultDataValueSetService
 
     private final DataValueSetImportValidator importValidator;
 
-    public DefaultDataValueSetService(
-        IdentifiableObjectManager identifiableObjectManager,
-        CategoryService categoryService,
-        OrganisationUnitService organisationUnitService,
-        PeriodService periodService,
-        BatchHandlerFactory batchHandlerFactory,
-        CompleteDataSetRegistrationService registrationService,
-        CurrentUserService currentUserService,
-        DataValueSetStore dataValueSetStore,
-        SystemSettingManager systemSettingManager,
-        LockExceptionStore lockExceptionStore,
-        I18nManager i18nManager,
-        Notifier notifier,
-        InputUtils inputUtils,
-        CalendarService calendarService,
-        DataValueService dataValueService,
-        FileResourceService fileResourceService,
-        AclService aclService,
-        DhisConfigurationProvider config,
-        ObjectMapper jsonMapper,
-        DataValueSetImportValidator importValidator )
-    {
-        checkNotNull( identifiableObjectManager );
-        checkNotNull( categoryService );
-        checkNotNull( organisationUnitService );
-        checkNotNull( periodService );
-        checkNotNull( batchHandlerFactory );
-        checkNotNull( registrationService );
-        checkNotNull( currentUserService );
-        checkNotNull( dataValueSetStore );
-        checkNotNull( systemSettingManager );
-        checkNotNull( lockExceptionStore );
-        checkNotNull( i18nManager );
-        checkNotNull( notifier );
-        checkNotNull( inputUtils );
-        checkNotNull( calendarService );
-        checkNotNull( dataValueService );
-        checkNotNull( fileResourceService );
-        checkNotNull( aclService );
-        checkNotNull( config );
-        checkNotNull( jsonMapper );
-        checkNotNull( importValidator );
+    private final SchemaService schemaService;
 
-        this.identifiableObjectManager = identifiableObjectManager;
-        this.categoryService = categoryService;
-        this.organisationUnitService = organisationUnitService;
-        this.periodService = periodService;
-        this.batchHandlerFactory = batchHandlerFactory;
-        this.registrationService = registrationService;
-        this.currentUserService = currentUserService;
-        this.dataValueSetStore = dataValueSetStore;
-        this.systemSettingManager = systemSettingManager;
-        this.lockExceptionStore = lockExceptionStore;
-        this.i18nManager = i18nManager;
-        this.notifier = notifier;
-        this.inputUtils = inputUtils;
-        this.calendarService = calendarService;
-        this.dataValueService = dataValueService;
-        this.fileResourceService = fileResourceService;
-        this.aclService = aclService;
-        this.config = config;
-        this.jsonMapper = jsonMapper;
-        this.importValidator = importValidator;
-    }
-
-    /**
-     * Used only for testing, remove when test is refactored
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
     }
 
-    /**
-     * Used only for testing, remove when test is refactored
-     */
-    @Deprecated
+    @Override
     public void setBatchHandlerFactory( BatchHandlerFactory batchHandlerFactory )
     {
         this.batchHandlerFactory = batchHandlerFactory;
@@ -262,63 +198,79 @@ public class DefaultDataValueSetService
     // DataValueSet implementation
     // -------------------------------------------------------------------------
 
+    /**
+     * Note that this needs to be RW TX because
+     * {@link PeriodService#reloadIsoPeriods(List)} is RW.
+     */
     @Override
-    public DataExportParams getFromUrl( Set<String> dataSets, Set<String> dataElementGroups, Set<String> periods,
-        Date startDate, Date endDate,
-        Set<String> organisationUnits, boolean includeChildren, Set<String> organisationUnitGroups,
-        Set<String> attributeOptionCombos,
-        boolean includeDeleted, Date lastUpdated, String lastUpdatedDuration, Integer limit, IdSchemes outputIdSchemes )
+    @Transactional
+    public DataExportParams getFromUrl( DataValueSetQueryParams urlParams )
     {
         DataExportParams params = new DataExportParams();
+        IdSchemes inputIdSchemes = urlParams.getInputIdSchemes();
 
-        if ( dataSets != null )
+        if ( !isEmpty( urlParams.getDataSet() ) )
         {
             params.getDataSets().addAll( identifiableObjectManager.getObjects(
-                DataSet.class, IdentifiableProperty.UID, dataSets ) );
+                DataSet.class, IdentifiableProperty.in( inputIdSchemes, IdSchemes::getDataSetIdScheme ),
+                urlParams.getDataSet() ) );
         }
 
-        if ( dataElementGroups != null )
+        if ( !isEmpty( urlParams.getDataElementGroup() ) )
         {
             params.getDataElementGroups().addAll( identifiableObjectManager.getObjects(
-                DataElementGroup.class, IdentifiableProperty.UID, dataElementGroups ) );
+                DataElementGroup.class,
+                IdentifiableProperty.in( inputIdSchemes, IdSchemes::getDataElementGroupIdScheme ),
+                urlParams.getDataElementGroup() ) );
         }
 
-        if ( periods != null && !periods.isEmpty() )
+        if ( !isEmpty( urlParams.getPeriod() ) )
         {
-            params.getPeriods().addAll( periodService.reloadIsoPeriods( new ArrayList<>( periods ) ) );
+            params.getPeriods().addAll( periodService.reloadIsoPeriods( new ArrayList<>( urlParams.getPeriod() ) ) );
         }
-        else if ( startDate != null && endDate != null )
+        else if ( urlParams.getStartDate() != null && urlParams.getEndDate() != null )
         {
             params
-                .setStartDate( startDate )
-                .setEndDate( endDate );
+                .setStartDate( urlParams.getStartDate() )
+                .setEndDate( urlParams.getEndDate() );
         }
 
-        if ( organisationUnits != null )
+        if ( !isEmpty( urlParams.getOrgUnit() ) )
         {
             params.getOrganisationUnits().addAll( identifiableObjectManager.getObjects(
-                OrganisationUnit.class, IdentifiableProperty.UID, organisationUnits ) );
+                OrganisationUnit.class, IdentifiableProperty.in( inputIdSchemes, IdSchemes::getOrgUnitIdScheme ),
+                urlParams.getOrgUnit() ) );
         }
 
-        if ( organisationUnitGroups != null )
+        if ( !isEmpty( urlParams.getOrgUnitGroup() ) )
         {
             params.getOrganisationUnitGroups().addAll( identifiableObjectManager.getObjects(
-                OrganisationUnitGroup.class, IdentifiableProperty.UID, organisationUnitGroups ) );
+                OrganisationUnitGroup.class,
+                IdentifiableProperty.in( inputIdSchemes, IdSchemes::getOrgUnitGroupIdScheme ),
+                urlParams.getOrgUnitGroup() ) );
         }
 
-        if ( attributeOptionCombos != null )
+        if ( !isEmpty( urlParams.getAttributeOptionCombo() ) )
         {
             params.getAttributeOptionCombos().addAll( identifiableObjectManager.getObjects(
-                CategoryOptionCombo.class, IdentifiableProperty.UID, attributeOptionCombos ) );
+                CategoryOptionCombo.class,
+                IdentifiableProperty.in( inputIdSchemes, IdSchemes::getAttributeOptionComboIdScheme ),
+                urlParams.getAttributeOptionCombo() ) );
+        }
+        else if ( urlParams.getAttributeCombo() != null && !isEmpty( urlParams.getAttributeOptions() ) )
+        {
+            params.getAttributeOptionCombos().addAll(
+                Lists.newArrayList( inputUtils.getAttributeOptionCombo(
+                    urlParams.getAttributeCombo(), urlParams.getAttributeOptions() ) ) );
         }
 
         return params
-            .setIncludeChildren( includeChildren )
-            .setIncludeDeleted( includeDeleted )
-            .setLastUpdated( lastUpdated )
-            .setLastUpdatedDuration( lastUpdatedDuration )
-            .setLimit( limit )
-            .setOutputIdSchemes( outputIdSchemes );
+            .setIncludeDescendants( urlParams.isChildren() )
+            .setIncludeDeleted( urlParams.isIncludeDeleted() )
+            .setLastUpdated( urlParams.getLastUpdated() )
+            .setLastUpdatedDuration( urlParams.getLastUpdatedDuration() )
+            .setLimit( urlParams.getLimit() )
+            .setOutputIdSchemes( urlParams.getOutputIdSchemes() );
     }
 
     @Override
@@ -362,12 +314,12 @@ public class DefaultDataValueSetService
             error = new ErrorMessage( ErrorCode.E2006 );
         }
 
-        if ( params.isIncludeChildren() && params.hasOrganisationUnitGroups() )
+        if ( params.isIncludeDescendants() && params.hasOrganisationUnitGroups() )
         {
             error = new ErrorMessage( ErrorCode.E2007 );
         }
 
-        if ( params.isIncludeChildren() && !params.hasOrganisationUnits() )
+        if ( params.isIncludeDescendants() && !params.hasOrganisationUnits() )
         {
             error = new ErrorMessage( ErrorCode.E2008 );
         }
@@ -427,47 +379,47 @@ public class DefaultDataValueSetService
 
     @Override
     @Transactional
-    public void writeDataValueSetXml( DataExportParams params, OutputStream out )
+    public void exportDataValueSetXml( DataExportParams params, OutputStream out )
     {
         decideAccess( params );
         validate( params );
 
-        dataValueSetStore.writeDataValueSetXml( params, getCompleteDate( params ), out );
+        dataValueSetStore.exportDataValueSetXml( params, getCompleteDate( params ), out );
     }
 
     @Override
     @Transactional
-    public void writeDataValueSetJson( DataExportParams params, OutputStream out )
+    public void exportDataValueSetJson( DataExportParams params, OutputStream out )
     {
         decideAccess( params );
         validate( params );
 
-        dataValueSetStore.writeDataValueSetJson( params, getCompleteDate( params ), out );
+        dataValueSetStore.exportDataValueSetJson( params, getCompleteDate( params ), out );
     }
 
     @Override
     @Transactional
-    public void writeDataValueSetJson( Date lastUpdated, OutputStream outputStream, IdSchemes idSchemes )
+    public void exportDataValueSetJson( Date lastUpdated, OutputStream outputStream, IdSchemes idSchemes )
     {
-        dataValueSetStore.writeDataValueSetJson( lastUpdated, outputStream, idSchemes );
+        dataValueSetStore.exportDataValueSetJson( lastUpdated, outputStream, idSchemes );
     }
 
     @Override
     @Transactional
-    public void writeDataValueSetJson( Date lastUpdated, OutputStream outputStream, IdSchemes idSchemes, int pageSize,
+    public void exportDataValueSetJson( Date lastUpdated, OutputStream outputStream, IdSchemes idSchemes, int pageSize,
         int page )
     {
-        dataValueSetStore.writeDataValueSetJson( lastUpdated, outputStream, idSchemes, pageSize, page );
+        dataValueSetStore.exportDataValueSetJson( lastUpdated, outputStream, idSchemes, pageSize, page );
     }
 
     @Override
     @Transactional
-    public void writeDataValueSetCsv( DataExportParams params, Writer writer )
+    public void exportDataValueSetCsv( DataExportParams params, Writer writer )
     {
         decideAccess( params );
         validate( params );
 
-        dataValueSetStore.writeDataValueSetCsv( params, getCompleteDate( params ), writer );
+        dataValueSetStore.exportDataValueSetCsv( params, getCompleteDate( params ), writer );
     }
 
     private Date getCompleteDate( DataExportParams params )
@@ -598,96 +550,88 @@ public class DefaultDataValueSetService
     }
 
     // -------------------------------------------------------------------------
-    // Save
+    // Import
     // -------------------------------------------------------------------------
 
     @Override
     @Transactional
-    public ImportSummary saveDataValueSet( InputStream in )
+    public ImportSummary importDataValueSetXml( InputStream in )
     {
-        return saveDataValueSet( in, ImportOptions.getDefaultImportOptions(), null );
+        return importDataValueSetXml( in, ImportOptions.getDefaultImportOptions(), null );
     }
 
     @Override
     @Transactional
-    public ImportSummary saveDataValueSetJson( InputStream in )
+    public ImportSummary importDataValueSetJson( InputStream in )
     {
-        return saveDataValueSetJson( in, ImportOptions.getDefaultImportOptions(), null );
+        return importDataValueSetJson( in, ImportOptions.getDefaultImportOptions(), null );
     }
 
     @Override
     @Transactional
-    public ImportSummary saveDataValueSet( InputStream in, ImportOptions importOptions )
+    public ImportSummary importDataValueSetXml( InputStream in, ImportOptions options )
     {
-        return saveDataValueSet( in, importOptions, null );
+        return importDataValueSetXml( in, options, null );
     }
 
     @Override
     @Transactional
-    public ImportSummary saveDataValueSetJson( InputStream in, ImportOptions importOptions )
+    public ImportSummary importDataValueSetJson( InputStream in, ImportOptions options )
     {
-        return saveDataValueSetJson( in, importOptions, null );
+        return importDataValueSetJson( in, options, null );
     }
 
     @Override
     @Transactional
-    public ImportSummary saveDataValueSetCsv( InputStream in, ImportOptions importOptions )
+    public ImportSummary importDataValueSetCsv( InputStream in, ImportOptions options )
     {
-        return saveDataValueSetCsv( in, importOptions, null );
+        return importDataValueSetCsv( in, options, null );
     }
 
     @Override
     @Transactional
-    public ImportSummary saveDataValueSet( InputStream in, ImportOptions importOptions, JobConfiguration id )
+    public ImportSummary importDataValueSetXml( InputStream in, ImportOptions options, JobConfiguration id )
     {
-        try
+        return importDataValueSet( options, id, () -> new XmlDataValueSetReader(
+            XMLFactory.getXMLReader( wrapAndCheckCompressionFormat( in ) ) ) );
+    }
+
+    @Override
+    @Transactional
+    public ImportSummary importDataValueSetJson( InputStream in, ImportOptions options, JobConfiguration id )
+    {
+        return importDataValueSet( options, id,
+            () -> new JsonDataValueSetReader( wrapAndCheckCompressionFormat( in ), jsonMapper ) );
+    }
+
+    @Override
+    @Transactional
+    public ImportSummary importDataValueSetCsv( InputStream in, ImportOptions options, JobConfiguration id )
+    {
+        return importDataValueSet( options, id, () -> new CsvDataValueSetReader(
+            CsvUtils.getReader( wrapAndCheckCompressionFormat( in ) ), options ) );
+    }
+
+    @Override
+    @Transactional
+    public ImportSummary importDataValueSetPdf( InputStream in, ImportOptions options, JobConfiguration id )
+    {
+        return importDataValueSet( options, id, () -> new PdfDataValueSetReader( in ) );
+    }
+
+    @Override
+    @Transactional
+    public ImportSummary importDataValueSetPdf( InputStream in, ImportOptions options )
+    {
+        return importDataValueSetPdf( in, options, null );
+    }
+
+    private ImportSummary importDataValueSet( ImportOptions options, JobConfiguration id,
+        Callable<DataValueSetReader> createReader )
+    {
+        try ( DataValueSetReader reader = createReader.call() )
         {
-            in = StreamUtils.wrapAndCheckCompressionFormat( in );
-            DataValueSet dataValueSet = new StreamingXmlDataValueSet( XMLFactory.getXMLReader( in ) );
-            return saveDataValueSet( importOptions, id, dataValueSet );
-        }
-        catch ( Exception ex )
-        {
-            log.error( DebugUtils.getStackTrace( ex ) );
-            notifier.notify( id, ERROR, "Process failed: " + ex.getMessage(), true );
-            return new ImportSummary( ImportStatus.ERROR, "The import process failed: " + ex.getMessage() );
-        }
-    }
-
-    @Override
-    @Transactional
-    public ImportSummary saveDataValueSetJson( InputStream in, ImportOptions importOptions, JobConfiguration id )
-    {
-        try
-        {
-            in = StreamUtils.wrapAndCheckCompressionFormat( in );
-            DataValueSet dataValueSet = jsonMapper.readValue( in, DataValueSet.class );
-            return saveDataValueSet( importOptions, id, dataValueSet );
-        }
-        catch ( Exception ex )
-        {
-            log.error( DebugUtils.getStackTrace( ex ) );
-            notifier.notify( id, ERROR, "Process failed: " + ex.getMessage(), true );
-            return new ImportSummary( ImportStatus.ERROR, "The import process failed: " + ex.getMessage() );
-        }
-    }
-
-    @Override
-    @Transactional
-    public ImportSummary saveDataValueSetCsv( InputStream in, ImportOptions importOptions, JobConfiguration id )
-    {
-        try
-        {
-            in = StreamUtils.wrapAndCheckCompressionFormat( in );
-            CsvReader csvReader = CsvUtils.getReader( in );
-
-            if ( importOptions == null || importOptions.isFirstRowIsHeader() )
-            {
-                csvReader.readRecord(); // Ignore the first row
-            }
-
-            DataValueSet dataValueSet = new StreamingCsvDataValueSet( csvReader );
-            return saveDataValueSet( importOptions, id, dataValueSet );
+            return importDataValueSet( options, id, reader );
         }
         catch ( Exception ex )
         {
@@ -695,30 +639,6 @@ public class DefaultDataValueSetService
             notifier.clear( id ).notify( id, ERROR, "Process failed: " + ex.getMessage(), true );
             return new ImportSummary( ImportStatus.ERROR, "The import process failed: " + ex.getMessage() );
         }
-    }
-
-    @Override
-    @Transactional
-    public ImportSummary saveDataValueSetPdf( InputStream in, ImportOptions importOptions, JobConfiguration id )
-    {
-        try
-        {
-            DataValueSet dataValueSet = PdfDataEntryFormUtil.getDataValueSet( in );
-            return saveDataValueSet( importOptions, id, dataValueSet );
-        }
-        catch ( RuntimeException ex )
-        {
-            log.error( DebugUtils.getStackTrace( ex ) );
-            notifier.clear( id ).notify( id, ERROR, "Process failed: " + ex.getMessage(), true );
-            return new ImportSummary( ImportStatus.ERROR, "The import process failed: " + ex.getMessage() );
-        }
-    }
-
-    @Override
-    @Transactional
-    public ImportSummary saveDataValueSetPdf( InputStream in, ImportOptions importOptions )
-    {
-        return saveDataValueSetPdf( in, importOptions, null );
     }
 
     /**
@@ -738,10 +658,10 @@ public class DefaultDataValueSetService
      * If id scheme is specific in the data value set, any id schemes in the
      * import options will be ignored.
      */
-    private ImportSummary saveDataValueSet( ImportOptions importOptions, JobConfiguration id,
-        DataValueSet dataValueSet )
+    private ImportSummary importDataValueSet( ImportOptions options, JobConfiguration id, DataValueSetReader reader )
     {
-        final ImportContext context = createDataValueSetImportContext( importOptions, dataValueSet );
+        DataValueSet dataValueSet = reader.readHeader();
+        final ImportContext context = createDataValueSetImportContext( options, dataValueSet );
         logDataValueSetImportContextInfo( context );
 
         Clock clock = new Clock( log ).startClock()
@@ -768,7 +688,6 @@ public class DefaultDataValueSetService
             context.getSummary().setDescription( "Import process was aborted" );
             notifier.notify( id, WARN, "Import process aborted", true )
                 .addJobSummary( id, context.getSummary(), ImportSummary.class );
-            dataValueSet.close();
             return context.getSummary();
         }
 
@@ -786,7 +705,6 @@ public class DefaultDataValueSetService
             context.getSummary().setDataSetComplete( Boolean.FALSE.toString() );
         }
 
-        int totalCount = 0;
         final ImportCount importCount = new ImportCount();
 
         // ---------------------------------------------------------------------
@@ -798,70 +716,20 @@ public class DefaultDataValueSetService
         clock.logTime( "Validated outer meta-data" );
         notifier.notify( id, notificationLevel, "Importing data values" );
 
-        while ( dataValueSet.hasNextDataValue() )
+        List<? extends DataValueEntry> values = dataValueSet.getDataValues();
+        int index = 0;
+        if ( values != null && !values.isEmpty() )
         {
-            totalCount++;
-            org.hisp.dhis.dxf2.datavalue.DataValue dataValue = dataValueSet.getNextDataValue();
-
-            ImportContext.DataValueContext valueContext = createDataValueContext(
-                dataValue, context, dataSetContext );
-
-            // -----------------------------------------------------------------
-            // Potentially heat caches
-            // -----------------------------------------------------------------
-
-            autoPreheatCaches( context );
-
-            // -----------------------------------------------------------------
-            // Validation & Constraints
-            // -----------------------------------------------------------------
-            if ( importValidator.skipDataValue( dataValue, context, dataSetContext, valueContext ) )
+            for ( DataValueEntry dataValue : values )
             {
-                continue;
+                importDataValue( context, dataSetContext, importCount, now, index++, dataValue );
             }
-
-            // -----------------------------------------------------------------
-            // Create data value
-            // -----------------------------------------------------------------
-            DataValue internalValue = createDataValue( dataValue, context, valueContext, now );
-
-            // -----------------------------------------------------------------
-            // Save, update or delete data value
-            // -----------------------------------------------------------------
-            DataValue existingValue = !context.isSkipExistingCheck()
-                ? context.getDataValueBatchHandler().findObject( internalValue )
-                : null;
-
-            // -----------------------------------------------------------------
-            // Preserve any existing created date unless overwritten by import
-            // -----------------------------------------------------------------
-            if ( existingValue != null && !dataValue.hasCreated() )
-            {
-                internalValue.setCreated( existingValue.getCreated() );
-            }
-
-            // -----------------------------------------------------------------
-            // Check soft deleted data values on update and import
-            // -----------------------------------------------------------------
-            final ImportStrategy strategy = context.getStrategy();
-            if ( !context.isSkipExistingCheck() && existingValue != null && !existingValue.isDeleted() )
-            {
-                if ( strategy.isCreateAndUpdate() || strategy.isUpdate() )
-                {
-                    saveDataValueUpdate( context, importCount, dataValue, valueContext, internalValue, existingValue );
-                }
-                else if ( strategy.isDelete() )
-                {
-                    saveDataValueDelete( context, importCount, dataValue, valueContext, internalValue, existingValue );
-                }
-            }
-            else
-            {
-                if ( strategy.isCreateAndUpdate() || strategy.isCreate() )
-                {
-                    saveDataValueCreate( context, importCount, valueContext, internalValue, existingValue );
-                }
-            }
+        }
+        DataValueEntry dataValue = reader.readNext();
+        while ( dataValue != null )
+        {
+            importDataValue( context, dataSetContext, importCount, now, index++, dataValue );
+            dataValue = reader.readNext();
         }
 
         context.getDataValueBatchHandler().flush();
@@ -871,23 +739,101 @@ public class DefaultDataValueSetService
             context.getAuditBatchHandler().flush();
         }
 
-        importCount
-            .setIgnored( totalCount - importCount.getImported() - importCount.getUpdated() - importCount.getDeleted() );
-
         context.getSummary()
             .setImportCount( importCount )
-            .setStatus( context.getSummary().getConflicts().isEmpty() ? ImportStatus.SUCCESS : ImportStatus.WARNING )
+            .setStatus( !context.getSummary().hasConflicts() ? ImportStatus.SUCCESS : ImportStatus.WARNING )
             .setDescription( "Import process completed successfully" );
 
         clock.logTime(
-            "Data value import done, total: " + totalCount + ", import: " + importCount.getImported() + ", update: "
+            "Data value import done, total: " + importCount.getTotalCount() + ", import: " + importCount.getImported()
+                + ", update: "
                 + importCount.getUpdated() + ", delete: " + importCount.getDeleted() );
         notifier.notify( id, notificationLevel, "Import done", true )
             .addJobSummary( id, notificationLevel, context.getSummary(), ImportSummary.class );
 
-        dataValueSet.close();
-
         return context.getSummary();
+    }
+
+    private void importDataValue( ImportContext context, DataSetContext dataSetContext, ImportCount importCount,
+        Date now, int index, DataValueEntry dataValue )
+    {
+        ImportContext.DataValueContext valueContext = createDataValueContext( index, dataValue, context,
+            dataSetContext );
+
+        // -----------------------------------------------------------------
+        // Potentially heat caches
+        // -----------------------------------------------------------------
+
+        autoPreheatCaches( context );
+
+        // -----------------------------------------------------------------
+        // Validation & Constraints
+        // -----------------------------------------------------------------
+        if ( importValidator.skipDataValue( dataValue, context, dataSetContext, valueContext ) )
+        {
+            importCount.incrementIgnored();
+            return;
+        }
+
+        // -----------------------------------------------------------------
+        // Create data value
+        // -----------------------------------------------------------------
+        DataValue internalValue = createDataValue( dataValue, context, valueContext, now );
+
+        // -----------------------------------------------------------------
+        // Save, update or delete data value
+        // -----------------------------------------------------------------
+        DataValue existingValue = !context.isSkipExistingCheck()
+            ? context.getDataValueBatchHandler().findObject( internalValue )
+            : null;
+
+        // -----------------------------------------------------------------
+        // Preserve any existing created date unless overwritten by import
+        // -----------------------------------------------------------------
+        if ( existingValue != null && !dataValue.hasCreated() )
+        {
+            internalValue.setCreated( existingValue.getCreated() );
+        }
+
+        final ImportStrategy strategy = context.getStrategy();
+        boolean zeroAndInsignificant = ValidationUtils.dataValueIsZeroAndInsignificant(
+            dataValue.getValue(), valueContext.getDataElement() );
+        if ( zeroAndInsignificant && (existingValue == null || strategy.isCreate()) )
+        {
+            // Ignore value
+            context.getSummary().skipValue();
+            return;
+        }
+
+        // -----------------------------------------------------------------
+        // Check soft deleted data values on update and import
+        // -----------------------------------------------------------------
+        if ( !context.isSkipExistingCheck() && existingValue != null && !existingValue.isDeleted() )
+        {
+            if ( strategy.isCreateAndUpdate() || strategy.isUpdate() )
+            {
+                saveDataValueUpdate( context, importCount, dataValue, valueContext, internalValue, existingValue );
+            }
+            else if ( strategy.isDelete() )
+            {
+                saveDataValueDelete( context, importCount, dataValue, valueContext, internalValue, existingValue );
+            }
+            else
+            {
+                importCount.incrementIgnored();
+            }
+        }
+        else
+        {
+            if ( strategy.isCreateAndUpdate() || strategy.isCreate() )
+            {
+                saveDataValueCreate( context, importCount, valueContext, internalValue, existingValue );
+            }
+            else
+            {
+                importCount.incrementIgnored();
+            }
+        }
     }
 
     private void saveDataValueCreate( ImportContext context, ImportCount importCount,
@@ -895,6 +841,7 @@ public class DefaultDataValueSetService
     {
         if ( internalValue.isNullValue() )
         {
+            importCount.incrementIgnored();
             return; // Ignore null values
         }
         if ( existingValue != null && existingValue.isDeleted() )
@@ -939,7 +886,7 @@ public class DefaultDataValueSetService
     }
 
     private void saveDataValueDelete( ImportContext context, ImportCount importCount,
-        org.hisp.dhis.dxf2.datavalue.DataValue dataValue, ImportContext.DataValueContext valueContext,
+        DataValueEntry dataValue, ImportContext.DataValueContext valueContext,
         DataValue internalValue, DataValue existingValue )
     {
         internalValue.setDeleted( true );
@@ -969,11 +916,12 @@ public class DefaultDataValueSetService
     }
 
     private void saveDataValueUpdate( ImportContext context, ImportCount importCount,
-        org.hisp.dhis.dxf2.datavalue.DataValue dataValue, ImportContext.DataValueContext valueContext,
+        DataValueEntry dataValue, ImportContext.DataValueContext valueContext,
         DataValue internalValue, DataValue existingValue )
     {
         AuditType auditType = AuditType.UPDATE;
-        if ( internalValue.isNullValue() || internalValue.isDeleted() )
+        if ( internalValue.isNullValue() || internalValue.isDeleted()
+            || dataValueIsZeroAndInsignificant( dataValue.getValue(), valueContext.getDataElement() ) )
         {
             internalValue.setDeleted( true );
 
@@ -1112,19 +1060,19 @@ public class DefaultDataValueSetService
             .dryRun( data.getDryRun() != null ? data.getDryRun() : options.isDryRun() )
             .skipExistingCheck( options.isSkipExistingCheck() )
             .strictPeriods( options.isStrictPeriods()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_STRICT_PERIODS ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_STRICT_PERIODS ) )
             .strictDataElements( options.isStrictDataElements()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_STRICT_DATA_ELEMENTS ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_STRICT_DATA_ELEMENTS ) )
             .strictCategoryOptionCombos( options.isStrictCategoryOptionCombos()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_STRICT_CATEGORY_OPTION_COMBOS ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_STRICT_CATEGORY_OPTION_COMBOS ) )
             .strictAttrOptionCombos( options.isStrictAttributeOptionCombos()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_STRICT_ATTRIBUTE_OPTION_COMBOS ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_STRICT_ATTRIBUTE_OPTION_COMBOS ) )
             .strictOrgUnits( options.isStrictOrganisationUnits()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_STRICT_ORGANISATION_UNITS ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_STRICT_ORGANISATION_UNITS ) )
             .requireCategoryOptionCombo( options.isRequireCategoryOptionCombo()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_REQUIRE_CATEGORY_OPTION_COMBO ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_REQUIRE_CATEGORY_OPTION_COMBO ) )
             .requireAttrOptionCombo( options.isRequireAttributeOptionCombo()
-                || (Boolean) settings.getSystemSetting( SettingKey.DATA_IMPORT_REQUIRE_ATTRIBUTE_OPTION_COMBO ) )
+                || settings.getBoolSetting( SettingKey.DATA_IMPORT_REQUIRE_ATTRIBUTE_OPTION_COMBO ) )
             .forceDataInput( inputUtils.canForceDataInput( currentUser, options.isForce() ) )
 
             // data fetching state
@@ -1145,6 +1093,7 @@ public class DefaultDataValueSetService
                 .createBatchHandler( DataValueBatchHandler.class ).init() )
             .auditBatchHandler( skipAudit ? null
                 : batchHandlerFactory.createBatchHandler( DataValueAuditBatchHandler.class ).init() )
+            .singularNameForType( klass -> schemaService.getDynamicSchema( klass ).getSingular() )
             .build();
     }
 
@@ -1197,10 +1146,11 @@ public class DefaultDataValueSetService
             .build();
     }
 
-    private ImportContext.DataValueContext createDataValueContext(
-        org.hisp.dhis.dxf2.datavalue.DataValue dataValue, ImportContext context, DataSetContext dataSetContext )
+    private ImportContext.DataValueContext createDataValueContext( int index,
+        DataValueEntry dataValue, ImportContext context, DataSetContext dataSetContext )
     {
         return ImportContext.DataValueContext.builder()
+            .index( index )
             .dataElement( context.getDataElementMap().get( trimToNull( dataValue.getDataElement() ),
                 context.getDataElementCallable().setId( trimToNull( dataValue.getDataElement() ) ) ) )
             .period( dataSetContext.getOuterPeriod() != null ? dataSetContext.getOuterPeriod()
@@ -1220,17 +1170,20 @@ public class DefaultDataValueSetService
             .build();
     }
 
-    private DataValue createDataValue( org.hisp.dhis.dxf2.datavalue.DataValue dataValue, ImportContext context,
+    private DataValue createDataValue( DataValueEntry dataValue, ImportContext context,
         ImportContext.DataValueContext valueContext, Date now )
     {
         DataValue internalValue = new DataValue();
+
+        String value = ValidationUtils.normalizeBoolean( dataValue.getValue(),
+            valueContext.getDataElement().getValueType() );
 
         internalValue.setDataElement( valueContext.getDataElement() );
         internalValue.setPeriod( valueContext.getPeriod() );
         internalValue.setSource( valueContext.getOrgUnit() );
         internalValue.setCategoryOptionCombo( valueContext.getCategoryOptionCombo() );
         internalValue.setAttributeOptionCombo( valueContext.getAttrOptionCombo() );
-        internalValue.setValue( trimToNull( dataValue.getValue() ) );
+        internalValue.setValue( trimToNull( value ) );
         internalValue.setStoredBy( context.getStoredBy( dataValue ) );
         internalValue.setCreated( dataValue.hasCreated() ? parseDate( dataValue.getCreated() ) : now );
         internalValue.setLastUpdated( dataValue.hasLastUpdated() ? parseDate( dataValue.getLastUpdated() ) : now );
@@ -1249,15 +1202,13 @@ public class DefaultDataValueSetService
     {
         if ( orgUnit == null )
         {
-            summary.getConflicts()
-                .add( new ImportConflict( OrganisationUnit.class.getSimpleName(), ERROR_OBJECT_NEEDED_TO_COMPLETE ) );
+            summary.addConflict( OrganisationUnit.class.getSimpleName(), ERROR_OBJECT_NEEDED_TO_COMPLETE );
             return;
         }
 
         if ( period == null )
         {
-            summary.getConflicts()
-                .add( new ImportConflict( Period.class.getSimpleName(), ERROR_OBJECT_NEEDED_TO_COMPLETE ) );
+            summary.addConflict( Period.class.getSimpleName(), ERROR_OBJECT_NEEDED_TO_COMPLETE );
             return;
         }
 

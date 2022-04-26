@@ -1277,8 +1277,9 @@ function dataSetSelected()
 
     dhis2.de.currentDataSetId = $( '#selectedDataSetId' ).val();
     
+    var serverTimeDelta = dhis2.de.storageManager.getServerTimeDelta() || 0;
     dhis2.de.blackListedPeriods = dhis2.de.dataSets[dhis2.de.currentDataSetId].dataInputPeriods
-        .filter(function(dip) { return ( dip.openingDate != "" && new Date( dip.openingDate ) > Date.now() ) || ( dip.closingDate != "" && new Date( dip.closingDate ) < Date.now() ); })
+        .filter(function(dip) { return ( dip.openingDate != "" && new Date( dip.openingDate ) > (Date.now() + serverTimeDelta) ) || ( dip.closingDate != "" && new Date( dip.closingDate ) < (Date.now() + serverTimeDelta) ); })
         .map(function(dip) { return dip.period.isoPeriod; });
     
     if ( dhis2.de.currentDataSetId && dhis2.de.currentDataSetId !== -1 )
@@ -1805,7 +1806,7 @@ function getOfflineDataValueJson( params )
 	
 	var json = {};
 	json.dataValues = new Array();
-	json.locked = false;
+	json.locked = 'OPEN';
 	json.complete = complete;
 	json.date = "";
 	json.storedBy = "";
@@ -1837,18 +1838,29 @@ function insertDataValues( json )
     
     if ( dataSet && dataSet.expiryDays > 0 )
     {
+        var serverTimeDelta = dhis2.de.storageManager.getServerTimeDelta() || 0;
         var maxDate = moment( period.endDate, dhis2.period.format.toUpperCase() ).add( parseInt(dataSet.expiryDays), 'day' );
-        periodLocked = moment().isAfter( maxDate );
+        periodLocked = moment().add( serverTimeDelta, 'ms' ).isAfter( maxDate );
     }
 
     var lockExceptionId = dhis2.de.currentOrganisationUnitId + "-" + dhis2.de.currentDataSetId + "-" + period.iso;
 
     periodLocked = periodLocked && dhis2.de.lockExceptions.indexOf( lockExceptionId ) == -1;
 
-    if ( json.locked || dhis2.de.blackListedPeriods.indexOf( period.iso ) > -1 || periodLocked )
+    if ( json.locked !== 'OPEN' || dhis2.de.blackListedPeriods.indexOf( period.iso ) > -1 || periodLocked )
 	{
 		dhis2.de.lockForm();
-		setHeaderDelayMessage( i18n_dataset_is_locked );
+
+		if ( periodLocked ) {
+			setHeaderDelayMessage( i18n_dataset_is_concluded );
+		} else if ( dhis2.de.blackListedPeriods.indexOf( period.iso ) > -1 ) {
+			setHeaderDelayMessage( i18n_dataset_is_closed );
+		} else if ( json.locked === 'APPROVED' ) {
+			setHeaderDelayMessage( i18n_dataset_is_approved );
+		} else {
+			setHeaderDelayMessage( i18n_dataset_is_locked );
+		}
+
 	}
 	else
 	{
@@ -1858,7 +1870,7 @@ function insertDataValues( json )
 	}
 
     // Set the data-disabled attribute on any file upload fields
-    $( '#contentDiv .entryfileresource' ).data( 'disabled', json.locked );
+    $( '#contentDiv .entryfileresource' ).data( 'disabled', json.locked !== 'OPEN' );
 
     // Set data values, works for selects too as data value=select value    
     if ( !dhis2.de.multiOrganisationUnit  )
@@ -2010,7 +2022,7 @@ function insertDataValues( json )
 
     // Set min-max values and colorize violation fields
 
-    if ( !json.locked ) 
+    if ( json.locked === 'OPEN' )
     {
         $.safeEach( json.minMaxDataElements, function( i, value )
         {
@@ -2039,7 +2051,7 @@ function insertDataValues( json )
 
     // Set completeness button
 
-    if ( json.complete && !json.locked)
+    if ( json.complete && json.locked === 'OPEN' )
     {
         $( '#completeButton' ).attr( 'disabled', 'disabled' );
         $( '#undoButton' ).removeAttr( 'disabled' );
@@ -2210,12 +2222,12 @@ function registerCompleteDataSet( completedStatus )
 	    	success: function( data, textStatus, xhr )
 	        {
                 dhis2.de.storageManager.clearCompleteDataSet( params );
-                if( data && data.status == 'SUCCESS' )
+                if( data && data.response && data.response.status == 'SUCCESS' )
                 {
                     $( document ).trigger( dhis2.de.event.completed, [ dhis2.de.currentDataSetId, params ] );
                     disableCompleteButton( params.isCompleted );
                 }
-                else if( data && data.status == 'ERROR' )
+                else if( data && data.response && data.response.status == 'ERROR' )
                 {
                     handleDataSetCompletenessResponse( data );
                 }
@@ -2659,6 +2671,7 @@ function updateForms()
         .then(getLocalFormsToUpdate)
         .then(downloadForms)
         .then(getUserSetting)
+        .then(getTimeDelta)
         .then(getRemoteFormsToDownload)
         .then(downloadForms)
         .then(dhis2.de.loadOptionSets)
@@ -2828,6 +2841,8 @@ function StorageManager()
     var KEY_DATAVALUES = 'datavalues';
     var KEY_COMPLETEDATASETS = 'completedatasets';
     var KEY_USER_SETTINGS = 'usersettings';
+    var KEY_SERVER_TIME_DELTA = 'servertimedelta';
+    var KEY_SERVER_TIME_RETRIEVED = 'servertimeretrieved';
 
     /**
      * Gets the content of a data entry form.
@@ -3338,6 +3353,49 @@ function StorageManager()
     }
 
     /**
+     * Returns the cached server time delta
+     */
+    this.getServerTimeDelta = function()
+    {
+        // if it has been more than 1 hour since last update, pull server time again
+        var lastRetrieved = this.getServerTimeRetrieved();
+        if (lastRetrieved === null || (new Date() - lastRetrieved > 3600000)) {
+            getTimeDelta();
+        }
+        return localStorage[ KEY_SERVER_TIME_DELTA ]
+            ? JSON.parse(localStorage[ KEY_SERVER_TIME_DELTA ])
+            : null;
+    }
+
+    /**
+     * Caches the time difference between server time and browser time
+     * @param timeDelta The time difference (server - client) in milliseconds (integer)
+     */
+    this.setServerTimeDelta = function(timeDelta)
+    {
+        localStorage[ KEY_SERVER_TIME_DELTA ] = timeDelta;
+    }
+
+    /**
+     * Returns the cached time when server time delta was retrieved
+     */
+    this.getServerTimeRetrieved = function()
+    {
+        return localStorage[ KEY_SERVER_TIME_RETRIEVED ]
+        ? parseInt(localStorage[ KEY_SERVER_TIME_RETRIEVED ])
+        : null;
+    }
+
+    /**
+     * Caches the time that server time delta was last retrieved
+     * @param retrievalTime javascript date
+     */
+    this.setServerTimeRetrieved = function(retrievalTime)
+    {
+        localStorage[ KEY_SERVER_TIME_RETRIEVED ] = retrievalTime.getTime();
+    }
+
+    /**
      * Indicates whether there exists data values or complete data set
      * registrations in the local storage.
      *
@@ -3800,6 +3858,30 @@ function getUserSetting()
     $.getJSON(url, function( data ) {
             console.log("User settings loaded: ", data);
             dhis2.de.storageManager.setUserSettings(data);
+            def.resolve();
+        }
+    );
+
+    return def;
+}
+
+function getTimeDelta()
+{
+    if (dhis2.de.isOffline) {
+        return;
+    }
+
+    var def = $.Deferred();
+
+    var url = '../api/system/info';
+
+    //Gets the server time delta
+    $.getJSON(url, function( data ) {
+            serverTimeDelta = new Date(data.serverDate.substring(0,24)) - new Date();
+            dhis2.de.storageManager.setServerTimeDelta(serverTimeDelta);
+            // if successful, record time of update
+            dhis2.de.storageManager.setServerTimeRetrieved(new Date());
+            console.log("stored server time delta of " + serverTimeDelta + " ms");
             def.resolve();
         }
     );

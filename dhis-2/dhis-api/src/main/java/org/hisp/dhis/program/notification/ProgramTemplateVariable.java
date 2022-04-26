@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,8 @@ public enum ProgramTemplateVariable
     INCIDENT_DATE( "incident_date" ),
     PROGRAM_ID( "program_id" ),
     ENROLLMENT_ORG_UNIT_ID( "enrollment_org_unit_id" ),
+    ENROLLMENT_ORG_UNIT_NAME( "enrollment_org_unit_name" ),
+    ENROLLMENT_ORG_UNIT_CODE( "enrollment_org_unit_code" ),
     ENROLLMENT_ID( "enrollment_id" ),
     TRACKED_ENTITY_ID( "tracked_entity_id" );
 
@@ -83,7 +85,7 @@ public enum ProgramTemplateVariable
 
     public static boolean isValidVariableName( String expressionName )
     {
-        return variableNameMap.keySet().contains( expressionName );
+        return variableNameMap.containsKey( expressionName );
     }
 
     public static ProgramTemplateVariable fromVariableName( String variableName )

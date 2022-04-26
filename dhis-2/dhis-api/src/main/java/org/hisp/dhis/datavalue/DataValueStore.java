@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,9 @@
  */
 package org.hisp.dhis.datavalue;
 
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.dataelement.DataElement;
@@ -45,6 +45,23 @@ import org.hisp.dhis.period.Period;
 public interface DataValueStore
 {
     String ID = DataValueStore.class.getName();
+
+    /**
+     * Special {@see DeflatedDataValue} to signal "End of file" for queued DDVs.
+     */
+    public static final DeflatedDataValue END_OF_DDV_DATA = new DeflatedDataValue();
+
+    /**
+     * Timeout value for {@see DeflatedDataValue} queue, to prevent waiting
+     * forever if the other thread has aborted.
+     */
+    public static final int DDV_QUEUE_TIMEOUT_VALUE = 10;
+
+    /**
+     * Timeout unit for {@see DeflatedDataValue} queue, to prevent waiting
+     * forever if the other thread has aborted.
+     */
+    public static final TimeUnit DDV_QUEUE_TIMEOUT_UNIT = TimeUnit.MINUTES;
 
     // -------------------------------------------------------------------------
     // Basic DataValue
@@ -121,21 +138,6 @@ public interface DataValueStore
     List<DataValue> getAllDataValues();
 
     /**
-     * Returns all DataValues for a given Source, Period, collection of
-     * DataElements and CategoryOptionCombo.
-     *
-     * @param source the Source of the DataValues.
-     * @param period the Period of the DataValues.
-     * @param dataElements the DataElements of the DataValues.
-     * @param attributeOptionCombo the CategoryCombo.
-     * @return a list of all DataValues which match the given Source, Period,
-     *         and any of the DataElements, or an empty collection if no values
-     *         match.
-     */
-    List<DataValue> getDataValues( OrganisationUnit source, Period period, Collection<DataElement> dataElements,
-        CategoryOptionCombo attributeOptionCombo );
-
-    /**
      * Returns deflated data values for the given data export parameters.
      *
      * @param params the data export parameters.
@@ -145,19 +147,8 @@ public interface DataValueStore
 
     /**
      * Gets the number of DataValues which have been updated between the given
-     * start and end date. The
-     *
-     * <pre>
-     * startDate
-     * </pre>
-     *
-     * and
-     *
-     * <pre>
-     * endDate
-     * </pre>
-     *
-     * parameters can both be null but one must be defined.
+     * start and end date. Either the start or end date can be null, but they
+     * cannot both be null.
      *
      * @param startDate the start date to compare against data value last
      *        updated.

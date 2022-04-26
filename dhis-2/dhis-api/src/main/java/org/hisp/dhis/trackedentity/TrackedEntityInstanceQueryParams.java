@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,8 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.hisp.dhis.common.AssignedUserSelectionMode;
 import org.hisp.dhis.common.OrganisationUnitSelectionMode;
 import org.hisp.dhis.common.QueryFilter;
@@ -87,6 +87,8 @@ public class TrackedEntityInstanceQueryParams
     public static final String META_DATA_NAMES_KEY = "names";
 
     public static final String PAGER_META_KEY = "pager";
+
+    public static final String POTENTIAL_DUPLICATE = "potentialduplicate";
 
     public static final int DEFAULT_PAGE = 1;
 
@@ -248,9 +250,9 @@ public class TrackedEntityInstanceQueryParams
     private int maxTeiLimit;
 
     /**
-     * Indicates whether to include soft-deleted elements
+     * Indicates whether to include soft-deleted elements. Default to false
      */
-    private boolean includeDeleted;
+    private boolean includeDeleted = false;
 
     /**
      * Indicates whether to include all TEI attributes
@@ -268,12 +270,6 @@ public class TrackedEntityInstanceQueryParams
      * Data sync job).
      */
     private boolean synchronizationQuery;
-
-    /**
-     * Indicates to use legacy fetching mechanism in case the tei result count
-     * is high
-     */
-    private boolean useLegacy;
 
     /**
      * Indicates a point in the time used to decide the data that should not be
@@ -1200,17 +1196,6 @@ public class TrackedEntityInstanceQueryParams
         return this;
     }
 
-    public boolean isUseLegacy()
-    {
-        return useLegacy;
-    }
-
-    public TrackedEntityInstanceQueryParams setUseLegacy( boolean useLegacy )
-    {
-        this.useLegacy = useLegacy;
-        return this;
-    }
-
     public boolean isSynchronizationQuery()
     {
         return synchronizationQuery;
@@ -1308,8 +1293,9 @@ public class TrackedEntityInstanceQueryParams
     public enum OrderColumn
     {
         TRACKEDENTITY( "trackedEntity", "tei.uid" ),
-        CREATED( CREATED_ID, "tei.created" ),
-        CREATED_AT( "createdAt", "tei.created" ),
+        // Ordering by id is the same as ordering by created date
+        CREATED( CREATED_ID, "tei.trackedentityinstanceid" ),
+        CREATED_AT( "createdAt", "tei.trackedentityinstanceid" ),
         CREATED_AT_CLIENT( "createdAtClient", "tei.createdAtClient" ),
         UPDATED_AT( "updatedAt", "tei.lastUpdated" ),
         UPDATED_AT_CLIENT( "updatedAtClient", "tei.lastUpdatedAtClient" ),

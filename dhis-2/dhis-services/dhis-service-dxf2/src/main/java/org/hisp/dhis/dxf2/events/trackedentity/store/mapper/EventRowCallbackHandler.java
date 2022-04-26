@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
  */
 package org.hisp.dhis.dxf2.events.trackedentity.store.mapper;
 
+import static org.hisp.dhis.dxf2.events.trackedentity.store.mapper.JsonbToObjectHelper.setUserInfoSnapshot;
 import static org.hisp.dhis.dxf2.events.trackedentity.store.mapper.MapperGeoUtils.resolveGeometry;
 import static org.hisp.dhis.dxf2.events.trackedentity.store.query.EventQuery.COLUMNS;
 import static org.hisp.dhis.dxf2.events.trackedentity.store.query.EventQuery.getColumnName;
@@ -80,9 +81,11 @@ public class EventRowCallbackHandler
         event.setCreated( DateUtils.getIso8601NoTz( rs.getTimestamp( getColumnName( COLUMNS.CREATED ) ) ) );
         event.setCreatedAtClient(
             DateUtils.getIso8601NoTz( rs.getTimestamp( getColumnName( COLUMNS.CREATEDCLIENT ) ) ) );
+        setUserInfoSnapshot( rs, getColumnName( COLUMNS.CREATED_BY ), event::setCreatedByUserInfo );
         event.setLastUpdated( DateUtils.getIso8601NoTz( rs.getTimestamp( getColumnName( COLUMNS.UPDATED ) ) ) );
         event.setLastUpdatedAtClient(
             DateUtils.getIso8601NoTz( rs.getTimestamp( getColumnName( COLUMNS.UPDATEDCLIENT ) ) ) );
+        setUserInfoSnapshot( rs, getColumnName( COLUMNS.LAST_UPDATED_BY ), event::setLastUpdatedByUserInfo );
 
         resolveGeometry( rs.getBytes( getColumnName( COLUMNS.GEOMETRY ) ) ).ifPresent( event::setGeometry );
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@ import static org.hisp.dhis.analytics.util.AnalyticsUtils.throwIllegalQueryEx;
 import static org.hisp.dhis.common.DimensionalObject.DATA_X_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
+import static org.hisp.dhis.util.DateUtils.getEarliest;
+import static org.hisp.dhis.util.DateUtils.getLatest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +51,6 @@ import org.hisp.dhis.analytics.DataType;
 import org.hisp.dhis.analytics.Partitions;
 import org.hisp.dhis.analytics.QueryPlanner;
 import org.hisp.dhis.analytics.QueryPlannerParams;
-import org.hisp.dhis.analytics.QueryValidator;
 import org.hisp.dhis.analytics.partition.PartitionManager;
 import org.hisp.dhis.analytics.table.PartitionUtils;
 import org.hisp.dhis.analytics.util.PeriodOffsetUtils;
@@ -59,6 +60,7 @@ import org.hisp.dhis.common.DimensionType;
 import org.hisp.dhis.common.DimensionalItemObject;
 import org.hisp.dhis.common.DimensionalObject;
 import org.hisp.dhis.common.ListMap;
+import org.hisp.dhis.common.QueryModifiers;
 import org.hisp.dhis.commons.collection.PaginatedList;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementGroup;
@@ -80,16 +82,12 @@ import com.google.common.collect.Lists;
 public class DefaultQueryPlanner
     implements QueryPlanner
 {
-    private final QueryValidator queryValidator;
-
     private final PartitionManager partitionManager;
 
-    public DefaultQueryPlanner( QueryValidator queryValidator, PartitionManager partitionManager )
+    public DefaultQueryPlanner( PartitionManager partitionManager )
     {
-        checkNotNull( queryValidator );
         checkNotNull( partitionManager );
 
-        this.queryValidator = queryValidator;
         this.partitionManager = partitionManager;
     }
 
@@ -100,7 +98,7 @@ public class DefaultQueryPlanner
     @Override
     public DataQueryGroups planQuery( DataQueryParams params, QueryPlannerParams plannerParams )
     {
-        queryValidator.validate( params );
+        params = PeriodOffsetUtils.addShiftedPeriods( params );
 
         // ---------------------------------------------------------------------
         // Group queries which can be executed together
@@ -116,6 +114,7 @@ public class DefaultQueryPlanner
             .add( q -> groupByOrgUnitLevel( q ) )
             .add( q -> groupByPeriodType( q ) )
             .add( q -> groupByDataType( q ) )
+            .add( q -> groupByQueryMods( q ) )
             .add( q -> groupByAggregationType( q ) )
             .add( q -> groupByDaysInPeriod( q ) )
             .add( q -> groupByDataPeriodType( q ) )
@@ -264,8 +263,8 @@ public class DefaultQueryPlanner
         }
         else if ( !params.getPeriods().isEmpty() )
         {
-            ListMap<String, DimensionalItemObject> periodTypePeriodMap = PeriodOffsetUtils
-                .getPeriodTypePeriodMap( params );
+            ListMap<String, DimensionalItemObject> periodTypePeriodMap = PartitionUtils
+                .getPeriodTypePeriodMap( params.getPeriods() );
 
             for ( String periodType : periodTypePeriodMap.keySet() )
             {
@@ -274,7 +273,7 @@ public class DefaultQueryPlanner
                         periodTypePeriodMap.get( periodType ) )
                     .withPeriodType( periodType ).build();
 
-                queries.add( PeriodOffsetUtils.removeOffsetPeriodsIfNotNeeded( query ) );
+                queries.add( query );
             }
         }
         else if ( !params.getFilterPeriods().isEmpty() )
@@ -284,12 +283,10 @@ public class DefaultQueryPlanner
             ListMap<String, DimensionalItemObject> periodTypePeriodMap = PartitionUtils
                 .getPeriodTypePeriodMap( filter.getItems() );
 
+            // Use first period type
             DataQueryParams.Builder query = DataQueryParams.newBuilder( params )
                 .removeFilter( PERIOD_DIM_ID )
-                .withPeriodType( periodTypePeriodMap.keySet().iterator().next() ); // Using
-                                                                                   // first
-                                                                                   // period
-                                                                                   // type
+                .withPeriodType( periodTypePeriodMap.keySet().iterator().next() );
 
             for ( String periodType : periodTypePeriodMap.keySet() )
             {
@@ -437,6 +434,49 @@ public class DefaultQueryPlanner
         }
 
         logQuerySplit( queries, "data type" );
+
+        return queries;
+    }
+
+    /**
+     * Groups queries by their query modifiers Id.
+     *
+     * @param params the {@link DataQueryParams}.
+     * @return a list of {@link DataQueryParams}.
+     */
+    private List<DataQueryParams> groupByQueryMods( DataQueryParams params )
+    {
+        List<DataQueryParams> queries = new ArrayList<>();
+
+        if ( !params.getDataElements().isEmpty() )
+        {
+            ListMap<QueryModifiers, DimensionalItemObject> queryModsElementMap = QueryPlannerUtils
+                .getQueryModsElementMap( params.getDataElements() );
+
+            for ( QueryModifiers queryMods : queryModsElementMap.keySet() )
+            {
+                DataElement dataElement = (DataElement) queryModsElementMap.get( queryMods ).iterator().next();
+
+                DataQueryParams query = DataQueryParams.newBuilder( params )
+                    .withDataElements( queryModsElementMap.get( queryMods ) )
+                    .withQueryModsId( queryMods.getQueryModsId() )
+                    .withStartDate( getLatest( params.getStartDate(), queryMods.getMinDate() ) )
+                    .withEndDate( getEarliest( params.getEndDate(), queryMods.getMaxDate() ) )
+                    .withValueColumn( dataElement.getValueColumn() )
+                    .withAggregationType( (queryMods.getAggregationType() != null)
+                        ? AnalyticsAggregationType.fromAggregationType( queryMods.getAggregationType() )
+                        : params.getAggregationType() )
+                    .build();
+
+                queries.add( query );
+            }
+        }
+        else
+        {
+            queries.add( params );
+        }
+
+        logQuerySplit( queries, "minDate/maxDate query modifiers" );
 
         return queries;
     }

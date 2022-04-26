@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,8 @@ public class MessageConversation
     private MessageConversationStatus status;
 
     private User assignee;
+
+    private String extMessageId;
 
     // -------------------------------------------------------------------------
     // Transient fields
@@ -546,5 +548,17 @@ public class MessageConversation
     public void setMessageType( MessageType messageType )
     {
         this.messageType = messageType;
+    }
+
+    @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public String getExtMessageId()
+    {
+        return extMessageId;
+    }
+
+    public void setExtMessageId( String messageId )
+    {
+        this.extMessageId = messageId;
     }
 }

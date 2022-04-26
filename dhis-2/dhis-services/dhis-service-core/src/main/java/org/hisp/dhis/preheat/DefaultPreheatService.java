@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,65 @@
  */
 package org.hisp.dhis.preheat;
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.*;
-import java.util.stream.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.*;
+import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.*;
-import org.hisp.dhis.attribute.*;
-import org.hisp.dhis.category.*;
-import org.hisp.dhis.common.*;
-import org.hisp.dhis.commons.collection.*;
-import org.hisp.dhis.commons.timer.*;
+import org.apache.commons.lang3.StringUtils;
+import org.hisp.dhis.attribute.Attribute;
+import org.hisp.dhis.attribute.AttributeService;
+import org.hisp.dhis.category.CategoryDimension;
+import org.hisp.dhis.common.AnalyticalObject;
+import org.hisp.dhis.common.BaseAnalyticalObject;
+import org.hisp.dhis.common.BaseIdentifiableObject;
+import org.hisp.dhis.common.CodeGenerator;
+import org.hisp.dhis.common.DataDimensionItem;
+import org.hisp.dhis.common.EmbeddedObject;
+import org.hisp.dhis.common.IdentifiableObject;
+import org.hisp.dhis.common.IdentifiableObjectManager;
+import org.hisp.dhis.commons.collection.CollectionUtils;
+import org.hisp.dhis.commons.timer.SystemTimer;
 import org.hisp.dhis.commons.timer.Timer;
-import org.hisp.dhis.dataelement.*;
-import org.hisp.dhis.dataset.*;
-import org.hisp.dhis.hibernate.*;
-import org.hisp.dhis.period.*;
-import org.hisp.dhis.query.*;
-import org.hisp.dhis.schema.*;
-import org.hisp.dhis.system.util.*;
-import org.hisp.dhis.trackedentity.*;
-import org.hisp.dhis.user.*;
-import org.hisp.dhis.util.*;
-import org.springframework.context.annotation.*;
-import org.springframework.stereotype.*;
-import org.springframework.transaction.annotation.*;
+import org.hisp.dhis.dataelement.DataElementOperand;
+import org.hisp.dhis.dataset.DataSetElement;
+import org.hisp.dhis.hibernate.HibernateProxyUtils;
+import org.hisp.dhis.period.Period;
+import org.hisp.dhis.period.PeriodService;
+import org.hisp.dhis.period.PeriodStore;
+import org.hisp.dhis.query.Query;
+import org.hisp.dhis.query.QueryService;
+import org.hisp.dhis.query.Restrictions;
+import org.hisp.dhis.schema.MergeParams;
+import org.hisp.dhis.schema.MergeService;
+import org.hisp.dhis.schema.Property;
+import org.hisp.dhis.schema.PropertyType;
+import org.hisp.dhis.schema.Schema;
+import org.hisp.dhis.schema.SchemaService;
+import org.hisp.dhis.system.util.ReflectionUtils;
+import org.hisp.dhis.trackedentity.TrackedEntityAttributeDimension;
+import org.hisp.dhis.trackedentity.TrackedEntityDataElementDimension;
+import org.hisp.dhis.trackedentity.TrackedEntityProgramIndicatorDimension;
+import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.User;
+import org.hisp.dhis.user.UserGroup;
+import org.hisp.dhis.user.UserRole;
+import org.hisp.dhis.util.SharingUtils;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.google.common.collect.*;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
@@ -193,15 +223,15 @@ public class DefaultPreheatService implements PreheatService
                 }
             }
 
-            if ( uidMap.containsKey( UserAuthorityGroup.class )
-                && !uidMap.get( UserAuthorityGroup.class ).isEmpty() )
+            if ( uidMap.containsKey( UserRole.class )
+                && !uidMap.get( UserRole.class ).isEmpty() )
             {
                 List<List<String>> identifiers = Lists
-                    .partition( Lists.newArrayList( uidMap.get( UserAuthorityGroup.class ) ), 20000 );
+                    .partition( Lists.newArrayList( uidMap.get( UserRole.class ) ), 20000 );
 
                 for ( List<String> ids : identifiers )
                 {
-                    Query query = Query.from( schemaService.getDynamicSchema( UserAuthorityGroup.class ) );
+                    Query query = Query.from( schemaService.getDynamicSchema( UserRole.class ) );
                     query.setUser( preheat.getUser() );
                     query.add( Restrictions.in( "id", ids ) );
                     List<? extends IdentifiableObject> objects = queryService.query( query );
@@ -218,23 +248,6 @@ public class DefaultPreheatService implements PreheatService
             {
                 uniqueCollectionMap.put( klass, new ArrayList<>( objects ) );
             }
-        }
-
-        if ( uniqueCollectionMap.containsKey( User.class ) )
-        {
-            List<IdentifiableObject> userCredentials = new ArrayList<>();
-
-            for ( IdentifiableObject identifiableObject : uniqueCollectionMap.get( User.class ) )
-            {
-                User user = (User) identifiableObject;
-
-                if ( user.getUserCredentials() != null )
-                {
-                    userCredentials.add( user.getUserCredentials() );
-                }
-            }
-
-            uniqueCollectionMap.put( UserCredentials.class, userCredentials );
         }
 
         // assign an uid to objects without an UID, if they don't have UID but
@@ -325,6 +338,8 @@ public class DefaultPreheatService implements PreheatService
             List<? extends IdentifiableObject> uniqueAttributeValues = manager.getAllByAttributes( klass,
                 uniqueAttributes );
             handleUniqueAttributeValues( klass, uniqueAttributeValues, preheat );
+
+            loadAllClassesAttributes( klass, preheat );
         }
 
         if ( objects.containsKey( Attribute.class ) )
@@ -352,8 +367,30 @@ public class DefaultPreheatService implements PreheatService
                         preheat.getUniqueAttributes().get( klass ).add( attribute.getUid() );
                     } );
                 }
+
+                attribute.getSupportedClasses().forEach( klass -> preheat.addClassAttribute( klass, attribute ) );
             }
         }
+    }
+
+    /**
+     * Get all metadata attributes of the given klass from database and put them
+     * to preheat.attributesByTargetObjectType
+     *
+     * @param klass Class used for querying {@link Attribute}
+     * @param preheat {@link Preheat} to store all queried attributes
+     */
+    private void loadAllClassesAttributes( Class<? extends IdentifiableObject> klass, Preheat preheat )
+    {
+        List<Attribute> attributes = attributeService.getAttributes( klass );
+
+        if ( CollectionUtils.isEmpty( attributes )
+            || !CollectionUtils.isEmpty( preheat.getAttributesByClass( klass ) ) )
+        {
+            return;
+        }
+
+        preheat.addClassAttributes( klass, Sets.newHashSet( attributes ) );
     }
 
     private void handleUniqueAttributeValues( Class<? extends IdentifiableObject> klass,
@@ -471,9 +508,10 @@ public class DefaultPreheatService implements PreheatService
                 {
                     IdentifiableObject identifiableObject = (IdentifiableObject) object;
                     identifiableObject.getAttributeValues().forEach( av -> addIdentifiers( map, av.getAttribute() ) );
-                    identifiableObject.getUserGroupAccesses()
-                        .forEach( uga -> addIdentifiers( map, uga.getUserGroup() ) );
-                    identifiableObject.getUserAccesses().forEach( ua -> addIdentifiers( map, ua.getUser() ) );
+                    identifiableObject.getSharing().getUserGroups().values()
+                        .forEach( uga -> addIdentifiers( map, uga.toDtoObject().getUserGroup() ) );
+                    identifiableObject.getSharing().getUsers().values()
+                        .forEach( ua -> addIdentifiers( map, ua.toDtoObject().getUser() ) );
 
                     if ( identifiableObject.getCreatedBy() != null )
                     {
@@ -506,15 +544,19 @@ public class DefaultPreheatService implements PreheatService
                     {
                         Collection<IdentifiableObject> reference = ReflectionUtils.invokeMethod( object,
                             p.getGetterMethod() );
-                        reference.forEach( identifiableObject -> addIdentifiers( map, identifiableObject ) );
 
-                        if ( DataElementOperand.class.isAssignableFrom( p.getItemKlass() ) )
+                        if ( reference != null )
                         {
-                            CollectionUtils.nullSafeForEach( reference, identifiableObject -> {
-                                DataElementOperand dataElementOperand = (DataElementOperand) identifiableObject;
-                                addIdentifiers( map, dataElementOperand.getDataElement() );
-                                addIdentifiers( map, dataElementOperand.getCategoryOptionCombo() );
-                            } );
+                            reference.forEach( identifiableObject -> addIdentifiers( map, identifiableObject ) );
+
+                            if ( DataElementOperand.class.isAssignableFrom( p.getItemKlass() ) )
+                            {
+                                CollectionUtils.nullSafeForEach( reference, identifiableObject -> {
+                                    DataElementOperand dataElementOperand = (DataElementOperand) identifiableObject;
+                                    addIdentifiers( map, dataElementOperand.getDataElement() );
+                                    addIdentifiers( map, dataElementOperand.getCategoryOptionCombo() );
+                                } );
+                            }
                         }
                     }
                 } );
@@ -703,6 +745,11 @@ public class DefaultPreheatService implements PreheatService
                         {
                             for ( IdentifiableObject reference : references )
                             {
+                                if ( reference == null )
+                                {
+                                    continue;
+                                }
+
                                 try
                                 {
                                     IdentifiableObject identifiableObject = (IdentifiableObject) p.getItemKlass()
@@ -728,22 +775,6 @@ public class DefaultPreheatService implements PreheatService
     @SuppressWarnings( "unchecked" )
     private void collectScanTargets( Map<Class<?>, List<?>> targets )
     {
-        if ( targets.containsKey( User.class ) )
-        {
-            List<User> users = (List<User>) targets.get( User.class );
-            List<UserCredentials> userCredentials = new ArrayList<>();
-
-            for ( User user : users )
-            {
-                if ( user.getUserCredentials() != null )
-                {
-                    userCredentials.add( user.getUserCredentials() );
-                }
-            }
-
-            targets.put( UserCredentials.class, userCredentials );
-        }
-
         for ( Map.Entry<Class<?>, List<?>> entry : new HashMap<>( targets ).entrySet() )
         {
             Class<?> klass = entry.getKey();
@@ -803,7 +834,8 @@ public class DefaultPreheatService implements PreheatService
         {
             Schema schema = schemaService.getDynamicSchema( objectClass );
             List<IdentifiableObject> identifiableObjects = objects.get( objectClass );
-            uniqueMap.put( objectClass, handleUniqueProperties( schema, identifier, identifiableObjects ) );
+            Map<String, Map<Object, String>> value = handleUniqueProperties( schema, identifier, identifiableObjects );
+            uniqueMap.put( objectClass, value );
         }
 
         return uniqueMap;
@@ -983,8 +1015,7 @@ public class DefaultPreheatService implements PreheatService
 
     private boolean skipConnect( Class<?> klass )
     {
-        return klass != null
-            && (UserCredentials.class.isAssignableFrom( klass ) || EmbeddedObject.class.isAssignableFrom( klass ));
+        return klass != null && EmbeddedObject.class.isAssignableFrom( klass );
     }
 
     private boolean isOnlyUID( Class<?> klass )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,4 +78,12 @@ public interface GistService
      * @return the pager suitable for the provided situation
      */
     GistPager pager( GistQuery query, List<?> rows, Map<String, String[]> params );
+
+    /**
+     * Describes the query execution without actually running the query.
+     *
+     * @param query a not yet {@link #plan(GistQuery)}ned query
+     * @return a description of the query execution
+     */
+    Map<String, ?> describe( GistQuery query );
 }

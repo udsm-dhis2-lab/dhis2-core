@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,28 +28,42 @@
 package org.hisp.dhis.reservedvalue;
 
 import static java.util.Calendar.DATE;
-import static org.hisp.dhis.util.Constants.RESERVED_VALUE_GENERATION_ATTEMPT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import java.util.*;
-import java.util.stream.IntStream;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.concurrent.ExecutionException;
 
 import org.hisp.dhis.common.Objects;
-import org.hisp.dhis.textpattern.*;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.hisp.dhis.textpattern.DefaultTextPatternService;
+import org.hisp.dhis.textpattern.TextPattern;
+import org.hisp.dhis.textpattern.TextPatternGenerationException;
+import org.hisp.dhis.textpattern.TextPatternParser;
+import org.hisp.dhis.textpattern.TextPatternService;
+import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
-@RunWith( MockitoJUnitRunner.class )
-public class ReservedValueServiceTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class ReservedValueServiceTest
 {
 
     private ReservedValueService reservedValueService;
@@ -60,7 +74,7 @@ public class ReservedValueServiceTest
     private ReservedValueStore reservedValueStore;
 
     @Mock
-    private SequentialNumberCounterStore sequentialNumberCounterStore;
+    private ValueGeneratorService valueGeneratorService;
 
     @Captor
     private ArgumentCaptor<ReservedValue> reservedValue;
@@ -75,92 +89,155 @@ public class ReservedValueServiceTest
 
     private static final String ownerUid = "uid";
 
-    @Before
-    public void setUpClass()
+    @BeforeEach
+    void setUpClass()
     {
         reservedValueService = new DefaultReservedValueService( textPatternService, reservedValueStore,
-            new ValueGeneratorService( sequentialNumberCounterStore ) );
-
+            valueGeneratorService );
         Calendar calendar = Calendar.getInstance();
         calendar.add( DATE, 1 );
         futureDate = calendar.getTime();
     }
 
     @Test
-    public void shouldReserveSimpleTextPattern()
+    void shouldReserveSimpleTextPattern()
         throws TextPatternParser.TextPatternParsingException,
         TextPatternGenerationException,
         ReserveValueException
     {
         assertEquals( 1,
-            reservedValueService.reserve( createTextPattern( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, simpleText ), 1,
-                new HashMap<>(), futureDate ).size() );
-
+            reservedValueService
+                .reserve( createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, simpleText ), 1,
+                    new HashMap<>(), futureDate )
+                .size() );
         verify( reservedValueStore, times( 1 ) ).reserveValues( any() );
     }
 
     @Test
-    public void shouldNotReserveSimpleTextPatternAlreadyReserved()
+    void shouldNotReserveSimpleTextPatternAlreadyReserved()
     {
         when( reservedValueStore.getNumberOfUsedValues( reservedValue.capture() ) ).thenReturn( 1 );
-
         assertThrows( ReserveValueException.class,
             () -> reservedValueService.reserve(
-                createTextPattern( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, simpleText ),
-                1, new HashMap<>(), futureDate ) );
-
+                createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, simpleText ), 1,
+                new HashMap<>(), futureDate ) );
         assertEquals( Objects.TRACKEDENTITYATTRIBUTE.name(), reservedValue.getValue().getOwnerObject() );
         assertEquals( ownerUid, reservedValue.getValue().getOwnerUid() );
         verify( reservedValueStore, times( 0 ) ).reserveValues( any() );
     }
 
     @Test
-    public void shouldNotReserveValuesSequentialPattern()
+    void shouldNotReserveValuesSequentialPattern()
         throws TextPatternParser.TextPatternParsingException,
         TextPatternGenerationException,
-        ReserveValueException
+        ReserveValueException,
+        ExecutionException,
+        InterruptedException
     {
-        List<Integer> generatedValues = new ArrayList<>();
-
-        IntStream.range( 1, RESERVED_VALUE_GENERATION_ATTEMPT + 1 ).forEach( generatedValues::add );
-
-        when( sequentialNumberCounterStore.getNextValues( any(), any(), anyInt() ) )
-            .thenReturn( generatedValues );
-
-        assertEquals( RESERVED_VALUE_GENERATION_ATTEMPT,
+        when( valueGeneratorService.generateValues( any(), any(), any(), anyInt() ) )
+            .thenReturn( Arrays.asList( "12", "34" ) );
+        int requestedValues = 10;
+        assertEquals( requestedValues,
             reservedValueService
-                .reserve( createTextPattern( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, sequentialText ), 10,
-                    new HashMap<>(), futureDate )
+                .reserve( createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, sequentialText ),
+                    requestedValues, new HashMap<>(), futureDate )
                 .size() );
-
         verify( reservedValueStore, times( 0 ) ).reserveValues( any() );
+        verify( reservedValueStore, times( 0 ) ).bulkInsertReservedValues( anyList() );
     }
 
     @Test
-    public void shouldReserveValuesRandomPattern()
+    void shouldReserveValuesRandomPattern()
         throws TextPatternParser.TextPatternParsingException,
         TextPatternGenerationException,
         ReserveValueException
     {
-        when( reservedValueStore.reserveValuesAndCheckUniqueness( any(), any() ) )
-            .thenReturn( Arrays.asList( ReservedValue.builder().build(), ReservedValue.builder().build() ) );
-
+        when( reservedValueStore.getAvailableValues( any(), any(), any() ) ).thenReturn( Arrays.asList(
+            ReservedValue.builder().build(), ReservedValue.builder().build(), ReservedValue.builder().build() ) );
         assertEquals( 2,
             reservedValueService
-                .reserve( createTextPattern( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, randomText ), 2,
+                .reserve( createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, randomText ), 2,
                     new HashMap<>(), futureDate )
                 .size() );
-
-        verify( reservedValueStore, times( 1 ) ).reserveValuesAndCheckUniqueness( any(), any() );
+        verify( reservedValueStore, times( 1 ) ).getAvailableValues( any(), any(), any() );
+        verify( reservedValueStore, times( 1 ) ).bulkInsertReservedValues( anyList() );
     }
 
-    private static TextPattern createTextPattern( Objects objects, String uid, String pattern )
+    @Test
+    void shouldRemoveDuplicatesReserveValuesRandomPattern()
+        throws TextPatternParser.TextPatternParsingException,
+        TextPatternGenerationException,
+        ReserveValueException
+    {
+        when( reservedValueStore.getAvailableValues( any(), any(), any() ) ).thenReturn( Arrays.asList(
+            ReservedValue.builder().ownerUid( ownerUid ).ownerObject( Objects.TRACKEDENTITYATTRIBUTE.name() )
+                .key( "key" ).value( "value" ).build(),
+            ReservedValue.builder().ownerUid( ownerUid ).ownerObject( Objects.TRACKEDENTITYATTRIBUTE.name() )
+                .key( "key" ).value( "value" ).build(),
+            ReservedValue.builder().ownerUid( "owner1" ).ownerObject( "ownerObject1" ).key( "key1" ).value( "value" )
+                .build() ) );
+        assertEquals( 2,
+            reservedValueService
+                .reserve( createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, randomText ), 2,
+                    new HashMap<>(), futureDate )
+                .size() );
+        verify( reservedValueStore, times( 1 ) ).getAvailableValues( any(), any(), any() );
+        verify( reservedValueStore, times( 1 ) ).bulkInsertReservedValues( argThat( list -> list.size() == 2 ) );
+    }
+
+    @Test
+    void shouldDeleteUsedOrExpiredReservedValues()
+    {
+        reservedValueService.removeUsedOrExpiredReservations();
+        verify( reservedValueStore, times( 1 ) ).removeUsedOrExpiredReservations();
+    }
+
+    @Test
+    void shouldExitLoopWithInterruptedException()
+        throws TextPatternParser.TextPatternParsingException,
+        TextPatternGenerationException,
+        ReserveValueException,
+        ExecutionException,
+        InterruptedException
+    {
+        when( reservedValueStore.getAvailableValues( any(), any(), any() ) ).thenReturn( Arrays.asList(
+            ReservedValue.builder().build(), ReservedValue.builder().build(), ReservedValue.builder().build() ) );
+        when( valueGeneratorService.generateValues( any(), any(), any(), anyInt() ) )
+            .thenReturn( Arrays.asList( "AAA", "BBB" ) )
+            .thenThrow( new InterruptedException( "Interruption exception" ) );
+        assertEquals( 2,
+            reservedValueService
+                .reserve( createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, randomText ), 2,
+                    new HashMap<>(), futureDate )
+                .size() );
+    }
+
+    @Test
+    void shouldExitLoopWithExecutionException()
+        throws TextPatternParser.TextPatternParsingException,
+        TextPatternGenerationException,
+        ReserveValueException,
+        ExecutionException,
+        InterruptedException
+    {
+        when( valueGeneratorService.generateValues( any(), any(), any(), anyInt() ) )
+            .thenThrow( new ExecutionException( new Exception( "Execution exception" ) ) );
+        assertEquals( 0,
+            reservedValueService
+                .reserve( createTrackedEntityAttribute( Objects.TRACKEDENTITYATTRIBUTE, ownerUid, randomText ), 2,
+                    new HashMap<>(), futureDate )
+                .size() );
+    }
+
+    private static TrackedEntityAttribute createTrackedEntityAttribute( Objects objects, String uid, String pattern )
         throws TextPatternParser.TextPatternParsingException
     {
-        TextPattern tp = TextPatternParser.parse( pattern );
-        tp.setOwnerObject( objects );
-        tp.setOwnerUid( uid );
-        return tp;
+        TextPattern textPattern = TextPatternParser.parse( pattern );
+        textPattern.setOwnerObject( objects );
+        textPattern.setOwnerUid( uid );
+        TrackedEntityAttribute trackedEntityAttribute = new TrackedEntityAttribute();
+        trackedEntityAttribute.setTextPattern( textPattern );
+        trackedEntityAttribute.setGenerated( true );
+        return trackedEntityAttribute;
     }
-
 }

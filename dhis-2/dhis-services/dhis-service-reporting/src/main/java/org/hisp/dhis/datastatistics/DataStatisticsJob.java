@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,12 +27,12 @@
  */
 package org.hisp.dhis.datastatistics;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.springframework.stereotype.Component;
 
@@ -41,21 +41,11 @@ import org.springframework.stereotype.Component;
  * @author Julie Hill Roa
  */
 @Slf4j
-@Component( "dataStatisticsJob" )
-public class DataStatisticsJob
-    extends AbstractJob
+@Component
+@AllArgsConstructor
+public class DataStatisticsJob implements Job
 {
     private final DataStatisticsService dataStatisticsService;
-
-    public DataStatisticsJob( DataStatisticsService dataStatisticsService )
-    {
-        checkNotNull( dataStatisticsService );
-        this.dataStatisticsService = dataStatisticsService;
-    }
-
-    // -------------------------------------------------------------------------
-    // Implementation
-    // -------------------------------------------------------------------------
 
     @Override
     public JobType getJobType()
@@ -64,14 +54,18 @@ public class DataStatisticsJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
-        long id = dataStatisticsService.saveDataStatisticsSnapshot();
+        progress.startingProcess( "Create data statistics snapshot" );
+        long id = dataStatisticsService.saveDataStatisticsSnapshot( progress );
 
         if ( id > 0 )
         {
-            log.info( "Saved data statistics snapshot" );
+            progress.completedProcess( "Saved data statistics snapshot" );
+        }
+        else
+        {
+            progress.failedProcess( "no snapshot created" );
         }
     }
-
 }

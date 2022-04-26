@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.webapi.controller;
 
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -35,15 +37,16 @@ import org.hisp.dhis.dashboard.DashboardItem;
 import org.hisp.dhis.dashboard.DashboardItemShape;
 import org.hisp.dhis.dashboard.DashboardService;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.hibernate.exception.UpdateAccessDeniedException;
 import org.hisp.dhis.schema.descriptors.DashboardItemSchemaDescriptor;
+import org.hisp.dhis.user.CurrentUser;
+import org.hisp.dhis.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
@@ -60,22 +63,22 @@ public class DashboardItemController
     @Autowired
     private DashboardService dashboardService;
 
-    @RequestMapping( value = "/{uid}/shape/{shape}", method = RequestMethod.PUT )
+    @PutMapping( "/{uid}/shape/{shape}" )
     @ResponseStatus( HttpStatus.NO_CONTENT )
     public void putDashboardItemShape( @PathVariable String uid, @PathVariable DashboardItemShape shape,
-        HttpServletRequest request, HttpServletResponse response )
+        @CurrentUser User currentUser, HttpServletRequest request, HttpServletResponse response )
         throws Exception
     {
         DashboardItem item = dashboardService.getDashboardItem( uid );
 
         if ( item == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "Dashboard item does not exist: " + uid ) );
+            throw new WebMessageException( notFound( "Dashboard item does not exist: " + uid ) );
         }
 
         Dashboard dashboard = dashboardService.getDashboardFromDashboardItem( item );
 
-        if ( !aclService.canUpdate( currentUserService.getCurrentUser(), dashboard ) )
+        if ( !aclService.canUpdate( currentUser, dashboard ) )
         {
             throw new UpdateAccessDeniedException( "You don't have the proper permissions to update this dashboard." );
         }

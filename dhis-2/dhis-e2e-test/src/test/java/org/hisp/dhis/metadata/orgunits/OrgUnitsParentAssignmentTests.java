@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata.orgunits;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,10 @@ package org.hisp.dhis.metadata.orgunits;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata.orgunits;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.hamcrest.Matchers;
 import org.hisp.dhis.ApiTest;
@@ -35,9 +37,6 @@ import org.hisp.dhis.actions.metadata.OrgUnitActions;
 import org.hisp.dhis.dto.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>

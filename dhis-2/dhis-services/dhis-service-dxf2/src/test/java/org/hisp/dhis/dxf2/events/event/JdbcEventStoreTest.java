@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,10 @@ package org.hisp.dhis.dxf2.events.event;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,14 +42,16 @@ import javax.sql.DataSource;
 
 import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.dxf2.events.report.EventRow;
+import org.hisp.dhis.dxf2.events.trackedentity.store.EventStore;
 import org.hisp.dhis.jdbc.statementbuilder.PostgreSQLStatementBuilder;
 import org.hisp.dhis.user.CurrentUserService;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
@@ -56,7 +61,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * @author Luciano Fiandesio
  */
-public class JdbcEventStoreTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class JdbcEventStoreTest
 {
     private JdbcEventStore subject;
 
@@ -75,10 +82,13 @@ public class JdbcEventStoreTest
     @Mock
     private Environment env;
 
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
+    @Mock
+    private EventStore eventStore;
 
-    @Before
+    @Mock
+    private SkipLockedProvider skipLockedProvider;
+
+    @BeforeEach
     public void setUp()
     {
         when( jdbcTemplate.queryForRowSet( anyString() ) ).thenReturn( this.rowSet );
@@ -87,16 +97,27 @@ public class JdbcEventStoreTest
 
         ObjectMapper objectMapper = new ObjectMapper();
         subject = new JdbcEventStore( new PostgreSQLStatementBuilder(), jdbcTemplate, objectMapper, currentUserService,
-            manager, env );
+            manager, env, eventStore, skipLockedProvider );
     }
 
     @Test
-    public void verifyEventDataValuesAreProcessedOnceForEachPSI()
+    void verifyEventDataValuesAreProcessedOnceForEachPSI()
     {
         mockRowSet();
         EventSearchParams eventSearchParams = new EventSearchParams();
 
         List<EventRow> rows = subject.getEventRows( eventSearchParams, new ArrayList<>() );
+        assertThat( rows, hasSize( 1 ) );
+        verify( rowSet, times( 4 ) ).getString( "psi_eventdatavalues" );
+    }
+
+    @Test
+    void verifyNullOrganisationUnitsIsHandled()
+    {
+        mockRowSet();
+        EventSearchParams eventSearchParams = new EventSearchParams();
+
+        List<EventRow> rows = subject.getEventRows( eventSearchParams, null );
         assertThat( rows, hasSize( 1 ) );
         verify( rowSet, times( 4 ) ).getString( "psi_eventdatavalues" );
     }

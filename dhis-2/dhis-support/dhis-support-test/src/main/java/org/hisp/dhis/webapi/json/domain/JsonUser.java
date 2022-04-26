@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,10 @@
  */
 package org.hisp.dhis.webapi.json.domain;
 
-import org.hisp.dhis.webapi.json.JsonList;
+import java.time.LocalDateTime;
+
+import org.hisp.dhis.jsontree.JsonDate;
+import org.hisp.dhis.jsontree.JsonList;
 
 /**
  * Web API equivalent of a {@link org.hisp.dhis.user.User}.
@@ -44,11 +47,6 @@ public interface JsonUser extends JsonIdentifiableObject
     default String getFirstName()
     {
         return getString( "firstName" ).string();
-    }
-
-    default JsonUserCredentials getUserCredentials()
-    {
-        return get( "userCredentials", JsonUserCredentials.class );
     }
 
     default JsonList<JsonUserGroup> getUserGroups()
@@ -71,4 +69,13 @@ public interface JsonUser extends JsonIdentifiableObject
         return getList( "teiSearchOrganisationUnits", JsonOrganisationUnit.class );
     }
 
+    default LocalDateTime getLastLogin()
+    {
+        return get( "lastLogin", JsonDate.class ).date();
+    }
+
+    default LocalDateTime getAccountExpiry()
+    {
+        return get( "accountExpiry", JsonDate.class ).date();
+    }
 }

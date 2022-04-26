@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata.programs;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +25,9 @@ package org.hisp.dhis.metadata.programs;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata.programs;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.metadata.ProgramActions;
 import org.hisp.dhis.dto.ApiResponse;
@@ -41,20 +38,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.Set;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
  */
 public class ProgramsTest
-    extends ApiTest
+    extends AbstractOrgUnitAssociationTestSupport
 {
+    public static final String PROGRAM_UID = "Zd2rkv8FsWq";
+
     private LoginActions loginActions;
 
     private ProgramActions programActions;
@@ -76,7 +67,7 @@ public class ProgramsTest
     @ValueSource( strings = { "WITH_REGISTRATION", "WITHOUT_REGISTRATION" } )
     public void shouldCreateProgram( String programType )
     {
-        JsonObject object = programActions.getDummy();
+        JsonObject object = programActions.buildProgram();
         object.addProperty( "programType", programType );
 
         ApiResponse response = programActions.post( object );
@@ -85,30 +76,8 @@ public class ProgramsTest
     }
 
     @Test
-    public void testProgramOrgUnitsConnections() {
-        loginActions.loginAsSuperUser();
-
-        Set<String> associatedOrgUnitsAsSuperUser = extractAssociatedOrgUnits("Zd2rkv8FsWq");
-
-        loginActions.loginAsDefaultUser();
-
-        Set<String> associatedOrgUnitsAsTracker = extractAssociatedOrgUnits("Zd2rkv8FsWq");
-
-        assertTrue(associatedOrgUnitsAsSuperUser.containsAll(associatedOrgUnitsAsTracker));
-        assertTrue(associatedOrgUnitsAsSuperUser.size() >= associatedOrgUnitsAsTracker.size());
-
-    }
-
-    private Set<String> extractAssociatedOrgUnits(String programUid) {
-        return StreamSupport.stream(
-                Spliterators.spliteratorUnknownSize(
-                        programActions.getOrgUnitsAssociations(programUid)
-                                .getBody()
-                                .getAsJsonArray(programUid)
-                                .iterator(),
-                        Spliterator.ORDERED),
-                false)
-                .map(JsonElement::getAsString)
-                .collect(Collectors.toSet());
+    public void testProgramOrgUnitsConnections()
+    {
+        super.testOrgUnitsConnections( programActions::getOrgUnitsAssociations, PROGRAM_UID );
     }
 }

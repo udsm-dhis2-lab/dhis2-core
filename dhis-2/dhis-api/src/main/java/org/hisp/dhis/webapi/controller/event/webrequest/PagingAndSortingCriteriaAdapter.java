@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@ import static java.util.stream.Collectors.partitioningBy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -90,7 +91,11 @@ public abstract class PagingAndSortingCriteriaAdapter implements PagingCriteria,
     private final Function<List<OrderCriteria>, List<OrderCriteria>> dtoNameToDatabaseNameTranslator = orderCriteria -> CollectionUtils
         .emptyIfNull( orderCriteria )
         .stream()
-        .map( oc -> OrderCriteria.of( translateField( oc.getField(), isLegacy() ), oc.getDirection() ) )
+        .filter( Objects::nonNull )
+        .map( oc -> OrderCriteria.of(
+            translateField( oc.getField(), isLegacy() )
+                .orElse( oc.getField() ),
+            oc.getDirection() ) )
         .collect( Collectors.toList() );
 
     public boolean isPagingRequest()

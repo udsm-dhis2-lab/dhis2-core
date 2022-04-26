@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ import org.hisp.dhis.category.CategoryOptionGroupSet;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +57,7 @@ import com.google.common.collect.Sets;
  */
 @Service( "org.hisp.dhis.dataapproval.DataApprovalAuditService" )
 public class DefaultDataApprovalAuditService
-    implements DataApprovalAuditService
+    implements DataApprovalAuditService, CurrentUserServiceTarget
 {
     // -------------------------------------------------------------------------
     // Dependencies
@@ -89,10 +90,7 @@ public class DefaultDataApprovalAuditService
     // DataValueAuditService implementation
     // -------------------------------------------------------------------------
 
-    /**
-     * Used only for testing, remove when test is refactored
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -145,8 +143,8 @@ public class DefaultDataApprovalAuditService
     {
         User user = currentUserService.getCurrentUser();
 
-        Set<CategoryOptionGroupSet> cogDimensionConstraints = user.getUserCredentials().getCogsDimensionConstraints();
-        Set<Category> catDimensionConstraints = user.getUserCredentials().getCatDimensionConstraints();
+        Set<CategoryOptionGroupSet> cogDimensionConstraints = user.getCogsDimensionConstraints();
+        Set<Category> catDimensionConstraints = user.getCatDimensionConstraints();
 
         if ( currentUserService.currentUserIsSuper() ||
             (CollectionUtils.isEmpty( cogDimensionConstraints ) && CollectionUtils.isEmpty( catDimensionConstraints )) )

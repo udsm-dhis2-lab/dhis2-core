@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,6 @@ public class DimItemIndicator
     public DimensionalItemId getDimensionalItemId( ExprContext ctx,
         CommonExpressionVisitor visitor )
     {
-        return new DimensionalItemId( INDICATOR, ctx.uid0.getText(), visitor.getPeriodOffset() );
-    }
-
-    @Override
-    public String getId( ExprContext ctx, CommonExpressionVisitor visitor )
-    {
-        return ctx.uid0.getText() + (visitor.getPeriodOffset() == 0 ? "" : "." + visitor.getPeriodOffset());
+        return new DimensionalItemId( INDICATOR, ctx.uid0.getText(), visitor.getState().getQueryMods() );
     }
 }

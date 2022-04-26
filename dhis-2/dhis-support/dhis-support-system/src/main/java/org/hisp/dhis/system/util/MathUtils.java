@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -614,6 +614,24 @@ public class MathUtils
         {
             return null;
         }
+    }
+
+    /**
+     * Returns the numeric sum of two objects if both are Double, otherwise
+     * returns the first object.
+     *
+     * @param o1 first object.
+     * @param o2 second object.
+     * @return their sum.
+     */
+    public static Object addDoubleObjects( Object o1, Object o2 )
+    {
+        if ( o1 instanceof Double && o2 instanceof Double )
+        {
+            return (Double) o1 + (Double) o2;
+        }
+
+        return o1;
     }
 
     /**

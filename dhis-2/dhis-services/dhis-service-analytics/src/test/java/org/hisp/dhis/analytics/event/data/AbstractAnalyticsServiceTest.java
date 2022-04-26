@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ import java.util.List;
 
 import org.hisp.dhis.analytics.AggregationType;
 import org.hisp.dhis.analytics.AnalyticsSecurityManager;
+import org.hisp.dhis.analytics.data.handler.SchemaIdResponseMapper;
 import org.hisp.dhis.analytics.event.EventQueryParams;
 import org.hisp.dhis.analytics.event.EventQueryValidator;
 import org.hisp.dhis.common.BaseDimensionalObject;
@@ -55,12 +56,11 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.system.grid.ListGrid;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.opengis.geometry.primitive.Point;
 
 import com.google.common.collect.Lists;
@@ -71,8 +71,10 @@ import com.google.common.collect.Lists;
  *
  * @author Luciano Fiandesio
  */
-public class AbstractAnalyticsServiceTest
+@ExtendWith( MockitoExtension.class )
+class AbstractAnalyticsServiceTest
 {
+
     private Period peA;
 
     private OrganisationUnit ouA;
@@ -91,13 +93,14 @@ public class AbstractAnalyticsServiceTest
     @Mock
     private EventQueryValidator eventQueryValidator;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Mock
+    private SchemaIdResponseMapper schemaIdResponseMapper;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
-        dummyAnalyticsService = new DummyAnalyticsService( securityManager, eventQueryValidator );
+        dummyAnalyticsService = new DummyAnalyticsService( securityManager, eventQueryValidator,
+            schemaIdResponseMapper );
 
         peA = MonthlyPeriodType.getPeriodFromIsoString( "201701" );
         ouA = createOrganisationUnit( 'A' );
@@ -108,7 +111,7 @@ public class AbstractAnalyticsServiceTest
     }
 
     @Test
-    public void verifyHeaderCreationBasedOnQueryItemsAndDimensions()
+    void verifyHeaderCreationBasedOnQueryItemsAndDimensions()
     {
         // Given
         DimensionalObject periods = new BaseDimensionalObject( DimensionalObject.PERIOD_DIM_ID, DimensionType.PERIOD,
@@ -158,9 +161,10 @@ public class AbstractAnalyticsServiceTest
 
 class DummyAnalyticsService extends AbstractAnalyticsService
 {
-    public DummyAnalyticsService( AnalyticsSecurityManager securityManager, EventQueryValidator queryValidator )
+    public DummyAnalyticsService( AnalyticsSecurityManager securityManager, EventQueryValidator queryValidator,
+        SchemaIdResponseMapper schemaIdResponseMapper )
     {
-        super( securityManager, queryValidator );
+        super( securityManager, queryValidator, schemaIdResponseMapper );
     }
 
     @Override

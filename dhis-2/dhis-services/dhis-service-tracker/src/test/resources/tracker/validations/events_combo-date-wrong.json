@@ -1,21 +1,85 @@
 {
+  "importMode": "COMMIT",
+  "idSchemes": {
+    "dataElementIdScheme": {
+      "idScheme": "UID"
+    },
+    "orgUnitIdScheme": {
+      "idScheme": "UID"
+    },
+    "programIdScheme": {
+      "idScheme": "UID"
+    },
+    "programStageIdScheme": {
+      "idScheme": "UID"
+    },
+    "idScheme": {
+      "idScheme": "UID"
+    },
+    "categoryOptionComboIdScheme": {
+      "idScheme": "UID"
+    },
+    "categoryOptionIdScheme": {
+      "idScheme": "UID"
+    }
+  },
+  "importStrategy": "CREATE",
+  "atomicMode": "ALL",
+  "flushMode": "AUTO",
+  "validationMode": "FULL",
+  "skipPatternValidation": false,
+  "skipSideEffects": false,
+  "skipRuleEngine": false,
+  "trackedEntities": [],
+  "enrollments": [],
   "events": [
     {
-      "storedBy": "admin",
-      "scheduledAt": "2019-08-19T13:59:13.688",
-      "program": "E8o1E9tAppy",
-      "event": "ZwwuwNp6gVd",
-      "programStage": "Qmqxq907VNz",
-      "orgUnit": "QfUVllTs6cS",
-      "enrollment": "MNWZ6hnuhSw",
-      "enrollmentStatus": "ACTIVE",
+      "event": "T1FVaihz1pm",
       "status": "ACTIVE",
-      "orgUnitName": "TA org_unit lvl2",
-      "occurredAt": "2019-08-01T00:00:00.000",
-      "updatedAt": "2019-08-19T13:59:13.694",
-      "createdAt": "2019-08-19T13:58:26.964",
+      "program": {
+        "idScheme": "UID",
+        "identifier": "rT3rvcn2vid"
+      },
+      "programStage": {
+        "idScheme": "UID",
+        "identifier": "o68AuhbJDSz"
+      },
+      "orgUnit": {
+        "idScheme": "UID",
+        "identifier": "QfUVllTs6cS"
+      },
+      "relationships": [],
+      "occurredAt": "2018-12-31T06:13:07.000",
+      "followup": false,
       "deleted": false,
-      "attributeOptionCombo": "OOlvX50cXC0"
+      "attributeOptionCombo": "OOlvX50cXC0",
+      "dataValues": [],
+      "notes": []
+    },
+    {
+      "event": "LkAsjXR2BDM",
+      "status": "ACTIVE",
+      "program": {
+        "idScheme": "UID"
+      },
+      "programStage": {
+        "idScheme": "UID",
+        "identifier": "o68AuhbJDSz"
+      },
+      "orgUnit": {
+        "idScheme": "UID",
+        "identifier": "QfUVllTs6cS"
+      },
+      "relationships": [],
+      "occurredAt": "2020-08-01T00:00:00.000",
+      "scheduledAt": "2020-08-19T13:59:13.688",
+      "followup": false,
+      "deleted": false,
+      "attributeOptionCombo": "OOlvX50cXC0",
+      "dataValues": [],
+      "notes": []
     }
-  ]
+  ],
+  "relationships": [],
+  "username": "system-process"
 }

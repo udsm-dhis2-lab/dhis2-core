@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.tracker.importer;
 
 import com.google.gson.JsonArray;
@@ -40,6 +39,7 @@ import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.helpers.file.FileReaderUtils;
 import org.hisp.dhis.tracker.TrackerNtiApiTest;
+import org.hisp.dhis.tracker.importer.databuilder.TeiDataBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -76,14 +76,17 @@ public class SideEffectsTests
     @ValueSource( strings = { "true", "false" } )
     public void shouldSendNotificationIfNotSkipSideEffects( Boolean shouldSkipSideEffects )
     {
-        JsonObject object = trackerActions
-            .buildTeiWithEnrollmentAndEvent( Constants.ORG_UNIT_IDS[0], trackerProgramId, trackerProgramStageId, "COMPLETED" );
+        JsonObject object = new TeiDataBuilder()
+            .buildWithEnrollmentAndEvent( Constants.TRACKED_ENTITY_TYPE, Constants.ORG_UNIT_IDS[0], trackerProgramId,
+                trackerProgramStageId, "COMPLETED" );
 
-        ApiResponse response = new RestApiActions( "/messageConversations" ).get( "", new QueryParamsBuilder().add( "fields=*" ) );
+        ApiResponse response = new RestApiActions( "/messageConversations" ).get( "",
+            new QueryParamsBuilder().add( "fields=*" ) );
 
         int size = response.getBody().getAsJsonArray( "messageConversations" ).size();
 
-        trackerActions.postAndGetJobReport( object, new QueryParamsBuilder().add( "skipSideEffects=" + shouldSkipSideEffects ) )
+        trackerActions
+            .postAndGetJobReport( object, new QueryParamsBuilder().add( "skipSideEffects=" + shouldSkipSideEffects ) )
             .validateSuccessfulImport();
 
         int expectedCount = (shouldSkipSideEffects) ? size : size + 1;
@@ -108,14 +111,17 @@ public class SideEffectsTests
     {
         ProgramStageActions programStageActions = new ProgramStageActions();
 
-        JsonArray array = new FileReaderUtils().read( new File( "src/test/resources/tracker/notificationTemplates.json" ) )
+        JsonArray array = new FileReaderUtils()
+            .read( new File( "src/test/resources/tracker/notificationTemplates.json" ) )
             .get( JsonObject.class ).getAsJsonArray( "programNotificationTemplates" );
 
         array.forEach( nt -> {
-            String programNotificationTemplate = new RestApiActions( "/programNotificationTemplates" ).post( nt.getAsJsonObject() )
+            String programNotificationTemplate = new RestApiActions( "/programNotificationTemplates" )
+                .post( nt.getAsJsonObject() )
                 .extractUid();
 
-            JsonObject programStage = JsonObjectBuilder.jsonObject( programStageActions.get( trackerProgramStageId ).getBody() )
+            JsonObject programStage = JsonObjectBuilder
+                .jsonObject( programStageActions.get( trackerProgramStageId ).getBody() )
                 .addOrAppendToArray( "notificationTemplates",
                     new JsonObjectBuilder().addProperty( "id", programNotificationTemplate ).build() )
                 .build();

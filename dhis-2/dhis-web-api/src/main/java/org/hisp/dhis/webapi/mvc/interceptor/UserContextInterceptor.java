@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,7 @@ public class UserContextInterceptor extends HandlerInterceptorAdapter implements
 
         String locale = request.getParameter( PARAM_LOCALE );
 
-        User user = currentUserService.getCurrentUserInTransaction();
+        User user = currentUserService.getCurrentUser();
 
         if ( user != null )
         {

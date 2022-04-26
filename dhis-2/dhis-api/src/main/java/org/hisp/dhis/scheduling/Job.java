@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +34,10 @@ import org.hisp.dhis.feedback.ErrorReport;
  * by the Spring scheduler. The actual job will contain an execute method which
  * performs the appropriate actions.
  * <p>
- * {@link JobInstance} is another interface connected to jobs. This interface is
- * used for the actual execution of the job. See {@link SchedulingManager} for
- * more information about the scheduling.
+ * See {@link SchedulingManager} for more information about the scheduling.
+ *
+ * @see <a href=
+ *      "https://github.com/dhis2/wow-backend/blob/master/docs/job_scheduling.md">Docs</a>
  *
  * @author Henning Håkonsen
  */
@@ -44,7 +45,11 @@ public interface Job
 {
     JobType getJobType();
 
-    void execute( JobConfiguration jobConfiguration );
+    default ErrorReport validate()
+    {
+        return null;
+    }
 
-    ErrorReport validate();
+    void execute( JobConfiguration jobConfiguration, JobProgress progress );
+
 }

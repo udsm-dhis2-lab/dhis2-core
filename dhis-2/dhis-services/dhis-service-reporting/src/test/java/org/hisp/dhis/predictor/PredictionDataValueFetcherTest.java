@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,57 +27,48 @@
  */
 package org.hisp.dhis.predictor;
 
-import static org.junit.Assert.assertEquals;
+import static org.hisp.dhis.datavalue.DataValueStore.END_OF_DDV_DATA;
+import static org.hisp.dhis.utils.Assertions.assertContainsOnly;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.BlockingQueue;
 
 import org.hisp.dhis.DhisConvenienceTest;
 import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.category.CategoryService;
+import org.hisp.dhis.common.FoundDimensionItemValue;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementOperand;
+import org.hisp.dhis.datavalue.DataExportParams;
 import org.hisp.dhis.datavalue.DataValue;
 import org.hisp.dhis.datavalue.DataValueService;
 import org.hisp.dhis.datavalue.DeflatedDataValue;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.Period;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
  * Tests PredictionDataValueFetcher.
- * <p>
- * There are two threads calling PredictionDataValueFetcher: the producer thread
- * "from below" calling handle() to supply data values from the database, and
- * the consumer thread "from above" calling getDataValues() to retrieve those
- * values.
- * <p>
- * To test that the synchronization inside PredictionDataValueFetcher is working
- * between these two threads, there are two tests. One simulates a "slow"
- * database, where the producer calls to handle() wait until the consumer calls
- * getDataValues(). The other simulates a "fast" database, where the consumer
- * calls to getDataValues() wait until the producer has called handle().
- * <p>
- * Both of these tests call getDataValues() for organisation units before,
- * between, and after organisation units where data actually exists.
  *
  * @author Jim Grace
  */
-public class PredictionDataValueFetcherTest
+@ExtendWith( MockitoExtension.class )
+class PredictionDataValueFetcherTest
     extends DhisConvenienceTest
 {
     @Mock
@@ -86,12 +77,11 @@ public class PredictionDataValueFetcherTest
     @Mock
     private CategoryService categoryService;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
     private DataElement dataElementA;
 
     private DataElement dataElementB;
+
+    private DataElement dataElementX;
 
     private Set<DataElement> dataElements;
 
@@ -107,7 +97,21 @@ public class PredictionDataValueFetcherTest
 
     private DataElementOperand dataElementOperandB;
 
+    private DataElementOperand dataElementOperandAB;
+
+    private DataElementOperand dataElementOperandX;
+
     private Set<DataElementOperand> dataElementOperands;
+
+    private Period periodA;
+
+    private Period periodB;
+
+    private Period periodC;
+
+    private Set<Period> queryPeriods;
+
+    private Set<Period> outputPeriods;
 
     private OrganisationUnit orgUnitA;
 
@@ -119,90 +123,190 @@ public class PredictionDataValueFetcherTest
 
     private OrganisationUnit orgUnitE;
 
-    private List<OrganisationUnit> orgUnits;
+    private OrganisationUnit orgUnitF;
 
-    private Period periodA;
+    private OrganisationUnit orgUnitG;
 
-    private Period periodB;
+    private Set<OrganisationUnit> currentUserOrgUnits;
 
-    private Set<Period> periods;
+    private List<OrganisationUnit> levelOneOrgUnits;
 
     private DataValue dataValueA;
 
     private DataValue dataValueB;
 
+    private DataValue dataValueAB;
+
     private DataValue dataValueC;
 
-    private Semaphore semaphore;
+    private DataValue dataValueD;
 
-    PredictionDataValueFetcher fetcher;
+    private DataValue dataValueX;
+
+    private DataValue dataValueY;
+
+    private DataValue dataValueZ;
+
+    private DeflatedDataValue deflatedDataValueA;
+
+    private DeflatedDataValue deflatedDataValueB;
+
+    private DeflatedDataValue deflatedDataValueAB;
+
+    private DeflatedDataValue deflatedDataValueC;
+
+    private DeflatedDataValue deflatedDataValueD;
+
+    private DeflatedDataValue deflatedDataValueX;
+
+    private DeflatedDataValue deflatedDataValueY;
+
+    private DeflatedDataValue deflatedDataValueZ;
+
+    private FoundDimensionItemValue foundValueA;
+
+    private FoundDimensionItemValue foundValueB;
+
+    private FoundDimensionItemValue foundValueAB;
+
+    private FoundDimensionItemValue foundValueC;
+
+    private FoundDimensionItemValue foundValueD;
+
+    private FoundDimensionItemValue foundValueE;
+
+    private PredictionDataValueFetcher fetcher;
+
+    private final static int ORG_UNIT_LEVEl = 1;
 
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
 
-    @Before
-    public void initTest()
+    @BeforeEach
+    void initTest()
     {
         dataElementA = createDataElement( 'A' );
         dataElementB = createDataElement( 'B' );
+        dataElementX = createDataElement( 'X' );
 
         dataElementA.setId( 1 );
         dataElementB.setId( 2 );
+        dataElementX.setId( 3 );
 
         dataElements = Sets.newHashSet( dataElementA, dataElementB );
 
         cocA = createCategoryOptionCombo( 'A' );
         cocB = createCategoryOptionCombo( 'B' );
 
-        cocA.setId( 3 );
-        cocB.setId( 4 );
+        cocA.setId( 4 );
+        cocB.setId( 5 );
+
+        cocA.setUid( "CatOptCombA" );
+        cocB.setUid( "CatOptCombB" );
 
         aocC = createCategoryOptionCombo( 'C' );
         aocD = createCategoryOptionCombo( 'D' );
 
-        aocC.setId( 5 );
-        aocD.setId( 6 );
+        aocC.setId( 6 );
+        aocD.setId( 7 );
+
+        aocC.setUid( "AttOptionCC" );
+        aocD.setUid( "AttOptionCD" );
 
         dataElementOperandA = new DataElementOperand( dataElementA, cocA );
-        dataElementOperandB = new DataElementOperand( dataElementB, cocA );
-        dataElementOperands = Sets.newHashSet( dataElementOperandA, dataElementOperandB );
+        dataElementOperandB = new DataElementOperand( dataElementB, cocB );
+        dataElementOperandAB = new DataElementOperand( dataElementA, cocB );
+        dataElementOperandX = new DataElementOperand( dataElementX, cocA );
+
+        dataElementOperands = Sets.newHashSet( dataElementOperandA, dataElementOperandB, dataElementOperandAB,
+            dataElementOperandX );
+
+        periodA = createPeriod( "202201" );
+        periodB = createPeriod( "202202" );
+        periodC = createPeriod( "202203" );
+
+        periodA.setUid( "Perio202201" );
+        periodB.setUid( "Perio202202" );
+        periodC.setUid( "Perio202203" );
+
+        periodA.setId( 10 );
+        periodB.setId( 11 );
+        periodC.setId( 12 );
+
+        queryPeriods = Sets.newHashSet( periodA, periodB, periodC );
+
+        outputPeriods = Sets.newHashSet( periodC );
+
+        // OrgUnit hierarchy:
+        //
+        // Level 1 - Level 2
+        // -- A
+        // -- B ------ E
+        // -- C ------ F
+        // -- D ------ G
 
         orgUnitA = createOrganisationUnit( "A" );
         orgUnitB = createOrganisationUnit( "B" );
         orgUnitC = createOrganisationUnit( "C" );
         orgUnitD = createOrganisationUnit( "D" );
-        orgUnitE = createOrganisationUnit( "E" );
+        orgUnitE = createOrganisationUnit( "E", orgUnitB );
+        orgUnitF = createOrganisationUnit( "F", orgUnitC );
+        orgUnitG = createOrganisationUnit( "G", orgUnitD );
 
-        orgUnitA.setId( 7 );
-        orgUnitB.setId( 8 );
-        orgUnitC.setId( 9 );
-        orgUnitD.setId( 10 );
-        orgUnitE.setId( 11 );
+        orgUnitA.setId( 20 );
+        orgUnitB.setId( 21 );
+        orgUnitC.setId( 22 );
+        orgUnitD.setId( 23 );
+        orgUnitE.setId( 24 );
+        orgUnitF.setId( 25 );
+        orgUnitG.setId( 26 );
 
-        orgUnitA.setUid( "orgUnitAuid" );
-        orgUnitB.setUid( "orgUnitBuid" );
-        orgUnitC.setUid( "orgUnitCuid" );
-        orgUnitD.setUid( "orgUnitDuid" );
-        orgUnitE.setUid( "orgUnitEuid" );
+        orgUnitA.setUid( "orgUnitAAAA" );
+        orgUnitB.setUid( "orgUnitBBBB" );
+        orgUnitC.setUid( "orgUnitCCCC" );
+        orgUnitD.setUid( "orgUnitDDDD" );
+        orgUnitE.setUid( "orgUnitEEEE" );
+        orgUnitF.setUid( "orgUnitFFFF" );
+        orgUnitG.setUid( "orgUnitGGGG" );
 
-        orgUnits = Lists.newArrayList( orgUnitA, orgUnitB, orgUnitC, orgUnitD, orgUnitE );
+        orgUnitA.setPath( "/orgUnitAAAA" );
+        orgUnitB.setPath( "/orgUnitBBBB" );
+        orgUnitC.setPath( "/orgUnitCCCC" );
+        orgUnitD.setPath( "/orgUnitDDDD" );
+        orgUnitE.setPath( "/orgUnitBBBB/orgUnitEEEE" );
+        orgUnitF.setPath( "/orgUnitCCCC/orgUnitFFFF" );
+        orgUnitG.setPath( "/orgUnitDDDD/orgUnitGGGG" );
 
-        periodA = createPeriod( "202001" );
-        periodB = createPeriod( "202002" );
+        currentUserOrgUnits = Sets.newHashSet( orgUnitA, orgUnitB, orgUnitC, orgUnitD );
 
-        periods = Sets.newHashSet( periodA, periodB );
+        levelOneOrgUnits = Lists.newArrayList( orgUnitA, orgUnitB, orgUnitC, orgUnitD );
 
-        periodA.setId( 12 );
-        periodB.setId( 13 );
+        dataValueA = new DataValue( dataElementA, periodA, orgUnitB, cocA, aocC, "10.0", "Y", null, null, null, false );
+        dataValueB = new DataValue( dataElementA, periodA, orgUnitB, cocB, aocC, "15.0", "Y", null, null, null, false );
+        dataValueX = new DataValue( dataElementX, periodA, orgUnitB, cocA, aocD, "30.0", "Z", null, null, null, false );
+        dataValueY = new DataValue( dataElementX, periodC, orgUnitB, cocA, aocC, "40.0", "Z", null, null, null, true );
+        dataValueZ = new DataValue( dataElementX, periodC, orgUnitE, cocA, aocC, "50.0", "Z", null, null, null, false );
+        dataValueC = new DataValue( dataElementB, periodB, orgUnitC, cocA, aocC, "18.0", "Y", null, null, null, false );
+        dataValueD = new DataValue( dataElementB, periodB, orgUnitC, cocB, aocC, "20.0", "Y", null, null, null, true );
+        dataValueAB = new DataValue( dataElementA, periodA, orgUnitB, cocB, aocC, "60.0", "Y", null, null, null,
+            false );
 
-        dataValueA = new DataValue( dataElementA, periodA, orgUnitB, cocA, aocC, "10", "X", null, null, null, false );
-        dataValueB = new DataValue( dataElementA, periodA, orgUnitD, cocA, aocD, "20", "Y", null, null, null, true );
-        dataValueC = new DataValue( dataElementB, periodB, orgUnitD, cocB, aocC, "30", "Y", null, null, null, false );
+        deflatedDataValueA = new DeflatedDataValue( dataValueA );
+        deflatedDataValueB = new DeflatedDataValue( dataValueB );
+        deflatedDataValueX = new DeflatedDataValue( dataValueX );
+        deflatedDataValueY = new DeflatedDataValue( dataValueY );
+        deflatedDataValueZ = new DeflatedDataValue( dataValueZ );
+        deflatedDataValueC = new DeflatedDataValue( dataValueC );
+        deflatedDataValueD = new DeflatedDataValue( dataValueD );
+        deflatedDataValueAB = new DeflatedDataValue( dataValueAB );
 
-        semaphore = new Semaphore( 1 );
-
-        semaphore.acquireUninterruptibly();
+        foundValueA = new FoundDimensionItemValue( orgUnitB, periodA, aocC, dataElementA, 85.0 );
+        foundValueB = new FoundDimensionItemValue( orgUnitC, periodB, aocC, dataElementB, 18.0 );
+        foundValueC = new FoundDimensionItemValue( orgUnitB, periodA, aocC, dataElementOperandA, 10.0 );
+        foundValueD = new FoundDimensionItemValue( orgUnitB, periodA, aocD, dataElementOperandX, 30.0 );
+        foundValueE = new FoundDimensionItemValue( orgUnitB, periodC, aocC, dataElementOperandX, 50.0 );
+        foundValueAB = new FoundDimensionItemValue( orgUnitB, periodA, aocC, dataElementOperandAB, 75.0 );
 
         fetcher = new PredictionDataValueFetcher( dataValueService, categoryService );
     }
@@ -211,129 +315,73 @@ public class PredictionDataValueFetcherTest
     // Tests
     // -------------------------------------------------------------------------
 
-    @Test( expected = RuntimeException.class )
-    public void testOrgUnitsOutOfOrder()
+    @Test
+    void testGetDataValues()
     {
-        when( dataValueService.getDeflatedDataValues( any() ) ).thenAnswer( p -> unsynchronizedDb() );
+        when( categoryService.getCategoryOptionCombo( cocA.getId() ) ).thenReturn( cocA );
+        when( categoryService.getCategoryOptionCombo( cocB.getId() ) ).thenReturn( cocB );
+        when( categoryService.getCategoryOptionCombo( aocC.getId() ) ).thenReturn( aocC );
+        when( categoryService.getCategoryOptionCombo( aocD.getId() ) ).thenReturn( aocD );
 
-        fetcher.init( new HashSet<>(), 1, orgUnits, periods, dataElements, dataElementOperands );
+        when( dataValueService.getDeflatedDataValues( any( DataExportParams.class ) ) ).thenAnswer( p -> {
+            BlockingQueue<DeflatedDataValue> blockingQueue = ((DataExportParams) p.getArgument( 0 )).getBlockingQueue();
+            blockingQueue.put( deflatedDataValueA );
+            blockingQueue.put( deflatedDataValueAB );
+            blockingQueue.put( deflatedDataValueB );
+            blockingQueue.put( deflatedDataValueX );
+            blockingQueue.put( deflatedDataValueY );
+            blockingQueue.put( deflatedDataValueZ );
+            blockingQueue.put( deflatedDataValueC );
+            blockingQueue.put( deflatedDataValueD );
+            blockingQueue.put( END_OF_DDV_DATA );
+            return new ArrayList<>();
+        } );
 
-        fetcher.getDataValues( orgUnitC );
+        fetcher.init( currentUserOrgUnits, ORG_UNIT_LEVEl, levelOneOrgUnits, queryPeriods, outputPeriods,
+            dataElements, dataElementOperands, dataElementOperandX );
+
+        PredictionData data1 = fetcher.getData();
+        assertNotNull( data1 );
+        assertEquals( orgUnitB, data1.getOrgUnit() );
+        assertContainsOnly( data1.getValues(), foundValueA, foundValueAB, foundValueC, foundValueD, foundValueE );
+        assertContainsOnly( data1.getOldPredictions(), dataValueY );
+
+        PredictionData data2 = fetcher.getData();
+        assertNotNull( data2 );
+        assertEquals( orgUnitC, data2.getOrgUnit() );
+        assertContainsOnly( data2.getValues(), foundValueB );
+        assertContainsOnly( data2.getOldPredictions() );
+
+        PredictionData data3 = fetcher.getData();
+        assertNull( data3 );
+
+        PredictionData data4 = fetcher.getData();
+        assertNull( data4 );
     }
 
     @Test
-    public void testNoDataValues()
+    void testNoDataValues()
     {
-        when( dataValueService.getDeflatedDataValues( any() ) ).thenAnswer( p -> emptyDb() );
+        when( dataValueService.getDeflatedDataValues( any( DataExportParams.class ) ) ).thenAnswer( p -> {
+            BlockingQueue<DeflatedDataValue> blockingQueue = ((DataExportParams) p.getArgument( 0 )).getBlockingQueue();
+            blockingQueue.put( END_OF_DDV_DATA );
+            return new ArrayList<>();
+        } );
 
-        fetcher.init( new HashSet<>(), 1, orgUnits, periods, dataElements, dataElementOperands );
+        fetcher.init( currentUserOrgUnits, ORG_UNIT_LEVEl, levelOneOrgUnits, queryPeriods, outputPeriods,
+            dataElements, dataElementOperands, dataElementOperandX );
 
-        assertEquals( 0, fetcher.getDataValues( orgUnitA ).size() );
-        assertEquals( 0, fetcher.getDataValues( orgUnitB ).size() );
-        assertEquals( 0, fetcher.getDataValues( orgUnitC ).size() );
-        assertEquals( 0, fetcher.getDataValues( orgUnitD ).size() );
-        assertEquals( 0, fetcher.getDataValues( orgUnitE ).size() );
+        assertNull( fetcher.getData() );
     }
 
-    @Test( expected = NullPointerException.class )
-    public void testProducerException()
+    @Test
+    void testProducerException()
     {
-        try
-        {
-            when( dataValueService.getDeflatedDataValues( any() ) ).thenAnswer( p -> {
-                throw new NullPointerException();
-            } );
+        when( dataValueService.getDeflatedDataValues( any() ) ).thenAnswer( p -> {
+            throw new ArithmeticException();
+        } );
+        assertThrows( ArithmeticException.class, () -> fetcher.init( currentUserOrgUnits, ORG_UNIT_LEVEl,
+            levelOneOrgUnits, queryPeriods, outputPeriods, dataElements, dataElementOperands, dataElementOperandX ) );
 
-            fetcher.init( new HashSet<>(), 1, new ArrayList<>(), new HashSet<>(), new HashSet<>(), new HashSet<>() );
-        }
-        catch ( Exception ex )
-        {
-            throw new RuntimeException( "Exception happened too soon: " + ex.toString() );
-        }
-
-        fetcher.getDataValues( orgUnitA );
-    }
-
-    @Test( expected = RuntimeException.class )
-    public void testTimeoutWaitingForProducer()
-    {
-        try
-        {
-            fetcher.setSemaphoreTimeout( 2, TimeUnit.MILLISECONDS );
-
-            when( dataValueService.getDeflatedDataValues( any() ) ).thenAnswer( p -> {
-                Thread.sleep( 100 );
-                return null;
-            } );
-
-            fetcher.init( new HashSet<>(), 1, new ArrayList<>(), new HashSet<>(), new HashSet<>(), new HashSet<>() );
-        }
-        catch ( Exception ex )
-        {
-            throw new RuntimeException( "Exception happened too soon: " + ex.toString() );
-        }
-
-        fetcher.getDataValues( orgUnitA );
-    }
-
-    @Test( expected = RuntimeException.class )
-    public void testTimeoutWaitingForConsumer()
-    {
-        try
-        {
-            fetcher.setSemaphoreTimeout( 2, TimeUnit.MILLISECONDS );
-
-            when( dataValueService.getDeflatedDataValues( any() ) ).thenAnswer( p -> unsynchronizedDb() );
-
-            fetcher.init( new HashSet<>(), 1, orgUnits, periods, dataElements, dataElementOperands );
-
-            fetcher.getDataValues( orgUnitA );
-
-            Thread.sleep( 100 );
-        }
-        catch ( Exception ex )
-        {
-            throw new RuntimeException( "Exception happened too soon: " + ex.toString() );
-        }
-
-        fetcher.getDataValues( orgUnitB );
-    }
-
-    // -------------------------------------------------------------------------
-    // Supportive Methods
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the database values without trying to synchronize with the test
-     * routine.
-     *
-     * @return null (return value is not needed when callback is used)
-     */
-    private List<DeflatedDataValue> unsynchronizedDb()
-    {
-        fetcher.consume( makeDeflatedDataValue( dataValueA ) );
-        fetcher.consume( makeDeflatedDataValue( dataValueB ) );
-        fetcher.consume( makeDeflatedDataValue( dataValueC ) );
-
-        return null;
-    }
-
-    private DeflatedDataValue makeDeflatedDataValue( DataValue dv )
-    {
-        DeflatedDataValue ddv = new DeflatedDataValue( dv );
-
-        ddv.setSourcePath( dv.getSource().getPath() );
-
-        return ddv;
-    }
-
-    /**
-     * Simulates an empty database where no values are returned.
-     *
-     * @return null (return value is not needed when callback is used)
-     */
-    private List<DeflatedDataValue> emptyDb()
-    {
-        return null;
     }
 }

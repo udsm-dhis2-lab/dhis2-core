@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ public abstract class AbstractSpringSecurityCurrentUserService implements Curren
         // This is the state before the user is authenticated.
         if ( principal instanceof String )
         {
-            if ( !"anonymousUser".equals( (String) principal ) )
+            if ( !"anonymousUser".equals( principal ) )
             {
                 return null;
             }
@@ -75,7 +75,7 @@ public abstract class AbstractSpringSecurityCurrentUserService implements Curren
         if ( principal instanceof DhisOidcUser )
         {
             DhisOidcUser dhisOidcUser = (DhisOidcUser) authentication.getPrincipal();
-            return dhisOidcUser.getUserCredentials().getUsername();
+            return dhisOidcUser.getUser().getUsername();
         }
 
         throw new RuntimeException( "Authentication principal is not supported; principal:" + principal );

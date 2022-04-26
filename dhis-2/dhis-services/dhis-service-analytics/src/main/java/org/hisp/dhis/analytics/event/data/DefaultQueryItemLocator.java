@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,13 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.analytics.EventOutputType;
 import org.hisp.dhis.analytics.event.QueryItemLocator;
+import org.hisp.dhis.analytics.util.RepeatableStageParamsHelper;
 import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.common.QueryItem;
+import org.hisp.dhis.common.RepeatableStageParams;
 import org.hisp.dhis.common.ValueType;
+import org.hisp.dhis.common.exception.InvalidRepeatableStageParamsException;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.feedback.ErrorCode;
@@ -108,6 +111,8 @@ public class DefaultQueryItemLocator
 
     private LegendSet getLegendSet( String dimension )
     {
+        dimension = RepeatableStageParamsHelper.removeRepeatableStageParams( dimension );
+
         String[] legendSplit = dimension.split( ITEM_SEP );
 
         return legendSplit.length > 1 && legendSplit[1] != null ? legendSetService.getLegendSet( legendSplit[1] )
@@ -116,7 +121,9 @@ public class DefaultQueryItemLocator
 
     private String getElement( String dimension, int pos )
     {
-        String dim = StringUtils.substringBefore( dimension, ITEM_SEP );
+
+        String dim = StringUtils.substringBefore( RepeatableStageParamsHelper.removeRepeatableStageParams( dimension ),
+            ITEM_SEP );
 
         String[] dimSplit = dim.split( "\\" + PROGRAMSTAGE_SEP );
 
@@ -152,6 +159,8 @@ public class DefaultQueryItemLocator
             if ( programStage != null )
             {
                 qi.setProgramStage( programStage );
+
+                qi.setRepeatableStageParams( getRepeatableStageParams( dimension ) );
             }
             else if ( type != null && type.equals( EventOutputType.ENROLLMENT ) )
             {
@@ -174,6 +183,13 @@ public class DefaultQueryItemLocator
             ValueType valueType = legendSet != null ? ValueType.TEXT : at.getValueType();
 
             qi = new QueryItem( at, program, legendSet, valueType, at.getAggregationType(), at.getOptionSet() );
+
+            ProgramStage programStage = getProgramStageOrFail( dimension );
+
+            if ( programStage != null )
+            {
+                qi.setProgramStage( programStage );
+            }
         }
 
         return Optional.ofNullable( qi );
@@ -192,6 +208,8 @@ public class DefaultQueryItemLocator
 
         if ( pi != null )
         {
+            ProgramStage programStage = getProgramStageOrFail( dimension );
+
             if ( relationshipType != null )
             {
                 qi = new QueryItem( pi, program, legendSet, ValueType.NUMBER, pi.getAggregationType(), null,
@@ -204,6 +222,11 @@ public class DefaultQueryItemLocator
                     qi = new QueryItem( pi, program, legendSet, ValueType.NUMBER, pi.getAggregationType(), null );
                 }
             }
+
+            if ( qi != null && programStage != null )
+            {
+                qi.setProgramStage( programStage );
+            }
         }
 
         return Optional.ofNullable( qi );
@@ -212,7 +235,29 @@ public class DefaultQueryItemLocator
     private ProgramStage getProgramStageOrFail( String dimension )
     {
         BaseIdentifiableObject baseIdentifiableObject = getIdObjectOrFail( dimension );
-        return (baseIdentifiableObject instanceof ProgramStage ? (ProgramStage) baseIdentifiableObject : null);
+
+        return (baseIdentifiableObject instanceof ProgramStage
+            ? (ProgramStage) baseIdentifiableObject
+            : null);
+    }
+
+    private static RepeatableStageParams getRepeatableStageParams( String dimension )
+    {
+        try
+        {
+            RepeatableStageParams repeatableStageParams = RepeatableStageParamsHelper
+                .getRepeatableStageParams( dimension );
+
+            repeatableStageParams.setDimension( dimension );
+
+            return repeatableStageParams;
+        }
+        catch ( InvalidRepeatableStageParamsException e )
+        {
+            ErrorMessage errorMessage = new ErrorMessage( dimension, ErrorCode.E1101 );
+
+            throw new IllegalQueryException( errorMessage );
+        }
     }
 
     private RelationshipType getRelationshipTypeOrFail( String dimension )
@@ -231,7 +276,7 @@ public class DefaultQueryItemLocator
 
         Optional<BaseIdentifiableObject> found = fetchers.map( Supplier::get ).filter( Objects::nonNull ).findFirst();
 
-        if ( requiresIdObject && !found.isPresent() )
+        if ( requiresIdObject && found.isEmpty() )
         {
             throwIllegalQueryEx( ErrorCode.E7226, dimension );
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ import java.util.TimeZone;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.calendar.CalendarService;
 import org.hisp.dhis.commons.util.SystemUtils;
 import org.hisp.dhis.configuration.Configuration;
@@ -138,17 +138,17 @@ public class DefaultSystemService
             return null;
         }
 
-        Date lastAnalyticsTableSuccess = (Date) systemSettingManager
-            .getSystemSetting( SettingKey.LAST_SUCCESSFUL_ANALYTICS_TABLES_UPDATE );
-        String lastAnalyticsTableRuntime = (String) systemSettingManager
-            .getSystemSetting( SettingKey.LAST_SUCCESSFUL_ANALYTICS_TABLES_RUNTIME );
-        Date lastAnalyticsTablePartitionSuccess = (Date) systemSettingManager
-            .getSystemSetting( SettingKey.LAST_SUCCESSFUL_LATEST_ANALYTICS_PARTITION_UPDATE );
-        String lastAnalyticsTablePartitionRuntime = (String) systemSettingManager
-            .getSystemSetting( SettingKey.LAST_SUCCESSFUL_LATEST_ANALYTICS_PARTITION_RUNTIME );
-        Date lastSystemMonitoringSuccess = (Date) systemSettingManager
-            .getSystemSetting( SettingKey.LAST_SUCCESSFUL_SYSTEM_MONITORING_PUSH );
-        String systemName = (String) systemSettingManager.getSystemSetting( SettingKey.APPLICATION_TITLE );
+        Date lastAnalyticsTableSuccess = systemSettingManager
+            .getDateSetting( SettingKey.LAST_SUCCESSFUL_ANALYTICS_TABLES_UPDATE );
+        String lastAnalyticsTableRuntime = systemSettingManager
+            .getStringSetting( SettingKey.LAST_SUCCESSFUL_ANALYTICS_TABLES_RUNTIME );
+        Date lastAnalyticsTablePartitionSuccess = systemSettingManager
+            .getDateSetting( SettingKey.LAST_SUCCESSFUL_LATEST_ANALYTICS_PARTITION_UPDATE );
+        String lastAnalyticsTablePartitionRuntime = systemSettingManager
+            .getStringSetting( SettingKey.LAST_SUCCESSFUL_LATEST_ANALYTICS_PARTITION_RUNTIME );
+        Date lastSystemMonitoringSuccess = systemSettingManager
+            .getDateSetting( SettingKey.LAST_SUCCESSFUL_SYSTEM_MONITORING_PUSH );
+        String systemName = systemSettingManager.getStringSetting( SettingKey.APPLICATION_TITLE );
         String instanceBaseUrl = dhisConfig.getServerBaseUrl();
 
         Date now = new Date();
@@ -181,39 +181,13 @@ public class DefaultSystemService
 
     private SystemInfo getFixedSystemInfo()
     {
-        SystemInfo info = new SystemInfo();
-
         Configuration config = configurationService.getConfiguration();
 
         // ---------------------------------------------------------------------
         // Version
         // ---------------------------------------------------------------------
 
-        ClassPathResource resource = new ClassPathResource( "build.properties" );
-
-        if ( resource.isReadable() )
-        {
-            try ( InputStream in = resource.getInputStream() )
-            {
-                Properties properties = new Properties();
-
-                properties.load( in );
-
-                info.setVersion( properties.getProperty( "build.version" ) );
-                info.setRevision( properties.getProperty( "build.revision" ) );
-                info.setJasperReportsVersion( properties.getProperty( "jasperreports.version" ) );
-
-                String buildTime = properties.getProperty( "build.time" );
-
-                DateTimeFormatter dateFormat = DateTimeFormat.forPattern( "yyyy-MM-dd HH:mm:ss" );
-
-                info.setBuildTime( new DateTime( dateFormat.parseDateTime( buildTime ) ).toDate() );
-            }
-            catch ( IOException ex )
-            {
-                // Do nothing
-            }
-        }
+        SystemInfo info = loadBuildProperties();
 
         // ---------------------------------------------------------------------
         // External directory
@@ -238,7 +212,7 @@ public class DefaultSystemService
         info.setSystemMonitoringUrl( dhisConfig.getProperty( ConfigurationKey.SYSTEM_MONITORING_URL ) );
         info.setSystemId( config.getSystemId() );
         info.setClusterHostname( dhisConfig.getProperty( ConfigurationKey.CLUSTER_HOSTNAME ) );
-        info.setRedisEnabled( Boolean.parseBoolean( dhisConfig.getProperty( ConfigurationKey.REDIS_ENABLED ) ) );
+        info.setRedisEnabled( dhisConfig.isEnabled( ConfigurationKey.REDIS_ENABLED ) );
 
         if ( info.isRedisEnabled() )
         {
@@ -280,16 +254,48 @@ public class DefaultSystemService
         return info;
     }
 
+    public static SystemInfo loadBuildProperties()
+    {
+        SystemInfo info = new SystemInfo();
+        ClassPathResource resource = new ClassPathResource( "build.properties" );
+
+        if ( resource.isReadable() )
+        {
+            try ( InputStream in = resource.getInputStream() )
+            {
+                Properties properties = new Properties();
+
+                properties.load( in );
+
+                info.setVersion( properties.getProperty( "build.version" ) );
+                info.setRevision( properties.getProperty( "build.revision" ) );
+                info.setJasperReportsVersion( properties.getProperty( "jasperreports.version" ) );
+
+                String buildTime = properties.getProperty( "build.time" );
+
+                DateTimeFormatter dateFormat = DateTimeFormat.forPattern( "yyyy-MM-dd HH:mm:ss" );
+
+                info.setBuildTime( new DateTime( dateFormat.parseDateTime( buildTime ) ).toDate() );
+            }
+            catch ( IOException ex )
+            {
+                // Do nothing
+            }
+        }
+
+        return info;
+    }
+
     private void setSystemMetadataVersionInfo( SystemInfo info )
     {
-        Boolean isMetadataVersionEnabled = (boolean) systemSettingManager
-            .getSystemSetting( SettingKey.METADATAVERSION_ENABLED );
-        Date lastSuccessfulMetadataSync = (Date) systemSettingManager
-            .getSystemSetting( SettingKey.LAST_SUCCESSFUL_METADATA_SYNC );
-        Date metadataLastFailedTime = (Date) systemSettingManager
-            .getSystemSetting( SettingKey.METADATA_LAST_FAILED_TIME );
-        String systemMetadataVersion = (String) systemSettingManager
-            .getSystemSetting( SettingKey.SYSTEM_METADATA_VERSION );
+        Boolean isMetadataVersionEnabled = systemSettingManager
+            .getBooleanSetting( SettingKey.METADATAVERSION_ENABLED );
+        Date lastSuccessfulMetadataSync = systemSettingManager
+            .getDateSetting( SettingKey.LAST_SUCCESSFUL_METADATA_SYNC );
+        Date metadataLastFailedTime = systemSettingManager
+            .getDateSetting( SettingKey.METADATA_LAST_FAILED_TIME );
+        String systemMetadataVersion = systemSettingManager
+            .getStringSetting( SettingKey.SYSTEM_METADATA_VERSION );
         Date lastMetadataVersionSyncAttempt = getLastMetadataVersionSyncAttempt( lastSuccessfulMetadataSync,
             metadataLastFailedTime );
 

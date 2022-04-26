@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,31 +27,39 @@
  */
 package org.hisp.dhis.user.job;
 
+import static java.lang.String.format;
 import static java.time.ZoneId.systemDefault;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.Date;
+import java.util.Set;
 
 import lombok.AllArgsConstructor;
 
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.email.EmailService;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.scheduling.parameters.DisableInactiveUsersJobParameters;
-import org.hisp.dhis.system.notification.Notifier;
 import org.hisp.dhis.user.UserService;
 import org.springframework.stereotype.Component;
 
 /**
+ * Disables users that have been inactive for too long as well as sending emails
+ * to those users that soon would become inactive on certain days before this
+ * happens.
+ *
  * @author Jan Bernitt
  */
 @AllArgsConstructor
 @Component( "disableInactiveUsersJob" )
-public class DisableInactiveUsersJob extends AbstractJob
+public class DisableInactiveUsersJob implements Job
 {
     private final UserService userService;
 
-    private final Notifier notifier;
+    private final EmailService emailService;
 
     @Override
     public JobType getJobType()
@@ -60,15 +68,55 @@ public class DisableInactiveUsersJob extends AbstractJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
+        progress.startingProcess( "Disable inactive users" );
         DisableInactiveUsersJobParameters parameters = (DisableInactiveUsersJobParameters) jobConfiguration
             .getJobParameters();
         LocalDate today = LocalDate.now();
         LocalDate since = today.minusMonths( parameters.getInactiveMonths() );
         Date nMonthsAgo = Date.from( since.atStartOfDay( systemDefault() ).toInstant() );
-        int disabledUserCount = userService.disableUsersInactiveSince( nMonthsAgo );
-        notifier.notify( jobConfiguration, String.format( "Disabled %d users with %d months of inactivity",
-            disabledUserCount, parameters.getInactiveMonths() ) );
+
+        progress.startingStage( "Disabling inactive users" );
+        progress.runStage( 0,
+            count -> format( "Disabled %d users with %d months of inactivity", count, parameters.getInactiveMonths() ),
+            () -> userService.disableUsersInactiveSince( nMonthsAgo ) );
+
+        Integer reminderDaysBefore = parameters.getReminderDaysBefore();
+        if ( reminderDaysBefore == null )
+        {
+            progress.completedProcess( "Skipping reminder emails. Done." );
+            return; // done
+        }
+        int daysUntilDisable = reminderDaysBefore;
+        do
+        {
+            final int daysUntilDisableInRun = daysUntilDisable;
+            progress.startingStage( format( "Sending reminder for %d days until disable", daysUntilDisableInRun ) );
+            progress.runStage( () -> sendReminderEmail( since, daysUntilDisableInRun ) );
+            daysUntilDisable = daysUntilDisable / 2;
+        }
+        while ( daysUntilDisable > 0 );
+        progress.completedProcess( null );
+    }
+
+    private void sendReminderEmail( LocalDate since, int daysUntilDisable )
+    {
+        LocalDate reference = since.plusDays( daysUntilDisable );
+        ZonedDateTime nDaysPriorToDisabling = reference.atStartOfDay( systemDefault() );
+        ZonedDateTime nDaysPriorToDisablingEod = reference.plusDays( 1 ).atStartOfDay( systemDefault() );
+        Set<String> receivers = userService.findNotifiableUsersWithLastLoginBetween(
+            Date.from( nDaysPriorToDisabling.toInstant() ),
+            Date.from( nDaysPriorToDisablingEod.toInstant() ) );
+        if ( !receivers.isEmpty() )
+        {
+            emailService.sendEmail(
+                "Your DHIS2 account gets disabled soon",
+                format(
+                    "Your DHIS2 user account was inactive for a while. " +
+                        "Login during the next %d days to prevent your account from being disabled.",
+                    daysUntilDisable ),
+                receivers );
+        }
     }
 }

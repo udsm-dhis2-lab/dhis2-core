@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,32 +27,31 @@
  */
 package org.hisp.dhis.common;
 
+import static org.hisp.dhis.util.DateUtils.plusOneDay;
+
 import java.util.Date;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Simple class to store start and end dates.
  *
  * @author Jim Grace
  */
+@Setter
+@Getter
+@AllArgsConstructor
 public class DateRange
 {
     private Date startDate;
 
     private Date endDate;
 
-    public DateRange( Date startDate, Date endDate )
+    public Date getEndDatePlusOneDay()
     {
-        this.startDate = startDate;
-        this.endDate = endDate;
+        return plusOneDay( endDate );
     }
 
-    public Date getStartDate()
-    {
-        return startDate;
-    }
-
-    public Date getEndDate()
-    {
-        return endDate;
-    }
 }

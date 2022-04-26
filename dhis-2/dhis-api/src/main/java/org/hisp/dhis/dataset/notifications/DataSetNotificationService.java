@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@ package org.hisp.dhis.dataset.notifications;
 import java.util.Date;
 
 import org.hisp.dhis.dataset.CompleteDataSetRegistration;
+import org.hisp.dhis.scheduling.JobProgress;
 
 /**
  * Created by zubair on 04.07.17.
@@ -43,8 +44,9 @@ public interface DataSetNotificationService
      *
      * @param day the Date representing the day relative to the scheduled
      *        notifications for which to send messages.
+     * @param progress job progress tracking callback
      */
-    void sendScheduledDataSetNotificationsForDay( Date day );
+    void sendScheduledDataSetNotificationsForDay( Date day, JobProgress progress );
 
     /**
      * Send completion notifications when a DataSet is completed. If the DataSet

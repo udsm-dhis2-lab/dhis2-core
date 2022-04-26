@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
  */
 package org.hisp.dhis.analytics.event;
 
+import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.hisp.dhis.common.DimensionalObject.DATA_X_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
@@ -37,10 +38,18 @@ import static org.hisp.dhis.common.FallbackCoordinateFieldType.PSI_GEOMETRY;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
 
 import org.hisp.dhis.analytics.AggregationType;
 import org.hisp.dhis.analytics.AnalyticsAggregationType;
@@ -51,7 +60,19 @@ import org.hisp.dhis.analytics.QueryKey;
 import org.hisp.dhis.analytics.QueryParamsBuilder;
 import org.hisp.dhis.analytics.SortOrder;
 import org.hisp.dhis.analytics.TimeField;
-import org.hisp.dhis.common.*;
+import org.hisp.dhis.common.AnalyticsDateFilter;
+import org.hisp.dhis.common.BaseDimensionalObject;
+import org.hisp.dhis.common.DateRange;
+import org.hisp.dhis.common.DhisApiVersion;
+import org.hisp.dhis.common.DimensionType;
+import org.hisp.dhis.common.DimensionalItemObject;
+import org.hisp.dhis.common.DimensionalObject;
+import org.hisp.dhis.common.DisplayProperty;
+import org.hisp.dhis.common.FallbackCoordinateFieldType;
+import org.hisp.dhis.common.IdScheme;
+import org.hisp.dhis.common.OrganisationUnitSelectionMode;
+import org.hisp.dhis.common.QueryItem;
+import org.hisp.dhis.common.RequestTypeAware;
 import org.hisp.dhis.commons.collection.ListUtils;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.event.EventStatus;
@@ -109,6 +130,11 @@ public class EventQueryParams
     private List<QueryItem> itemFilters = new ArrayList<>();
 
     /**
+     * The headers.
+     */
+    protected Set<String> headers = new LinkedHashSet<>();
+
+    /**
      * The dimensional object for which to produce aggregated data.
      */
     private DimensionalItemObject value;
@@ -126,12 +152,12 @@ public class EventQueryParams
     /**
      * Columns to sort ascending.
      */
-    private List<DimensionalItemObject> asc = new ArrayList<>();
+    private List<QueryItem> asc = new ArrayList<>();
 
     /**
      * Columns to sort descending.
      */
-    private List<DimensionalItemObject> desc = new ArrayList<>();
+    private List<QueryItem> desc = new ArrayList<>();
 
     /**
      * The organisation unit selection mode.
@@ -154,6 +180,11 @@ public class EventQueryParams
     private boolean paging;
 
     /**
+     * The total pages flag.
+     */
+    private boolean totalPages;
+
+    /**
      * The value sort order.
      */
     private SortOrder sortOrder;
@@ -172,7 +203,7 @@ public class EventQueryParams
     /**
      * Indicates the event status.
      */
-    private EventStatus eventStatus;
+    private Set<EventStatus> eventStatus = new LinkedHashSet<>();
 
     /**
      * Indicates whether the data dimension items should be collapsed into a
@@ -231,7 +262,7 @@ public class EventQueryParams
     /**
      * Indicates the program status
      */
-    private ProgramStatus programStatus;
+    private Set<ProgramStatus> programStatus = new LinkedHashSet<>();
 
     /**
      * Indicates whether to include metadata details to response
@@ -244,6 +275,21 @@ public class EventQueryParams
      * UIDs respectively.
      */
     protected IdScheme dataIdScheme;
+
+    /**
+     * a map holding for each time field a range of dates
+     */
+    @Getter
+    protected Map<AnalyticsDateFilter, DateRange> dateRangeByDateFilter = new HashMap<>();
+
+    /**
+     * flag to enable enhanced OR conditions
+     */
+    @Getter
+    protected boolean enhancedCondition = false;
+
+    @Getter
+    protected RequestTypeAware.EndpointItem endpointItem;
 
     // -------------------------------------------------------------------------
     // Constructors
@@ -260,6 +306,7 @@ public class EventQueryParams
 
         params.dimensions = new ArrayList<>( this.dimensions );
         params.filters = new ArrayList<>( this.filters );
+        params.headers = new LinkedHashSet<>( this.headers );
         params.includeNumDen = this.includeNumDen;
         params.displayProperty = this.displayProperty;
         params.aggregationType = this.aggregationType;
@@ -270,11 +317,11 @@ public class EventQueryParams
         params.timeField = this.timeField;
         params.orgUnitField = this.orgUnitField;
         params.apiVersion = this.apiVersion;
-
+        params.skipData = this.skipData;
+        params.skipMeta = this.skipMeta;
         params.partitions = new Partitions( this.partitions );
         params.tableName = this.tableName;
         params.periodType = this.periodType;
-
         params.program = this.program;
         params.programStage = this.programStage;
         params.items = new ArrayList<>( this.items );
@@ -289,10 +336,12 @@ public class EventQueryParams
         params.page = this.page;
         params.pageSize = this.pageSize;
         params.paging = this.paging;
+        params.totalPages = this.totalPages;
         params.sortOrder = this.sortOrder;
         params.limit = this.limit;
         params.outputType = this.outputType;
-        params.eventStatus = this.eventStatus;
+        params.outputIdScheme = this.outputIdScheme;
+        params.eventStatus = new LinkedHashSet<>( this.eventStatus );
         params.collapseDataDimensions = this.collapseDataDimensions;
         params.coordinatesOnly = this.coordinatesOnly;
         params.coordinateOuFallback = this.coordinateOuFallback;
@@ -303,12 +352,15 @@ public class EventQueryParams
         params.fallbackCoordinateField = this.fallbackCoordinateField;
         params.bbox = this.bbox;
         params.includeClusterPoints = this.includeClusterPoints;
-        params.programStatus = this.programStatus;
+        params.programStatus = new LinkedHashSet<>( this.programStatus );
         params.includeMetadataDetails = this.includeMetadataDetails;
         params.dataIdScheme = this.dataIdScheme;
-
         params.periodType = this.periodType;
-
+        params.explainOrderId = this.explainOrderId;
+        params.dateRangeByDateFilter = this.dateRangeByDateFilter;
+        params.skipPartitioning = this.skipPartitioning;
+        params.enhancedCondition = this.enhancedCondition;
+        params.endpointItem = this.endpointItem;
         return params;
     }
 
@@ -386,9 +438,11 @@ public class EventQueryParams
 
         items.forEach( e -> key.add( "item", "[" + e.getKey() + "]" ) );
         itemFilters.forEach( e -> key.add( "itemFilter", "[" + e.getKey() + "]" ) );
+        headers.forEach( header -> key.add( "headers", "[" + header + "]" ) );
         itemProgramIndicators.forEach( e -> key.add( "itemProgramIndicator", e.getUid() ) );
-        asc.forEach( e -> e.getUid() );
-        desc.forEach( e -> e.getUid() );
+        eventStatus.forEach( status -> key.add( "eventStatus", "[" + status + "]" ) );
+        asc.forEach( e -> e.getItem().getUid() );
+        desc.forEach( e -> e.getItem().getUid() );
 
         return key
             .addIgnoreNull( "value", value, () -> value.getUid() )
@@ -400,7 +454,7 @@ public class EventQueryParams
             .addIgnoreNull( "sortOrder", sortOrder )
             .addIgnoreNull( "limit", limit )
             .addIgnoreNull( "outputType", outputType )
-            .addIgnoreNull( "eventStatus", eventStatus )
+            .addIgnoreNull( "outputIdScheme", outputIdScheme )
             .addIgnoreNull( "collapseDataDimensions", collapseDataDimensions )
             .addIgnoreNull( "coordinatesOnly", coordinatesOnly )
             .addIgnoreNull( "coordinateOuFallback", coordinateOuFallback )
@@ -425,6 +479,9 @@ public class EventQueryParams
      * Replaces periods with start and end dates, using the earliest start date
      * from the periods as start date and the latest end date from the periods
      * as end date. Remove the period dimension or filter.
+     *
+     * When heterogeneous date fields are specified, set a specific start/date
+     * pair for each of them
      */
     private void replacePeriodsWithStartEndDates()
     {
@@ -432,21 +489,70 @@ public class EventQueryParams
 
         for ( Period period : periods )
         {
-            Date start = period.getStartDate();
-            Date end = period.getEndDate();
-
-            if ( startDate == null || (start != null && start.before( startDate )) )
+            if ( Objects.isNull( period.getDateField() ) )
             {
-                startDate = start;
+                Date start = period.getStartDate();
+                Date end = period.getEndDate();
+
+                if ( startDate == null || (start != null && start.before( startDate )) )
+                {
+                    startDate = start;
+                }
+
+                if ( endDate == null || (end != null && end.after( endDate )) )
+                {
+                    endDate = end;
+                }
             }
-
-            if ( endDate == null || (end != null && end.after( endDate )) )
+            else
             {
-                endDate = end;
+                Optional<AnalyticsDateFilter> dateFilter = AnalyticsDateFilter.of( period.getDateField() );
+                if ( dateFilter.isPresent() )
+                {
+                    updateStartForDateFilterIfNecessary( dateFilter.get(), period.getStartDate() );
+                    updateEndForDateFilterIfNecessary( dateFilter.get(), period.getEndDate() );
+                }
             }
         }
 
         removeDimensionOrFilter( PERIOD_DIM_ID );
+    }
+
+    private void updateStartForDateFilterIfNecessary( AnalyticsDateFilter dateFilter, Date start )
+    {
+        if ( dateRangeByDateFilter.get( dateFilter ) != null )
+        {
+            Date startDateInMap = dateRangeByDateFilter.get( dateFilter ).getStartDate();
+            if ( startDateInMap == null || (start != null && start.before( startDateInMap )) )
+            {
+                dateRangeByDateFilter.get( dateFilter ).setStartDate( start );
+            }
+        }
+        else
+        {
+            dateRangeByDateFilter.put( dateFilter, new DateRange( start, null ) );
+        }
+    }
+
+    private void updateEndForDateFilterIfNecessary( AnalyticsDateFilter dateFilter, Date end )
+    {
+        if ( dateRangeByDateFilter.get( dateFilter ) != null )
+        {
+            Date endDateInMap = dateRangeByDateFilter.get( dateFilter ).getEndDate();
+            if ( endDateInMap == null || (end != null && end.after( endDateInMap )) )
+            {
+                dateRangeByDateFilter.get( dateFilter ).setEndDate( end );
+            }
+        }
+        else
+        {
+            dateRangeByDateFilter.put( dateFilter, new DateRange( null, end ) );
+        }
+    }
+
+    public boolean containsScheduledDatePeriod()
+    {
+        return dateRangeByDateFilter != null && dateRangeByDateFilter.containsKey( AnalyticsDateFilter.SCHEDULED_DATE );
     }
 
     /**
@@ -606,7 +712,7 @@ public class EventQueryParams
     /**
      * Gets program status
      */
-    public ProgramStatus getProgramStatus()
+    public Set<ProgramStatus> getProgramStatus()
     {
         return programStatus;
     }
@@ -733,7 +839,12 @@ public class EventQueryParams
 
     public boolean isPaging()
     {
-        return paging || page != null || pageSize != null;
+        return paging && (page != null || pageSize != null);
+    }
+
+    public boolean isTotalPages()
+    {
+        return totalPages;
     }
 
     public int getPageWithDefault()
@@ -763,7 +874,7 @@ public class EventQueryParams
 
     public boolean hasEventStatus()
     {
-        return eventStatus != null;
+        return isNotEmpty( eventStatus );
     }
 
     public boolean hasValueDimension()
@@ -809,6 +920,11 @@ public class EventQueryParams
         return getFilterPeriods().size() > 0;
     }
 
+    public boolean hasHeaders()
+    {
+        return isNotEmpty( getHeaders() );
+    }
+
     /**
      * Indicates whether the program of this query requires registration of
      * tracked entity instances.
@@ -825,7 +941,7 @@ public class EventQueryParams
 
     public boolean hasProgramStatus()
     {
-        return programStatus != null;
+        return isNotEmpty( programStatus );
     }
 
     public boolean hasBbox()
@@ -880,6 +996,11 @@ public class EventQueryParams
         return itemFilters;
     }
 
+    public Set<String> getHeaders()
+    {
+        return headers;
+    }
+
     public DimensionalItemObject getValue()
     {
         return value;
@@ -895,7 +1016,7 @@ public class EventQueryParams
         return programIndicator;
     }
 
-    public List<DimensionalItemObject> getAsc()
+    public List<QueryItem> getAsc()
     {
         return asc;
     }
@@ -906,7 +1027,7 @@ public class EventQueryParams
         return dimensions;
     }
 
-    public List<DimensionalItemObject> getDesc()
+    public List<QueryItem> getDesc()
     {
         return desc;
     }
@@ -946,7 +1067,12 @@ public class EventQueryParams
         return outputType;
     }
 
-    public EventStatus getEventStatus()
+    public IdScheme getOutputIdScheme()
+    {
+        return outputIdScheme;
+    }
+
+    public Set<EventStatus> getEventStatus()
     {
         return eventStatus;
     }
@@ -1105,6 +1231,16 @@ public class EventQueryParams
             return this;
         }
 
+        public Builder withHeaders( Set<String> headers )
+        {
+            if ( isNotEmpty( headers ) )
+            {
+                this.params.headers.addAll( headers );
+            }
+
+            return this;
+        }
+
         public Builder addItem( QueryItem item )
         {
             this.params.items.add( item );
@@ -1219,6 +1355,12 @@ public class EventQueryParams
             return this;
         }
 
+        public Builder withTotalPages( boolean totalPages )
+        {
+            this.params.totalPages = totalPages;
+            return this;
+        }
+
         public Builder withPartitions( Partitions partitions )
         {
             this.params.partitions = partitions;
@@ -1231,13 +1373,13 @@ public class EventQueryParams
             return this;
         }
 
-        public Builder addAscSortItem( DimensionalItemObject sortItem )
+        public Builder addAscSortItem( QueryItem sortItem )
         {
             this.params.asc.add( sortItem );
             return this;
         }
 
-        public Builder addDescSortItem( DimensionalItemObject sortItem )
+        public Builder addDescSortItem( QueryItem sortItem )
         {
             this.params.desc.add( sortItem );
             return this;
@@ -1279,9 +1421,13 @@ public class EventQueryParams
             return this;
         }
 
-        public Builder withEventStatus( EventStatus eventStatus )
+        public Builder withEventStatuses( Set<EventStatus> eventStatuses )
         {
-            this.params.eventStatus = eventStatus;
+            if ( isNotEmpty( eventStatuses ) )
+            {
+                this.params.eventStatus.addAll( eventStatuses );
+            }
+
             return this;
         }
 
@@ -1339,9 +1485,13 @@ public class EventQueryParams
             return this;
         }
 
-        public Builder withProgramStatus( ProgramStatus programStatus )
+        public Builder withProgramStatuses( Set<ProgramStatus> programStatuses )
         {
-            this.params.programStatus = programStatus;
+            if ( isNotEmpty( programStatuses ) )
+            {
+                this.params.programStatus.addAll( programStatuses );
+            }
+
             return this;
         }
 
@@ -1369,9 +1519,38 @@ public class EventQueryParams
             return this;
         }
 
+        public Builder withOutputIdScheme( IdScheme outputIdScheme )
+        {
+            this.params.outputIdScheme = outputIdScheme;
+            return this;
+        }
+
+        public Builder withAnalyzeOrderId()
+        {
+            this.params.explainOrderId = UUID.randomUUID().toString();
+            return this;
+        }
+
+        public void withSkipPartitioning( boolean skipPartitioning )
+        {
+            this.params.skipPartitioning = skipPartitioning;
+        }
+
+        public Builder withEnhancedConditions( boolean enhancedConditions )
+        {
+            this.params.enhancedCondition = enhancedConditions;
+            return this;
+        }
+
         public EventQueryParams build()
         {
             return params;
+        }
+
+        public Builder withEndpointItem( RequestTypeAware.EndpointItem endpointItem )
+        {
+            this.params.endpointItem = endpointItem;
+            return this;
         }
     }
 }

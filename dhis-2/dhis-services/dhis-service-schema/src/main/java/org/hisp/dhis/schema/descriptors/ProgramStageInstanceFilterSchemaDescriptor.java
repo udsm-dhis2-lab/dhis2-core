@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ import com.google.common.collect.Lists;
  */
 public class ProgramStageInstanceFilterSchemaDescriptor implements SchemaDescriptor
 {
-
     public static final String SINGULAR = "eventFilter";
 
     public static final String PLURAL = "eventFilters";
@@ -54,6 +53,7 @@ public class ProgramStageInstanceFilterSchemaDescriptor implements SchemaDescrip
         Schema schema = new Schema( ProgramStageInstanceFilter.class, SINGULAR, PLURAL );
         schema.setRelativeApiEndpoint( API_ENDPOINT );
         schema.setDefaultPrivate( true );
+        schema.setImplicitPrivateAuthority( true );
 
         schema.add( new Authority( AuthorityType.CREATE, Lists.newArrayList( "F_PROGRAMSTAGE_ADD" ) ) );
         schema.add( new Authority( AuthorityType.DELETE, Lists.newArrayList( "F_PROGRAMSTAGE_DELETE" ) ) );

@@ -21,7 +21,7 @@ D2CLUSTER="${1:-}"
 IMAGE=dhis2/core
 TAG=local
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 ROOT="$DIR/.."
 ARTIFACTS="$ROOT/docker/artifacts"
 
@@ -35,11 +35,13 @@ print() {
 
 # Requires maven to be on the classpath
 # Skips clean and test phases
+# Also skips copying test resources and compiling tests
 
 print "Building dhis2-core..."
 
-mvn clean install -T1C -Pdev -Pjdk11 -f $DIR/pom.xml -pl -dhis-web-embedded-jetty
-mvn clean install -T1C -Pdev -Pjdk11 -f $DIR/dhis-web/pom.xml
+export MAVEN_OPTS="-Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.test.skip=true"
+mvn clean install --batch-mode --no-transfer-progress --threads 1C -Pdev -f "$DIR"/pom.xml -pl -dhis-web-embedded-jetty
+mvn clean install --batch-mode --no-transfer-progress --threads 1C -Pdev -f "$DIR"/dhis-web/pom.xml
 
 rm -rf "$ARTIFACTS/*"
 mkdir -p "$ARTIFACTS"
@@ -48,8 +50,8 @@ cp -f "$DIR/dhis-web/dhis-web-portal/target/dhis.war" "$ARTIFACTS/dhis.war"
 print "Build succeeded, creating Docker image $IMAGE:$TAG..."
 
 cd $ARTIFACTS
-sha256sum ./dhis.war > ./sha256sum.txt
-md5sum ./dhis.war > ./md5sum.txt
+sha256sum ./dhis.war >./sha256sum.txt
+md5sum ./dhis.war >./md5sum.txt
 
 ONLY_DEFAULT=1 $ROOT/docker/build-containers.sh $IMAGE:$TAG $TAG
 

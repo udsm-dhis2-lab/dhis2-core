@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 package org.hisp.dhis.useraccount.action;
 
 import org.apache.struts2.ServletActionContext;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -72,10 +72,10 @@ public class ExpiredAccountAction implements Action
     {
         username = (String) ServletActionContext.getRequest().getSession().getAttribute( "username" );
 
-        UserCredentials credentials = userService.getUserCredentialsByUsername( username );
+        User credentials = userService.getUserByUsername( username );
 
         // check that the user is actually expired
-        if ( credentials != null && !userService.credentialsNonExpired( credentials ) )
+        if ( credentials != null && !userService.userNonExpired( credentials ) )
         {
             return SUCCESS;
         }

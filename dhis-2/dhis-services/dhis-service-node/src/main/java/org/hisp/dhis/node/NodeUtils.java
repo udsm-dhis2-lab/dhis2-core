@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.common.Pager;
+import org.hisp.dhis.common.SlimPager;
 import org.hisp.dhis.node.types.ComplexNode;
 import org.hisp.dhis.node.types.RootNode;
 import org.hisp.dhis.node.types.SimpleNode;
@@ -97,6 +98,17 @@ public final class NodeUtils
         pagerNode.addChild( new SimpleNode( "pageSize", pager.getPageSize() ) );
         pagerNode.addChild( new SimpleNode( "nextPage", pager.getNextPage() ) );
         pagerNode.addChild( new SimpleNode( "prevPage", pager.getPrevPage() ) );
+
+        return pagerNode;
+    }
+
+    public static Node createSlimPager( final SlimPager pager )
+    {
+        final ComplexNode pagerNode = new ComplexNode( "pager" );
+        pagerNode.setMetadata( true );
+        pagerNode.addChild( new SimpleNode( "page", pager.getPage() ) );
+        pagerNode.addChild( new SimpleNode( "pageSize", pager.getPageSize() ) );
+        pagerNode.addChild( new SimpleNode( "isLastPage", pager.isLastPage() ) );
 
         return pagerNode;
     }

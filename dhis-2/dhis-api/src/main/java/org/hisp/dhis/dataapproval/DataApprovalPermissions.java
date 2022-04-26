@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,16 @@
  */
 package org.hisp.dhis.dataapproval;
 
+import java.util.Date;
+
+import lombok.Setter;
+
 import org.hisp.dhis.common.DxfNamespaces;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 
+@Setter
 @JacksonXmlRootElement( localName = "dataApprovalPermissions", namespace = DxfNamespaces.DXF_2_0 )
 public class DataApprovalPermissions
 {
@@ -45,25 +50,22 @@ public class DataApprovalPermissions
 
     private boolean mayReadData;
 
-    private transient String state;
+    private boolean mayReadAcceptedBy;
 
-    public DataApprovalPermissions()
-    {
-    }
+    private String state;
 
-    // -------------------------------------------------------------------------
-    // Getters and setters
-    // -------------------------------------------------------------------------
+    private String approvedBy;
+
+    private Date approvedAt;
+
+    private String acceptedBy;
+
+    private Date acceptedAt;
 
     @JsonProperty
     public boolean isMayApprove()
     {
         return mayApprove;
-    }
-
-    public void setMayApprove( boolean mayApprove )
-    {
-        this.mayApprove = mayApprove;
     }
 
     @JsonProperty
@@ -72,20 +74,10 @@ public class DataApprovalPermissions
         return mayUnapprove;
     }
 
-    public void setMayUnapprove( boolean mayUnapprove )
-    {
-        this.mayUnapprove = mayUnapprove;
-    }
-
     @JsonProperty
     public boolean isMayAccept()
     {
         return mayAccept;
-    }
-
-    public void setMayAccept( boolean mayAccept )
-    {
-        this.mayAccept = mayAccept;
     }
 
     @JsonProperty
@@ -94,20 +86,21 @@ public class DataApprovalPermissions
         return mayUnaccept;
     }
 
-    public void setMayUnaccept( boolean mayUnaccept )
-    {
-        this.mayUnaccept = mayUnaccept;
-    }
-
     @JsonProperty
     public boolean isMayReadData()
     {
         return mayReadData;
     }
 
-    public void setMayReadData( boolean mayReadData )
+    /**
+     * OBS! Note that this field is intentionally not serialised to JSON as the
+     * user should not know if he can or can't read.
+     *
+     * @return whether the user can read who accepted the DA
+     */
+    public boolean isMayReadAcceptedBy()
     {
-        this.mayReadData = mayReadData;
+        return mayReadAcceptedBy;
     }
 
     @JsonProperty
@@ -116,9 +109,28 @@ public class DataApprovalPermissions
         return state;
     }
 
-    public void setState( String state )
+    @JsonProperty
+    public String getApprovedBy()
     {
-        this.state = state;
+        return approvedBy;
+    }
+
+    @JsonProperty
+    public Date getApprovedAt()
+    {
+        return approvedAt;
+    }
+
+    @JsonProperty
+    public String getAcceptedBy()
+    {
+        return acceptedBy;
+    }
+
+    @JsonProperty
+    public Date getAcceptedAt()
+    {
+        return acceptedAt;
     }
 
     // ----------------------------------------------------------------------

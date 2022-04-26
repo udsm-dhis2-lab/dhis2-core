@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata.metadata_import;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,7 @@ package org.hisp.dhis.metadata.metadata_import;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata.metadata_import;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -76,8 +75,8 @@ public class MetadataImportTest
     }
 
     @ParameterizedTest( name = "withImportStrategy[{0}]" )
-    @CsvSource( { "CREATE, ignored", "CREATE_AND_UPDATE, updated" } )
-    public void shouldUpdateExistingMetadata( String importStrategy, String expected )
+    @CsvSource( { "CREATE, ignored, 409", "CREATE_AND_UPDATE, updated, 200" } )
+    public void shouldUpdateExistingMetadata( String importStrategy, String expected, int expectedStatusCode )
     {
         // arrange
         JsonObject exported = metadataActions.get().getBody();
@@ -90,15 +89,16 @@ public class MetadataImportTest
 
         // assert
         response.validate()
-            .statusCode( 200 )
+            .statusCode( expectedStatusCode )
+            .rootPath( "response" )
             .body( "stats", notNullValue() )
-            .rootPath( "stats" )
+            .rootPath( "response.stats" )
             .body( "total", greaterThan( 0 ) )
             .body( "created", Matchers.equalTo( 0 ) )
             .body( "deleted", Matchers.equalTo( 0 ) )
-            .body( "total", equalTo( response.extract( "stats." + expected ) ) );
+            .body( "total", equalTo( response.extract( "response.stats." + expected ) ) );
 
-        List<HashMap> typeReports = response.extractList( "typeReports.stats" );
+        List<HashMap> typeReports = response.extractList( "response.typeReports.stats" );
 
         typeReports.forEach( x -> {
             assertEquals( x.get( expected ), x.get( "total" ), expected + " for " + x + " not equals to total" );
@@ -115,18 +115,20 @@ public class MetadataImportTest
 
         // act
         ApiResponse response = metadataActions
-            .post( object, new QueryParamsBuilder().addAll( "async=false", "importReportMode=DEBUG", "importStrategy=CREATE" ) );
+            .post( object,
+                new QueryParamsBuilder().addAll( "async=false", "importReportMode=DEBUG", "importStrategy=CREATE" ) );
 
         // assert
         response.validate()
             .statusCode( 200 )
+            .rootPath( "response" )
             .body( "stats", notNullValue() )
             .body( "stats.total", greaterThan( 0 ) )
             .body( "typeReports", notNullValue() )
             .body( "typeReports.stats", notNullValue() )
             .body( "typeReports.objectReports", Matchers.notNullValue() );
 
-        List<HashMap> stats = response.extractList( "typeReports.stats" );
+        List<HashMap> stats = response.extractList( "response.typeReports.stats" );
 
         stats.forEach( x -> {
             assertEquals( x.get( "total" ), x.get( "created" ) );
@@ -144,7 +146,8 @@ public class MetadataImportTest
     {
         // arrange
         QueryParamsBuilder queryParamsBuilder = new QueryParamsBuilder();
-        queryParamsBuilder.addAll( "async=false", "importReportMode=DEBUG", "importStrategy=CREATE", "atomicMode=NONE" );
+        queryParamsBuilder.addAll( "async=false", "importReportMode=DEBUG", "importStrategy=CREATE",
+            "atomicMode=NONE" );
 
         JsonObject object = new FileReaderUtils()
             .readJsonAndGenerateData( new File( "src/test/resources/metadata/uniqueMetadata.json" ) );
@@ -156,7 +159,8 @@ public class MetadataImportTest
         JsonObject newObj = new FileReaderUtils()
             .readJsonAndGenerateData( new File( "src/test/resources/metadata/uniqueMetadata.json" ) );
 
-        // add one of the orgunits from already imported metadata to get it ignored
+        // add one of the orgunits from already imported metadata to get it
+        // ignored
         newObj.get( "organisationUnits" )
             .getAsJsonArray()
             .add( object.get( "organisationUnits" ).getAsJsonArray().get( 0 ) );
@@ -165,13 +169,14 @@ public class MetadataImportTest
 
         // assert
         response.validate()
-            .statusCode( 200 )
+            .statusCode( 409 )
+            .rootPath( "response" )
             .body( "stats", notNullValue() )
             .body( "stats.total", greaterThan( 1 ) )
             .body( "stats.ignored", equalTo( 1 ) )
-            .body( "stats.created", equalTo( (Integer) response.extract( "stats.total" ) - 1 ) );
+            .body( "stats.created", equalTo( (Integer) response.extract( "response.stats.total" ) - 1 ) );
 
-        int total = (int) response.extract( "stats.total" );
+        int total = (int) response.extract( "response.stats.total" );
 
         List<ObjectReport> objectReports = getObjectReports( response.getTypeReports() );
 
@@ -201,7 +206,7 @@ public class MetadataImportTest
         ApiResponse response = metadataActions.post( metadata, queryParamsBuilder );
         response.validate()
             .statusCode( 200 )
-            .body( not( equalTo( "null" ) ) )
+            .body( notNullValue() )
             .body( "response.name", equalTo( "metadataImport" ) )
             .body( "response.jobType", equalTo( "METADATA_IMPORT" ) );
 
@@ -209,16 +214,15 @@ public class MetadataImportTest
 
         // Validate that job was successful
 
-        response = systemActions.waitUntilTaskCompleted( "METADATA_IMPORT", taskId );
-
-        assertThat( response.extractList( "message" ), hasItem( containsString( "Import:Start" ) ) );
-        assertThat( response.extractList( "message" ), hasItem( containsString( "Import:Done" ) ) );
+        systemActions.waitUntilTaskCompleted( "METADATA_IMPORT", taskId )
+            .validate()
+            .body( "message", hasItem( containsString( "Import:Start" ) ) )
+            .body( "message", hasItem( containsString( "Import:Done" ) ) );
 
         // validate task summaries were created
-        response = systemActions.getTaskSummariesResponse( "METADATA_IMPORT", taskId );
-
-        response.validate().statusCode( 200 )
-            .body( not( equalTo( "null" ) ) )
+        systemActions.waitForTaskSummaries( "METADATA_IMPORT", taskId )
+            .validate()
+            .body( notNullValue() )
             .body( "status", equalTo( "WARNING" ) )
             .body( "typeReports", notNullValue() )
             .rootPath( "typeReports" )
@@ -227,7 +231,6 @@ public class MetadataImportTest
             .body( "objectReports", notNullValue() )
             .body( "objectReports", hasSize( greaterThanOrEqualTo( 1 ) ) )
             .body( "objectReports.errorReports", notNullValue() );
-
     }
 
     @Test
@@ -261,19 +264,16 @@ public class MetadataImportTest
         assertNotNull( taskId, "Task id was not returned" );
         // Validate that job was successful
 
-        response = systemActions.waitUntilTaskCompleted( "METADATA_IMPORT", taskId );
-
-        response.validate()
-            .statusCode( 200 )
+        systemActions.waitUntilTaskCompleted( "METADATA_IMPORT", taskId )
+            .validate()
             .body( "message", notNullValue() )
             .body( "message", hasItem( containsString( "Import:Start" ) ) )
             .body( "message", hasItem( containsString( "Import:Done" ) ) );
 
         // validate task summaries were created
-        response = systemActions.getTaskSummariesResponse( "METADATA_IMPORT", taskId );
-
-        response.validate().statusCode( 200 )
-            .body( not( equalTo( "null" ) ) )
+        systemActions.waitForTaskSummaries( "METADATA_IMPORT", taskId )
+            .validate()
+            .body( notNullValue() )
             .body( "status", equalTo( "OK" ) )
             .body( "typeReports", notNullValue() )
             .rootPath( "typeReports" )
@@ -289,7 +289,8 @@ public class MetadataImportTest
 
         ApiResponse response = metadataActions.post( object, new QueryParamsBuilder().add( "skipSharing=false" ) );
 
-        response.validate().statusCode( 200 )
+        response.validate().statusCode( 409 )
+            .rootPath( "response" )
             .body( "status", equalTo( "ERROR" ) )
             .body( "stats.created", equalTo( 0 ) )
             .body( "typeReports[0].objectReports[0].errorReports[0].message",
@@ -304,6 +305,7 @@ public class MetadataImportTest
         ApiResponse response = metadataActions.post( metadata, new QueryParamsBuilder().add( "skipSharing=true" ) );
 
         response.validate().statusCode( 200 )
+            .rootPath( "response" )
             .body( "status", is( oneOf( "SUCCESS", "OK" ) ) )
             .body( "stats.created", equalTo( 1 ) );
 
@@ -353,8 +355,7 @@ public class MetadataImportTest
                 assertNotEquals( "", report.getKlass() );
                 assertNotEquals( "", report.getIndex() );
                 assertNotEquals( "", report.getDisplayName() );
-            }
-        );
+            } );
     }
 
 }

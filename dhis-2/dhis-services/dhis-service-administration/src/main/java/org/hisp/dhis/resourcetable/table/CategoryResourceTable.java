@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,21 +63,20 @@ public class CategoryResourceTable
     @Override
     public String getCreateTempTableStatement()
     {
-        UniqueNameVerifier uniqueNameVerifier = new UniqueNameVerifier();
-
         String statement = "create table " + getTempTableName() + " (" +
             "categoryoptioncomboid bigint not null, " +
             "categoryoptioncomboname varchar(255), ";
 
+        UniqueNameContext nameContext = new UniqueNameContext();
         for ( Category category : objects )
         {
-            statement += uniqueNameVerifier.ensureUniqueShortName( category ) + " varchar(230), ";
+            statement += quote( nameContext.uniqueName( category.getShortName() ) ) + " varchar(230), ";
             statement += quote( category.getUid() ) + " character(11), ";
         }
 
         for ( CategoryOptionGroupSet groupSet : groupSets )
         {
-            statement += uniqueNameVerifier.ensureUniqueShortName( groupSet ) + " varchar(230), ";
+            statement += quote( nameContext.uniqueName( groupSet.getShortName() ) ) + " varchar(230), ";
             statement += quote( groupSet.getUid() ) + " character(11), ";
         }
 

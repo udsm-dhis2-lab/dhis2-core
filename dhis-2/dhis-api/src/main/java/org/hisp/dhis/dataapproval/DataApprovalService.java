@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,6 +122,14 @@ public interface DataApprovalService
      * @param dataApprovalList describes the data to be unaccepted.
      */
     void unacceptData( List<DataApproval> dataApprovalList );
+
+    /**
+     * Adds a data approval. Prefer to use
+     * {@link DataApprovalService#approveData(List)}.
+     *
+     * @param dataApproval the DataApproval to add.
+     */
+    void addDataApproval( DataApproval dataApproval );
 
     /**
      * Gets the data approval record if it exists.

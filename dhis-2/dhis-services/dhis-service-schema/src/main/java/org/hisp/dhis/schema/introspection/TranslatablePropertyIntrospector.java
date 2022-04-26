@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@ import org.hisp.dhis.common.adapter.BaseIdentifiableObject_;
 import org.hisp.dhis.schema.Property;
 import org.hisp.dhis.system.util.AnnotationUtils;
 
+import com.google.common.base.CaseFormat;
+
 /**
  * A {@link PropertyIntrospector} that adds information to existing
  * {@link Property} values if they are annotated with
@@ -56,11 +58,23 @@ public class TranslatablePropertyIntrospector implements PropertyIntrospector
 
         for ( Property property : properties.values() )
         {
-            if ( translatableFields.containsKey( property.getFieldName() ) )
+            if ( property.isPersisted() && translatableFields.containsKey( property.getFieldName() ) )
             {
                 property.setTranslatable( true );
                 property.setTranslationKey( translatableFields.get( property.getFieldName() ) );
+                String i18nKey = CaseFormat.LOWER_CAMEL.to( CaseFormat.LOWER_UNDERSCORE, property.getFieldName() );
+                property.setI18nTranslationKey( i18nKey );
+            }
+
+            /**
+             * Embedded objects can have their own translatable properties.
+             */
+            if ( property.isEmbeddedObject()
+                && !AnnotationUtils.getTranslatableAnnotatedFields( property.getKlass() ).isEmpty() )
+            {
+                property.setTranslatable( true );
             }
         }
+
     }
 }

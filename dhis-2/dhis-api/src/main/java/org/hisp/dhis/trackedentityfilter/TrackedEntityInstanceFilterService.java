@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,5 +83,13 @@ public interface TrackedEntityInstanceFilterService
      * @return list of trackedEntityInstanceFilters
      */
     List<TrackedEntityInstanceFilter> getAll();
+
+    /**
+     * Validate the trackedEntityInstanceFilter
+     *
+     * @param teiFilter
+     * @return list of errors for each validation failures
+     */
+    List<String> validate( TrackedEntityInstanceFilter teiFilter );
 
 }

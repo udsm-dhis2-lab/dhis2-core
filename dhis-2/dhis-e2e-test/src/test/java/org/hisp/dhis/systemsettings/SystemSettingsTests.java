@@ -1,7 +1,5 @@
-package org.hisp.dhis.systemsettings;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +25,12 @@ package org.hisp.dhis.systemsettings;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.systemsettings;
 
-import com.google.gson.JsonObject;
-import io.restassured.http.ContentType;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
@@ -41,9 +42,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import com.google.gson.JsonObject;
+import io.restassured.http.ContentType;
 
 /**
  * @author David Katuscak <katuscak.d@gmail.com>
@@ -159,7 +159,7 @@ public class SystemSettingsTests
     {
         prepareData();
 
-        //I need to log out
+        // I need to log out
         loginActions.removeAuthenticationHeader();
 
         ApiResponse response = systemSettingActions.get(

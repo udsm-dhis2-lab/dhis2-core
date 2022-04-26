@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,14 @@
  */
 package org.hisp.dhis.webapi.controller.event;
 
-import java.io.IOException;
+import static org.springframework.http.MediaType.*;
 
-import javax.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.dxf2.webmessage.DescriptiveWebMessage;
+import org.hisp.dhis.dxf2.webmessage.WebMessage;
+import org.hisp.dhis.expression.Expression;
 import org.hisp.dhis.feedback.Status;
 import org.hisp.dhis.i18n.I18n;
 import org.hisp.dhis.i18n.I18nManager;
@@ -39,80 +42,126 @@ import org.hisp.dhis.program.ProgramIndicator;
 import org.hisp.dhis.program.ProgramIndicatorService;
 import org.hisp.dhis.schema.descriptors.ProgramIndicatorSchemaDescriptor;
 import org.hisp.dhis.webapi.controller.AbstractCrudController;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * @author Lars Helge Overland
  */
 @Controller
 @RequestMapping( value = ProgramIndicatorSchemaDescriptor.API_ENDPOINT )
+@RequiredArgsConstructor
 public class ProgramIndicatorController
     extends AbstractCrudController<ProgramIndicator>
 {
-    @Autowired
-    private ProgramIndicatorService programIndicatorService;
+    private final ProgramIndicatorService programIndicatorService;
 
-    @Autowired
-    private I18nManager i18nManager;
+    private final I18nManager i18nManager;
 
-    @RequestMapping( value = "/expression/description", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE )
-    public void getExpressionDescription( @RequestBody String expression, HttpServletResponse response )
-        throws IOException
+    @PostMapping( value = "/expression/description", produces = APPLICATION_JSON_VALUE, consumes = APPLICATION_JSON_VALUE )
+    @ResponseBody
+    public WebMessage getExpressionDescription( @RequestBody Expression expression )
     {
         I18n i18n = i18nManager.getI18n();
 
-        DescriptiveWebMessage message = new DescriptiveWebMessage();
-
+        if ( expression == null || StringUtils.isEmpty( expression.getExpression() ) )
+        {
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        }
         try
         {
-            message.setDescription( programIndicatorService.getExpressionDescription( expression ) );
-
-            message.setStatus( Status.OK );
-
-            message.setMessage( i18n.getString( ProgramIndicator.VALID ) );
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setDescription( programIndicatorService.getExpressionDescription( expression.getExpression() ) )
+                .setMessage( i18n.getString( ProgramIndicator.VALID ) );
         }
         catch ( IllegalStateException e )
         {
-            message.setDescription( e.getMessage() );
-
-            message.setStatus( Status.ERROR );
-
-            message.setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+            return new DescriptiveWebMessage( Status.ERROR, HttpStatus.OK )
+                .setDescription( e.getMessage() )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
         }
-
-        webMessageService.sendJson( message, response );
     }
 
-    @RequestMapping( value = "/filter/description", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE )
-    public void validateFilter( @RequestBody String expression, HttpServletResponse response )
-        throws IOException
+    @PostMapping( value = "/expression/description", produces = APPLICATION_JSON_VALUE, consumes = TEXT_PLAIN_VALUE )
+    @ResponseBody
+    public WebMessage getExpressionDescription( @RequestBody String expression )
     {
         I18n i18n = i18nManager.getI18n();
 
-        DescriptiveWebMessage message = new DescriptiveWebMessage();
+        if ( StringUtils.isEmpty( expression ) )
+        {
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        }
 
         try
         {
-            message.setDescription( programIndicatorService.getFilterDescription( expression ) );
-
-            message.setStatus( Status.OK );
-
-            message.setMessage( i18n.getString( ProgramIndicator.VALID ) );
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setDescription( programIndicatorService.getExpressionDescription( expression ) )
+                .setMessage( i18n.getString( ProgramIndicator.VALID ) );
         }
         catch ( IllegalStateException e )
         {
-            message.setDescription( e.getMessage() );
+            return new DescriptiveWebMessage( Status.ERROR, HttpStatus.OK )
+                .setDescription( e.getMessage() )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        }
+    }
 
-            message.setStatus( Status.ERROR );
+    @PostMapping( value = "/filter/description", produces = APPLICATION_JSON_VALUE, consumes = APPLICATION_JSON_VALUE )
+    @ResponseBody
+    public WebMessage validateFilter( @RequestBody Expression expression )
+    {
+        I18n i18n = i18nManager.getI18n();
 
-            message.setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        if ( expression == null || StringUtils.isEmpty( expression.getExpression() ) )
+        {
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
         }
 
-        webMessageService.sendJson( message, response );
+        try
+        {
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setDescription( programIndicatorService.getFilterDescription( expression.getExpression() ) )
+                .setMessage( i18n.getString( ProgramIndicator.VALID ) );
+        }
+        catch ( IllegalStateException e )
+        {
+            return new DescriptiveWebMessage( Status.ERROR, HttpStatus.OK )
+                .setDescription( e.getMessage() )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        }
+    }
+
+    @PostMapping( value = "/filter/description", produces = APPLICATION_JSON_VALUE, consumes = TEXT_PLAIN_VALUE )
+    @ResponseBody
+    public WebMessage validateFilter( @RequestBody String expression )
+    {
+        I18n i18n = i18nManager.getI18n();
+
+        if ( StringUtils.isEmpty( expression ) )
+        {
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        }
+
+        try
+        {
+            return new DescriptiveWebMessage( Status.OK, HttpStatus.OK )
+                .setDescription( programIndicatorService.getFilterDescription( expression ) )
+                .setMessage( i18n.getString( ProgramIndicator.VALID ) );
+        }
+        catch ( IllegalStateException e )
+        {
+            return new DescriptiveWebMessage( Status.ERROR, HttpStatus.OK )
+                .setDescription( e.getMessage() )
+                .setMessage( i18n.getString( ProgramIndicator.EXPRESSION_NOT_VALID ) );
+        }
     }
 }

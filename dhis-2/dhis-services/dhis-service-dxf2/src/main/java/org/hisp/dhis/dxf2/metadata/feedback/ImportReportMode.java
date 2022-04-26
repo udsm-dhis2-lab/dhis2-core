@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,12 @@ public enum ImportReportMode
      * Returns import report where valid object report has been filtered out.
      */
     ERRORS,
+
+    /**
+     * Works the same as ERRORS, but in addition it will also report references
+     * that are not owned by the object.
+     */
+    ERRORS_NOT_OWNER,
 
     /**
      * Gives full import report, including object reports for valid objects and

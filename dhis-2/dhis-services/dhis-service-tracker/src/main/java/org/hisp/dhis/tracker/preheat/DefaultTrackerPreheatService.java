@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 package org.hisp.dhis.tracker.preheat;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.beans.Introspector;
 import java.util.List;
@@ -78,7 +78,7 @@ public class DefaultTrackerPreheatService implements TrackerPreheatService, Appl
     public TrackerPreheat preheat( TrackerImportParams params )
     {
         TrackerPreheat preheat = new TrackerPreheat();
-        preheat.setIdentifiers( params.getIdentifiers() );
+        preheat.setIdSchemes( params.getIdSchemes() );
         preheat.setUser( params.getUser() );
         preheat.setDefaults( manager.getDefaults() );
 

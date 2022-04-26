@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers.file;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,17 +25,21 @@ package org.hisp.dhis.helpers.file;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.helpers.file;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.hisp.dhis.actions.IdGenerator;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
+import org.hisp.dhis.helpers.JsonParserUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -70,12 +72,29 @@ public class JsonFileReader
         return replacePropertyValuesWith( propertyName, "uniqueid" );
     }
 
+    /***
+     * Replaces all occurrences of a string with unique generated id
+     * @param strToReplace
+     * @return
+     */
+    public JsonFileReader replaceStringsWithIds( String... strToReplace )
+    {
+        String replacedJson = obj.toString();
+        for ( String s : strToReplace )
+        {
+            replacedJson = replacedJson.replaceAll( s, new IdGenerator().generateUniqueId() );
+        }
+
+        obj = JsonParserUtils.toJsonObject( replacedJson );
+
+        return this;
+    }
+
     @Override
-    public FileReader replacePropertyValuesWith( String propertyName, String replacedValue )
+    public JsonFileReader replacePropertyValuesWith( String propertyName, String replacedValue )
     {
         replace( p -> {
             JsonObject object = ((JsonElement) p).getAsJsonObject();
-
             if ( replacedValue.equalsIgnoreCase( "uniqueid" ) )
             {
                 object.addProperty( propertyName, new IdGenerator().generateUniqueId() );
@@ -91,24 +110,48 @@ public class JsonFileReader
         return this;
     }
 
+    @Override
+    public JsonFileReader replacePropertyValuesRecursivelyWith( String propertyName, String replacedValue )
+    {
+        replace( obj, jsonObject -> {
+            if ( !jsonObject.has( propertyName ) )
+            {
+                return;
+            }
+            if ( replacedValue.equalsIgnoreCase( "uniqueid" ) )
+            {
+                jsonObject.addProperty( propertyName, new IdGenerator().generateUniqueId() );
+            }
+            else
+            {
+                jsonObject.addProperty( propertyName, replacedValue );
+            }
+        } );
+
+        return this;
+    }
+
     public JsonObject get()
     {
         return obj;
+    }
+
+    public JsonObjectBuilder getAsObjectBuilder()
+    {
+        return new JsonObjectBuilder( obj );
     }
 
     @Override
     public JsonFileReader replace( Function<Object, Object> function )
     {
         JsonObject newObj = new JsonObject();
-        for ( String key :
-            obj.keySet() )
+        for ( String key : obj.keySet() )
         {
             JsonElement element = obj.get( key );
             if ( element.isJsonArray() )
             {
                 JsonArray array = new JsonArray();
-                for ( JsonElement e :
-                    element.getAsJsonArray() )
+                for ( JsonElement e : element.getAsJsonArray() )
                 {
                     array.add( (JsonElement) function.apply( e ) );
                 }
@@ -123,5 +166,29 @@ public class JsonFileReader
 
         obj = newObj;
         return this;
+    }
+
+    private void replace( JsonElement root, Consumer<JsonObject> function )
+    {
+        if ( root.isJsonArray() )
+        {
+            for ( JsonElement e : root.getAsJsonArray() )
+            {
+                replace( e, function );
+            }
+        }
+        else if ( root.isJsonObject() )
+        {
+            JsonObject jsonObjRoot = root.getAsJsonObject();
+            function.accept( jsonObjRoot );
+            for ( String key : jsonObjRoot.keySet() )
+            {
+                JsonElement element = jsonObjRoot.get( key );
+                if ( element.isJsonArray() )
+                {
+                    replace( element, function );
+                }
+            }
+        }
     }
 }

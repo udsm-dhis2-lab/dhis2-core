@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package org.hisp.dhis.resourcetable;
+
+import org.hisp.dhis.scheduling.JobProgress;
 
 /**
  * @author Lars Helge Overland
@@ -108,10 +110,10 @@ public interface ResourceTableService
     /**
      * Create all SQL views.
      */
-    void createAllSqlViews();
+    void createAllSqlViews( JobProgress progress );
 
     /**
      * Drop all SQL views.
      */
-    void dropAllSqlViews();
+    void dropAllSqlViews( JobProgress progress );
 }

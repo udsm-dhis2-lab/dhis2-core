@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,23 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.actions.tracker.importer;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.dto.TrackerApiResponse;
-import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 
 import java.io.File;
-import java.time.Instant;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import static org.awaitility.Awaitility.with;
 import static org.hamcrest.Matchers.notNullValue;
 
 /**
@@ -62,29 +59,19 @@ public class TrackerActions
         return this.get( "/jobs/" + jobId );
     }
 
-    public ApiResponse waitUntilJobIsCompleted( String jobId )
+    public void waitUntilJobIsCompleted( String jobId )
     {
         logger.info( String.format( "Waiting until tracker job with id %s is completed", jobId ) );
-        ApiResponse response = null;
-        boolean completed = false;
-        int maxAttempts = 100;
 
-        while ( !completed && maxAttempts > 0)
-        {
-            response = getJob( jobId );
-            response.validate().statusCode( 200 );
-            completed = response.extractList( "completed" ).contains( true );
-            maxAttempts--;
-        }
+        Callable<Boolean> jobIsCompleted = () -> getJob( jobId )
+            .validateStatus( 200 )
+            .extractList( "completed" ).contains( true );
 
-        if ( maxAttempts == 0 )
-        {
-            logger.warning(
-                String.format( "Tracker job didn't complete in %d. Message: %s", maxAttempts, response.extract( "message" ) ) );
-        }
+        with()
+            .atMost( 20, TimeUnit.SECONDS )
+            .await().until( () -> jobIsCompleted.call() );
 
-        logger.info( "Tracker job is completed. Message: " + response.extract( "message" ) );
-        return response;
+        logger.info( "Tracker job is completed. Message: " + getJob( jobId ).extract( "message" ) );
     }
 
     public TrackerApiResponse postAndGetJobReport( File file )
@@ -125,6 +112,52 @@ public class TrackerActions
         return new TrackerApiResponse( response );
     }
 
+    public TrackerApiResponse getTrackedEntity( String entityId )
+    {
+        return getTrackedEntity( entityId, new QueryParamsBuilder() );
+    }
+
+    public TrackerApiResponse getTrackedEntity( String entityId, QueryParamsBuilder queryParamsBuilder )
+    {
+        return new TrackerApiResponse( this.get( "/trackedEntities/" + entityId, queryParamsBuilder ) );
+    }
+
+    public TrackerApiResponse getTrackedEntities( QueryParamsBuilder queryParamsBuilder )
+    {
+        return new TrackerApiResponse( this.get( "/trackedEntities/", queryParamsBuilder ) );
+    }
+
+    public TrackerApiResponse getEnrollment( String enrollmentId )
+    {
+        return new TrackerApiResponse( this.get( "/enrollments/" + enrollmentId ) );
+    }
+
+    public TrackerApiResponse getEvent( String eventId )
+    {
+        return new TrackerApiResponse( this.get( "/events/" + eventId ) );
+    }
+
+    public TrackerApiResponse getRelationship( String relationshipId )
+    {
+        return new TrackerApiResponse( this.get( "/relationships/" + relationshipId ) );
+    }
+
+    public void overrideOwnership( String tei, String program, String reason )
+    {
+        this.post(
+            String.format( "/ownership/override?trackedEntityInstance=%s&program=%s&reason=%s", tei, program, reason ),
+            new JsonObject() )
+            .validateStatus( 200 );
+    }
+
+    public void transferOwnership( String tei, String program, String ou )
+    {
+        this.update( String
+            .format( "/ownership/transfer?trackedEntityInstance=%s&program=%s&ou=%s", tei, program,
+                ou ), new JsonObject() ).validateStatus( 200 );
+
+    }
+
     private void saveCreatedData( ApiResponse response )
     {
         String[] val = {
@@ -153,7 +186,8 @@ public class TrackerActions
     private TrackerApiResponse getJobReportByImportResponse( ApiResponse response )
     {
         // if import is sync, just return response
-        if ( response.extractString( "response.id" ) == null) {
+        if ( response.extractString( "response.id" ) == null )
+        {
             return new TrackerApiResponse( response );
         }
 
@@ -166,129 +200,5 @@ public class TrackerActions
         this.waitUntilJobIsCompleted( jobId );
 
         return this.getJobReport( jobId, "FULL" );
-
-    }
-
-    public JsonObject buildEvent( String ouId, String programId, String programStageId )
-    {
-        return buildEvent( ouId, programId, programStageId, "ACTIVE" );
-    }
-
-    public JsonObject buildEvent( String ouId, String programId, String programStageId, String status )
-    {
-        JsonObject object = new JsonObjectBuilder()
-            .addProperty( "programStage", programStageId )
-            .addProperty( "program", programId )
-            .addProperty( "orgUnit", ouId )
-            .addProperty( "occurredAt", Instant.now().toString() )
-            .addProperty( "status", status )
-            .wrapIntoArray( "events" );
-
-        return object;
-    }
-
-    public JsonObject buildTeiAndEnrollment( String ouId, String programId )
-    {
-        JsonObject jsonObject = buildTeiAndEnrollment("Q9GufDoplCL", ouId, programId  );
-
-        return jsonObject;
-    }
-
-    public JsonObject buildTeiAndEnrollment( String teiType, String ouId, String programId )
-    {
-        JsonObject jsonObject = new JsonObjectBuilder()
-            .addProperty( "trackedEntityType", teiType )
-            .addProperty( "orgUnit", ouId )
-            .addArray( "enrollments", new JsonObjectBuilder()
-                .addProperty( "program", programId )
-                .addProperty( "orgUnit", ouId )
-                .addProperty( "enrolledAt", Instant.now().toString() )
-                .addProperty( "occurredAt", Instant.now().toString() )
-                .build() )
-            .wrapIntoArray( "trackedEntities" );
-
-        return jsonObject;
-    }
-
-    public JsonObject buildTeiWithEnrollmentAndEvent( String ouId, String programId, String programStageId )
-    {
-        JsonObject object = buildTeiAndEnrollment( ouId, programId );
-
-        JsonArray events = buildEvent( ouId, programId, programStageId ).getAsJsonArray( "events" );
-
-        JsonObjectBuilder.jsonObject( object )
-            .addObjectByJsonPath( "trackedEntities[0].enrollments[0]", "events", events );
-
-        return object;
-    }
-
-    public JsonObject buildTeiWithEnrollmentAndEvent( String ouId, String programId, String programStageId, String eventStatus )
-    {
-        JsonObject object = buildTeiAndEnrollment( ouId, programId );
-
-        JsonArray events = buildEvent( ouId, programId, programStageId, eventStatus ).getAsJsonArray( "events" );
-
-        JsonObjectBuilder.jsonObject( object )
-            .addObjectByJsonPath( "trackedEntities[0].enrollments[0]", "events", events );
-
-        return object;
-    }
-
-    public JsonObject invertRelationship( JsonObject jsonObject )
-    {
-        JsonObject inverseJsonObject = jsonObject.deepCopy();
-        JsonObject relationship = (JsonObject) jsonObject.getAsJsonArray( "relationships" ).get( 0 );
-        JsonArray relationships = new JsonArray();
-        relationships.add( buildTrackedEntityRelationship(
-                relationship.getAsJsonObject( "to" ).get( "trackedEntity" ).getAsString(),
-                relationship.getAsJsonObject( "from" ).get( "trackedEntity" ).getAsString(),
-                relationship.get("relationshipType").getAsString() ) );
-        inverseJsonObject.add( "relationships", relationships );
-        return inverseJsonObject;
-    }
-
-    public JsonObject buildTrackedEntityAndRelationships(String trackedEntity_1, String trackedEntity_2, BiFunction<String, String, JsonObject> relationshipArray) {
-        Function<String, JsonObject> tei = ( id ) -> new JsonObjectBuilder()
-            .addProperty( "trackedEntity", id )
-            .addProperty( "trackedEntityType", "Q9GufDoplCL" )
-            .addProperty( "orgUnit", "g8upMTyEZGZ" )
-            .build();
-
-        return new JsonObjectBuilder()
-                .addArray("trackedEntities",
-                        tei.apply(trackedEntity_1),
-                        tei.apply( trackedEntity_2 ))
-                .addArray("relationships",
-                        relationshipArray.apply(trackedEntity_1, trackedEntity_2))
-                .build();
-    }
-
-    public JsonObject buildNonBidirectionalTrackedEntityRelationship(String trackedEntity_1, String trackedEntity_2 )
-    {
-        return buildTrackedEntityRelationship( trackedEntity_1, trackedEntity_2, "TV9oB9LT3sh" /* a non bidirectional relationship type*/ );
-    }
-
-    public JsonObject buildBidirectionalTrackedEntityRelationship(String trackedEntity_1, String trackedEntity_2 )
-    {
-        return buildTrackedEntityRelationship( trackedEntity_1, trackedEntity_2, "xLmPUYJX8Ks"  /* a bidirectional relationship type*/  );
-    }
-
-    public JsonObject buildTrackedEntityRelationship(String trackedEntity_1, String trackedEntity_2, String relationshipType )
-    {
-        return new JsonObjectBuilder()
-                .addProperty( "relationshipType", relationshipType )
-                .addObject( "from", new JsonObjectBuilder()
-                        .addProperty( "trackedEntity", trackedEntity_1 ) )
-                .addObject( "to", new JsonObjectBuilder()
-                        .addProperty( "trackedEntity", trackedEntity_2 ) )
-                .build();
-    }
-
-    public JsonObject buildTei( String trackedEntityType, String ou )
-    {
-        return new JsonObjectBuilder()
-            .addProperty( "trackedEntityType", trackedEntityType )
-            .addProperty( "orgUnit", ou )
-            .wrapIntoArray( "trackedEntities" );
     }
 }

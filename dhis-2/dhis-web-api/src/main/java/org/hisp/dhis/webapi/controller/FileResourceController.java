@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,16 +27,20 @@
  */
 package org.hisp.dhis.webapi.controller;
 
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.error;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.unauthorized;
+
 import java.io.IOException;
 
 import javax.servlet.http.HttpServletResponse;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.common.DhisApiVersion;
 import org.hisp.dhis.dxf2.webmessage.WebMessage;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.dxf2.webmessage.responses.FileResourceWebMessageResponse;
 import org.hisp.dhis.feedback.Status;
 import org.hisp.dhis.fileresource.FileResource;
@@ -44,11 +48,10 @@ import org.hisp.dhis.fileresource.FileResourceDomain;
 import org.hisp.dhis.fileresource.FileResourceService;
 import org.hisp.dhis.fileresource.ImageFileDimension;
 import org.hisp.dhis.schema.descriptors.FileResourceSchemaDescriptor;
-import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUser;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.webapi.mvc.annotation.ApiVersion;
 import org.hisp.dhis.webapi.utils.FileResourceUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,20 +71,12 @@ import com.google.common.base.MoreObjects;
 @RequestMapping( value = FileResourceSchemaDescriptor.API_ENDPOINT )
 @Slf4j
 @ApiVersion( { DhisApiVersion.DEFAULT, DhisApiVersion.ALL } )
+@AllArgsConstructor
 public class FileResourceController
 {
-    @Autowired
-    private CurrentUserService currentUserService;
+    private final FileResourceService fileResourceService;
 
-    @Autowired
-    private FileResourceService fileResourceService;
-
-    @Autowired
-    private FileResourceUtils fileResourceUtils;
-
-    // -------------------------------------------------------------------------
-    // Controller methods
-    // -------------------------------------------------------------------------
+    private final FileResourceUtils fileResourceUtils;
 
     @GetMapping( value = "/{uid}" )
     public FileResource getFileResource( @PathVariable String uid,
@@ -92,7 +87,7 @@ public class FileResourceController
 
         if ( fileResource == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( FileResource.class, uid ) );
+            throw new WebMessageException( notFound( FileResource.class, uid ) );
         }
 
         FileResourceUtils.setImageFileDimensions( fileResource,
@@ -103,23 +98,23 @@ public class FileResourceController
 
     @GetMapping( value = "/{uid}/data" )
     public void getFileResourceData( @PathVariable String uid, HttpServletResponse response,
-        @RequestParam( required = false ) ImageFileDimension dimension )
+        @RequestParam( required = false ) ImageFileDimension dimension, @CurrentUser User currentUser )
         throws WebMessageException
     {
         FileResource fileResource = fileResourceService.getFileResource( uid );
 
         if ( fileResource == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( FileResource.class, uid ) );
+            throw new WebMessageException( notFound( FileResource.class, uid ) );
         }
 
         FileResourceUtils.setImageFileDimensions( fileResource,
             MoreObjects.firstNonNull( dimension, ImageFileDimension.ORIGINAL ) );
 
-        if ( !checkSharing( fileResource ) )
+        if ( !checkSharing( fileResource, currentUser ) )
         {
             throw new WebMessageException(
-                WebMessageUtils.unathorized( "You don't have access to fileResource '" + uid
+                unauthorized( "You don't have access to fileResource '" + uid
                     + "' or this fileResource is not available from this endpoint" ) );
         }
 
@@ -135,7 +130,7 @@ public class FileResourceController
         catch ( IOException e )
         {
             log.error( "Could not retrieve file.", e );
-            throw new WebMessageException( WebMessageUtils.error( "Failed fetching the file from storage",
+            throw new WebMessageException( error( "Failed fetching the file from storage",
                 "There was an exception when trying to fetch the file from the storage backend. " +
                     "Depending on the provider the root cause could be network or file system related." ) );
         }
@@ -160,26 +155,24 @@ public class FileResourceController
      *
      * @return true if user has access, false if not.
      */
-    private boolean checkSharing( FileResource fileResource )
+    private boolean checkSharing( FileResource fileResource, User currentUser )
     {
-        User currentUser = currentUserService.getCurrentUser();
-
         /*
          * Serving DATA_VALUE and PUSH_ANALYSIS fileResources from this endpoint
          * doesn't make sense So we will return false if the fileResource have
          * either of these domains.
          */
+        if ( fileResource.getDomain().equals( FileResourceDomain.DATA_VALUE )
+            || fileResource.getDomain().equals( FileResourceDomain.PUSH_ANALYSIS ) )
+        {
+            return false;
+        }
 
         if ( fileResource.getDomain().equals( FileResourceDomain.USER_AVATAR ) )
         {
             return currentUser.isAuthorized( "F_USER_VIEW" ) || currentUser.getAvatar().equals( fileResource );
         }
 
-        if ( fileResource.getDomain().equals( FileResourceDomain.DOCUMENT ) )
-        {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 }

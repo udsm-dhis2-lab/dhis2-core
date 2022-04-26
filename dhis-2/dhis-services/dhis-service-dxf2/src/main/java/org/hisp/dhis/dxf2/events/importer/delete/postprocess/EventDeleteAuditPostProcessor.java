@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@ import lombok.Getter;
 
 import org.hisp.dhis.audit.AuditType;
 import org.hisp.dhis.dxf2.events.importer.audit.AbstractEventAuditPostProcessor;
+import org.springframework.stereotype.Component;
 
+@Component
 public class EventDeleteAuditPostProcessor extends AbstractEventAuditPostProcessor
 {
 

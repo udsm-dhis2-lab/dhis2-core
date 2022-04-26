@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,13 @@
 package org.hisp.dhis.analytics.table;
 
 import static com.google.common.collect.Lists.newArrayList;
-import static org.hisp.dhis.analytics.ColumnDataType.*;
+import static org.hisp.dhis.analytics.ColumnDataType.CHARACTER_11;
+import static org.hisp.dhis.analytics.ColumnDataType.DOUBLE;
+import static org.hisp.dhis.analytics.ColumnDataType.INTEGER;
+import static org.hisp.dhis.analytics.ColumnDataType.TEXT;
+import static org.hisp.dhis.analytics.ColumnDataType.TIMESTAMP;
 import static org.hisp.dhis.analytics.ColumnNotNullConstraint.NOT_NULL;
+import static org.hisp.dhis.analytics.table.PartitionUtils.getLatestTablePartition;
 import static org.hisp.dhis.analytics.util.AnalyticsSqlUtils.quote;
 import static org.hisp.dhis.commons.util.TextUtils.getQuotedCommaDelimitedString;
 import static org.hisp.dhis.dataapproval.DataApprovalLevelService.APPROVAL_LEVEL_UNAPPROVED;
@@ -40,8 +45,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Future;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,7 +66,6 @@ import org.hisp.dhis.category.CategoryService;
 import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.commons.collection.ListUtils;
-import org.hisp.dhis.commons.util.ConcurrentUtils;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.dataapproval.DataApprovalLevelService;
 import org.hisp.dhis.dataelement.DataElementGroupSet;
@@ -79,7 +81,6 @@ import org.hisp.dhis.system.util.MathUtils;
 import org.hisp.dhis.util.DateUtils;
 import org.hisp.dhis.util.ObjectUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -132,7 +133,7 @@ public class JdbcAnalyticsTableManager
         new AnalyticsTableColumn( quote( "year" ), INTEGER, NOT_NULL, "ps.year" ),
         new AnalyticsTableColumn( quote( "pe" ), TEXT, NOT_NULL, "ps.iso" ),
         new AnalyticsTableColumn( quote( "ou" ), CHARACTER_11, NOT_NULL, "ou.uid" ),
-        new AnalyticsTableColumn( quote( "level" ), INTEGER, "ous.level" ) );
+        new AnalyticsTableColumn( quote( "oulevel" ), INTEGER, "ous.level" ) );
 
     // -------------------------------------------------------------------------
     // Implementation
@@ -199,15 +200,9 @@ public class JdbcAnalyticsTableManager
     }
 
     @Override
-    public void removeUpdatedData( AnalyticsTableUpdateParams params, List<AnalyticsTable> tables )
+    public void removeUpdatedData( List<AnalyticsTable> tables )
     {
-        if ( !params.isLatestUpdate() )
-        {
-            return;
-        }
-
-        AnalyticsTablePartition partition = PartitionUtils.getLatestTablePartition( tables );
-
+        AnalyticsTablePartition partition = getLatestTablePartition( tables );
         String sql = "delete from " + quote( getAnalyticsTableType().getTableName() ) + " ax " +
             "where ax.id in (" +
             "select (de.uid || '-' || ps.iso || '-' || ou.uid || '-' || co.uid || '-' || ao.uid) as id " +
@@ -233,16 +228,25 @@ public class JdbcAnalyticsTableManager
     }
 
     @Override
+    protected String getPartitionColumn()
+    {
+        return "year";
+    }
+
+    @Override
     protected void populateTable( AnalyticsTableUpdateParams params, AnalyticsTablePartition partition )
     {
         final String dbl = statementBuilder.getDoubleColumnType();
-        final boolean skipDataTypeValidation = (Boolean) systemSettingManager
-            .getSystemSetting( SettingKey.SKIP_DATA_TYPE_VALIDATION_IN_ANALYTICS_TABLE_EXPORT );
+        final boolean skipDataTypeValidation = systemSettingManager
+            .getBoolSetting( SettingKey.SKIP_DATA_TYPE_VALIDATION_IN_ANALYTICS_TABLE_EXPORT );
+        final boolean includeZeroValues = systemSettingManager
+            .getBoolSetting( SettingKey.INCLUDE_ZERO_VALUES_IN_ANALYTICS );
 
         final String numericClause = skipDataTypeValidation ? ""
             : ("and dv.value " + statementBuilder.getRegexpMatch() + " '" + MathUtils.NUMERIC_LENIENT_REGEXP + "' ");
-        final String zeroValueClause = "(dv.value != '0' or de.aggregationtype in ('" + AggregationType.AVERAGE + ','
-            + AggregationType.AVERAGE_SUM_ORG_UNIT + "')) ";
+        final String zeroValueCondition = includeZeroValues ? " or de.zeroissignificant = true" : "";
+        final String zeroValueClause = "(dv.value != '0' or de.aggregationtype in ('" + AggregationType.AVERAGE + "','"
+            + AggregationType.AVERAGE_SUM_ORG_UNIT + "')" + zeroValueCondition + ") ";
         final String intClause = zeroValueClause + numericClause;
 
         populateTable( params, partition, "cast(dv.value as " + dbl + ")", "null", ValueType.NUMERIC_TYPES, intClause );
@@ -266,8 +270,8 @@ public class JdbcAnalyticsTableManager
     {
         final String tableName = partition.getTempTableName();
         final String valTypes = TextUtils.getQuotedCommaDelimitedString( ObjectUtils.asStringList( valueTypes ) );
-        final boolean respectStartEndDates = (Boolean) systemSettingManager
-            .getSystemSetting( SettingKey.RESPECT_META_DATA_START_END_DATES_IN_ANALYTICS_TABLE_EXPORT );
+        final boolean respectStartEndDates = systemSettingManager
+            .getBoolSetting( SettingKey.RESPECT_META_DATA_START_END_DATES_IN_ANALYTICS_TABLE_EXPORT );
         final String approvalClause = getApprovalJoinClause( partition.getYear() );
         final String partitionClause = partition.isLatestPartition()
             ? "and dv.lastupdated >= '" + getLongDateString( partition.getStartDate() ) + "' "
@@ -312,7 +316,6 @@ public class JdbcAnalyticsTableManager
             "inner join _categorystructure acs on dv.attributeoptioncomboid=acs.categoryoptioncomboid " +
             "inner join _categoryoptioncomboname aon on dv.attributeoptioncomboid=aon.categoryoptioncomboid " +
             "inner join _categoryoptioncomboname con on dv.categoryoptioncomboid=con.categoryoptioncomboid " +
-
             approvalClause +
             "where de.valuetype in (" + valTypes + ") " +
             "and de.domaintype = 'AGGREGATE' " +
@@ -350,8 +353,8 @@ public class JdbcAnalyticsTableManager
         if ( isApprovalEnabled( year ) )
         {
             String sql = "left join _dataapprovalminlevel da " +
-                "on des.workflowid=da.workflowid and da.periodid=dv.periodid and da.attributeoptioncomboid=dv.attributeoptioncomboid "
-                +
+                "on des.workflowid=da.workflowid and da.periodid=dv.periodid " +
+                "and da.attributeoptioncomboid=dv.attributeoptioncomboid " +
                 "and (";
 
             Set<OrganisationUnitLevel> levels = dataApprovalLevelService.getOrganisationUnitApprovalLevels();
@@ -491,64 +494,38 @@ public class JdbcAnalyticsTableManager
     }
 
     @Override
-    @Async
-    public Future<?> applyAggregationLevels( ConcurrentLinkedQueue<AnalyticsTablePartition> partitions,
+    public void applyAggregationLevels( AnalyticsTablePartition partition,
         Collection<String> dataElements, int aggregationLevel )
     {
-        taskLoop: while ( true )
+        StringBuilder sql = new StringBuilder( "update " + partition.getTempTableName() + " set " );
+
+        for ( int i = 0; i < aggregationLevel; i++ )
         {
-            AnalyticsTablePartition partition = partitions.poll();
+            int level = i + 1;
 
-            if ( partition == null )
-            {
-                break taskLoop;
-            }
+            String column = quote( DataQueryParams.LEVEL_PREFIX + level );
 
-            StringBuilder sql = new StringBuilder( "update " + partition.getTempTableName() + " set " );
-
-            for ( int i = 0; i < aggregationLevel; i++ )
-            {
-                int level = i + 1;
-
-                String column = quote( DataQueryParams.LEVEL_PREFIX + level );
-
-                sql.append( column + " = null," );
-            }
-
-            sql.deleteCharAt( sql.length() - ",".length() );
-
-            sql.append( " where level > " + aggregationLevel );
-            sql.append( " and dx in (" + getQuotedCommaDelimitedString( dataElements ) + ")" );
-
-            log.debug( "Aggregation level SQL: " + sql.toString() );
-
-            jdbcTemplate.execute( sql.toString() );
+            sql.append( column + " = null," );
         }
 
-        return ConcurrentUtils.getImmediateFuture();
+        sql.deleteCharAt( sql.length() - ",".length() );
+
+        sql.append( " where oulevel > " + aggregationLevel );
+        sql.append( " and dx in (" + getQuotedCommaDelimitedString( dataElements ) + ")" );
+
+        log.debug( "Aggregation level SQL: " + sql );
+
+        jdbcTemplate.execute( sql.toString() );
     }
 
     @Override
-    @Async
-    public Future<?> vacuumTablesAsync( ConcurrentLinkedQueue<AnalyticsTablePartition> partitions )
+    public void vacuumTables( AnalyticsTablePartition partition )
     {
-        taskLoop: while ( true )
-        {
-            AnalyticsTablePartition partition = partitions.poll();
+        final String sql = statementBuilder.getVacuum( partition.getTempTableName() );
 
-            if ( partition == null )
-            {
-                break taskLoop;
-            }
+        log.debug( "Vacuum SQL: " + sql );
 
-            final String sql = statementBuilder.getVacuum( partition.getTempTableName() );
-
-            log.debug( "Vacuum SQL: " + sql );
-
-            jdbcTemplate.execute( sql );
-        }
-
-        return ConcurrentUtils.getImmediateFuture();
+        jdbcTemplate.execute( sql );
     }
 
     @Override
@@ -567,8 +544,8 @@ public class JdbcAnalyticsTableManager
     {
         boolean setting = systemSettingManager.hideUnapprovedDataInAnalytics();
         boolean levels = !dataApprovalLevelService.getAllDataApprovalLevels().isEmpty();
-        Integer maxYears = (Integer) systemSettingManager
-            .getSystemSetting( SettingKey.IGNORE_ANALYTICS_APPROVAL_YEAR_THRESHOLD );
+        Integer maxYears = systemSettingManager
+            .getIntegerSetting( SettingKey.IGNORE_ANALYTICS_APPROVAL_YEAR_THRESHOLD );
 
         log.debug( String.format( "Hide approval setting: %b, approval levels exists: %b, max years threshold: %d",
             setting, levels, maxYears ) );

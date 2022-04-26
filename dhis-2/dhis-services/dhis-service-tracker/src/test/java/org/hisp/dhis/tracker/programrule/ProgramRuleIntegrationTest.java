@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,40 +27,53 @@
  */
 package org.hisp.dhis.tracker.programrule;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
 import org.hisp.dhis.TransactionalIntegrationTest;
 import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.dataelement.DataElement;
-import org.hisp.dhis.dxf2.metadata.objectbundle.*;
+import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundle;
+import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleMode;
+import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleParams;
+import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleService;
+import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleValidationService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.feedback.ObjectBundleValidationReport;
 import org.hisp.dhis.importexport.ImportStrategy;
 import org.hisp.dhis.preheat.PreheatIdentifier;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramStage;
-import org.hisp.dhis.programrule.*;
+import org.hisp.dhis.programrule.ProgramRule;
+import org.hisp.dhis.programrule.ProgramRuleAction;
+import org.hisp.dhis.programrule.ProgramRuleActionService;
+import org.hisp.dhis.programrule.ProgramRuleActionType;
+import org.hisp.dhis.programrule.ProgramRuleService;
+import org.hisp.dhis.programrule.ProgramRuleVariable;
+import org.hisp.dhis.programrule.ProgramRuleVariableService;
 import org.hisp.dhis.render.RenderFormat;
 import org.hisp.dhis.render.RenderService;
-import org.hisp.dhis.setting.SystemSettingManager;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.TrackerImportService;
 import org.hisp.dhis.tracker.TrackerImportStrategy;
 import org.hisp.dhis.tracker.TrackerType;
-import org.hisp.dhis.tracker.report.*;
+import org.hisp.dhis.tracker.report.TrackerErrorCode;
+import org.hisp.dhis.tracker.report.TrackerImportReport;
+import org.hisp.dhis.tracker.report.TrackerStatus;
+import org.hisp.dhis.tracker.report.TrackerWarningReport;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 
-public class ProgramRuleIntegrationTest
-    extends TransactionalIntegrationTest
+class ProgramRuleIntegrationTest extends TransactionalIntegrationTest
 {
+
     @Autowired
     private TrackerImportService trackerImportService;
 
@@ -77,13 +90,13 @@ public class ProgramRuleIntegrationTest
     private ProgramRuleActionService programRuleActionService;
 
     @Autowired
+    private ProgramRuleVariableService programRuleVariableService;
+
+    @Autowired
     private ObjectBundleService objectBundleService;
 
     @Autowired
     private ObjectBundleValidationService objectBundleValidationService;
-
-    @Autowired
-    private SystemSettingManager systemSettingManager;
 
     private User userA;
 
@@ -93,142 +106,145 @@ public class ProgramRuleIntegrationTest
     {
         renderService = _renderService;
         userService = _userService;
-
-        Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata = renderService
-            .fromMetadata( new ClassPathResource( "tracker/simple_metadata.json" ).getInputStream(),
-                RenderFormat.JSON );
-
+        Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata = renderService.fromMetadata(
+            new ClassPathResource( "tracker/simple_metadata.json" ).getInputStream(), RenderFormat.JSON );
         ObjectBundleParams params = new ObjectBundleParams();
         params.setObjectBundleMode( ObjectBundleMode.COMMIT );
         params.setImportStrategy( ImportStrategy.CREATE );
         params.setObjects( metadata );
-
         ObjectBundle bundle = objectBundleService.create( params );
         ObjectBundleValidationReport validationReport = objectBundleValidationService.validate( bundle );
-        assertTrue( validationReport.getErrorReports().isEmpty() );
-
+        assertFalse( validationReport.hasErrorReports() );
         objectBundleService.commit( bundle );
-
         Program program = bundle.getPreheat().get( PreheatIdentifier.UID, Program.class, "BFcipDERJnf" );
-        Program programWithoutRegistration = bundle.getPreheat()
-            .get( PreheatIdentifier.UID, Program.class, "BFcipDERJne" );
-        DataElement dataElement = bundle.getPreheat().get( PreheatIdentifier.UID, DataElement.class, "DATAEL00001" );
+        Program programWithoutRegistration = bundle.getPreheat().get( PreheatIdentifier.UID, Program.class,
+            "BFcipDERJne" );
+        DataElement dataElement1 = bundle.getPreheat().get( PreheatIdentifier.UID, DataElement.class, "DATAEL00001" );
+        DataElement dataElement2 = bundle.getPreheat().get( PreheatIdentifier.UID, DataElement.class, "DATAEL00002" );
         ProgramStage programStage = bundle.getPreheat().get( PreheatIdentifier.UID, ProgramStage.class, "NpsdDv6kKSO" );
-
+        ProgramRuleVariable programRuleVariable = createProgramRuleVariableWithDataElement( 'A', program,
+            dataElement2 );
+        programRuleVariableService.addProgramRuleVariable( programRuleVariable );
         ProgramRule programRuleA = createProgramRule( 'A', program );
         programRuleA.setUid( "ProgramRule" );
         programRuleService.addProgramRule( programRuleA );
-
         ProgramRule programRuleWithoutRegistration = createProgramRule( 'W', programWithoutRegistration );
         programRuleService.addProgramRule( programRuleWithoutRegistration );
-
         ProgramRule programRuleB = createProgramRule( 'B', program );
         programRuleB.setProgramStage( programStage );
         programRuleService.addProgramRule( programRuleB );
-
         ProgramRuleAction programRuleActionShowWarning = createProgramRuleAction( 'A', programRuleA );
         programRuleActionShowWarning.setProgramRuleActionType( ProgramRuleActionType.SHOWWARNING );
         programRuleActionShowWarning.setContent( "WARNING" );
         programRuleActionService.addProgramRuleAction( programRuleActionShowWarning );
-
         ProgramRuleAction programRuleActionAssign = createProgramRuleAction( 'C', programRuleA );
         programRuleActionAssign.setProgramRuleActionType( ProgramRuleActionType.ASSIGN );
-        programRuleActionAssign.setData( "'NEWTEXT'" );
-        programRuleActionAssign.setDataElement( dataElement );
+        programRuleActionAssign.setData( "#{ProgramRuleVariableA}" );
+        programRuleActionAssign.setDataElement( dataElement1 );
         programRuleActionService.addProgramRuleAction( programRuleActionAssign );
-
         ProgramRuleAction programRuleActionShowWarningForProgramStage = createProgramRuleAction( 'B', programRuleB );
         programRuleActionShowWarningForProgramStage.setProgramRuleActionType( ProgramRuleActionType.SHOWWARNING );
         programRuleActionShowWarningForProgramStage.setContent( "PROGRAM STAGE WARNING" );
         programRuleActionService.addProgramRuleAction( programRuleActionShowWarningForProgramStage );
-
         programRuleA.getProgramRuleActions().add( programRuleActionShowWarning );
         programRuleA.getProgramRuleActions().add( programRuleActionAssign );
-
         programRuleWithoutRegistration.getProgramRuleActions().add( programRuleActionShowWarning );
         programRuleService.updateProgramRule( programRuleWithoutRegistration );
-
         programRuleB.getProgramRuleActions().add( programRuleActionShowWarningForProgramStage );
         programRuleService.updateProgramRule( programRuleB );
 
         userA = userService.getUser( "M5zQapPyTZI" );
+        injectSecurityContext( userA );
     }
 
     @Test
-    public void testImportProgramEventSuccessWithWarningRaised()
+    void testImportProgramEventSuccessWithWarningRaised()
         throws IOException
     {
-        InputStream inputStream = new ClassPathResource( "tracker/program_event.json" ).getInputStream();
 
-        TrackerImportParams params = renderService.fromJson( inputStream, TrackerImportParams.class );
-        params.setUserId( userA.getUid() );
+        TrackerImportParams params = fromJson( "tracker/program_event.json" );
+
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
 
         assertNotNull( trackerImportReport );
         assertEquals( TrackerStatus.OK, trackerImportReport.getStatus() );
-        assertEquals( 1, trackerImportReport.getValidationReport().getWarningReports().size() );
+        assertEquals( 1, trackerImportReport.getValidationReport().getWarnings().size() );
     }
 
     @Test
-    public void testImportEnrollmentSuccessWithWarningRaised()
+    void testImportEnrollmentSuccessWithWarningRaised()
         throws IOException
     {
-        InputStream inputStream = new ClassPathResource( "tracker/single_tei.json" ).getInputStream();
 
-        TrackerImportParams params = renderService.fromJson( inputStream, TrackerImportParams.class );
-        params.setUserId( userA.getUid() );
+        TrackerImportParams params = fromJson( "tracker/single_tei.json" );
+
         TrackerImportReport trackerImportTeiReport = trackerImportService.importTracker( params );
-
-        TrackerImportParams enrollmentParams = renderService
-            .fromJson( new ClassPathResource( "tracker/single_enrollment.json" ).getInputStream(),
-                TrackerImportParams.class );
-        enrollmentParams.setUserId( userA.getUid() );
-        TrackerImportReport trackerImportEnrollmentReport = trackerImportService
-            .importTracker( enrollmentParams );
-
         assertNotNull( trackerImportTeiReport );
         assertEquals( TrackerStatus.OK, trackerImportTeiReport.getStatus() );
 
+        TrackerImportParams enrollmentParams = fromJson( "tracker/single_enrollment.json" );
+        enrollmentParams.setUserId( userA.getUid() );
+
+        TrackerImportReport trackerImportEnrollmentReport = trackerImportService.importTracker( enrollmentParams );
+
         assertNotNull( trackerImportEnrollmentReport );
         assertEquals( TrackerStatus.OK, trackerImportEnrollmentReport.getStatus() );
-        assertEquals( 1, trackerImportEnrollmentReport.getValidationReport().getWarningReports().size() );
+        assertEquals( 1, trackerImportEnrollmentReport.getValidationReport().getWarnings().size() );
     }
 
     @Test
-    public void testImportEventInProgramStageSuccessWithWarningRaised()
+    void testImportEventInProgramStageSuccessWithWarningRaised()
         throws IOException
     {
-        InputStream inputStream = new ClassPathResource( "tracker/tei_enrollment_event.json" ).getInputStream();
 
-        TrackerImportParams params = renderService.fromJson( inputStream, TrackerImportParams.class );
-        params.setUserId( userA.getUid() );
+        TrackerImportParams params = fromJson( "tracker/tei_enrollment_event.json" );
+
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
 
         assertNotNull( trackerImportReport );
         assertEquals( TrackerStatus.OK, trackerImportReport.getStatus() );
-
-        List<TrackerWarningReport> warningReports = trackerImportReport.getValidationReport().getWarningReports();
+        List<TrackerWarningReport> warningReports = trackerImportReport.getValidationReport().getWarnings();
         assertEquals( 4, warningReports.size() );
         assertEquals( 3,
             warningReports.stream().filter( w -> w.getTrackerType().equals( TrackerType.EVENT ) ).count() );
         assertEquals( 1,
             warningReports.stream().filter( w -> w.getTrackerType().equals( TrackerType.ENROLLMENT ) ).count() );
 
-        inputStream = new ClassPathResource( "tracker/event_update_no_datavalue.json" ).getInputStream();
-
-        params = renderService.fromJson( inputStream, TrackerImportParams.class );
-        params.setUserId( userA.getUid() );
+        params = fromJson( "tracker/event_update_no_datavalue.json" );
         params.setImportStrategy( TrackerImportStrategy.CREATE_AND_UPDATE );
+
         trackerImportReport = trackerImportService.importTracker( params );
 
         assertNotNull( trackerImportReport );
-        assertEquals( TrackerStatus.ERROR, trackerImportReport.getStatus() );
-
-        List<TrackerErrorReport> errorReports = trackerImportReport.getValidationReport().getErrorReports();
-        assertEquals( 1, errorReports.size() );
-        assertEquals( TrackerErrorCode.E1307, errorReports.get( 0 ).getErrorCode() );
+        assertEquals( TrackerStatus.OK, trackerImportReport.getStatus() );
+        warningReports = trackerImportReport.getValidationReport().getWarnings();
+        assertEquals( 3, warningReports.size() );
+        assertEquals( TrackerErrorCode.E1308, warningReports.get( 0 ).getWarningCode() );
         assertEquals(
-            "Generated by program rule (`ProgramRule`) - Unable to assign value to data element `DATAEL00001`. The provided value must be empty or match the calculated value `NEWTEXT`",
-            errorReports.get( 0 ).getErrorMessage() );
+            "Generated by program rule (`ProgramRule`) - DataElement `DATAEL00001` is being replaced in event `EVENT123456`",
+            warningReports.get( 0 ).getWarningMessage() );
+
+        params = fromJson( "tracker/event_update_datavalue.json" );
+        params.setImportStrategy( TrackerImportStrategy.CREATE_AND_UPDATE );
+
+        trackerImportReport = trackerImportService.importTracker( params );
+
+        assertNotNull( trackerImportReport );
+        assertEquals( TrackerStatus.OK, trackerImportReport.getStatus() );
+        warningReports = trackerImportReport.getValidationReport().getWarnings();
+        assertEquals( 3, warningReports.size() );
+        assertEquals( TrackerErrorCode.E1308, warningReports.get( 0 ).getWarningCode() );
+        assertEquals(
+            "Generated by program rule (`ProgramRule`) - DataElement `DATAEL00001` is being replaced in event `EVENT123456`",
+            warningReports.get( 0 ).getWarningMessage() );
+    }
+
+    protected TrackerImportParams fromJson( String path )
+        throws IOException
+    {
+        TrackerImportParams params = renderService.fromJson( new ClassPathResource( path ).getInputStream(),
+            TrackerImportParams.class );
+        params.setUserId( userA.getUid() );
+        return params;
     }
 }

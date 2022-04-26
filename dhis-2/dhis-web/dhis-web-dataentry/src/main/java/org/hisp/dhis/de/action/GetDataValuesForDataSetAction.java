@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,8 @@ import org.hisp.dhis.dataset.CompleteDataSetRegistration;
 import org.hisp.dhis.dataset.CompleteDataSetRegistrationService;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.dataset.DataSetService;
+import org.hisp.dhis.dataset.LockStatus;
+import org.hisp.dhis.datavalue.DataExportParams;
 import org.hisp.dhis.datavalue.DataValue;
 import org.hisp.dhis.datavalue.DataValueService;
 import org.hisp.dhis.dxf2.util.InputUtils;
@@ -59,6 +61,7 @@ import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.google.common.collect.Sets;
 import com.opensymphony.xwork2.Action;
 
 /**
@@ -193,11 +196,11 @@ public class GetDataValuesForDataSetAction
         return minMaxDataElements;
     }
 
-    private boolean locked = false;
+    private LockStatus locked = LockStatus.OPEN;
 
-    public boolean isLocked()
+    public String getLocked()
     {
-        return locked;
+        return locked.name();
     }
 
     private boolean complete = false;
@@ -279,8 +282,12 @@ public class GetDataValuesForDataSetAction
 
         if ( !multiOrganisationUnit )
         {
-            dataValues.addAll( dataValueService.getDataValues( organisationUnit, period, dataSet.getDataElements(),
-                attributeOptionCombo ) );
+            dataValues.addAll( dataValueService.getDataValues( new DataExportParams()
+                .setDataElements( dataSet.getDataElements() )
+                .setPeriods( Sets.newHashSet( period ) )
+                .setOrganisationUnits( Sets.newHashSet( organisationUnit ) )
+                .setAttributeOptionCombos( Sets.newHashSet( attributeOptionCombo ) ) ) );
+
         }
         else
         {
@@ -288,8 +295,12 @@ public class GetDataValuesForDataSetAction
             {
                 if ( ou.getDataSets().contains( dataSet ) )
                 {
-                    dataValues.addAll(
-                        dataValueService.getDataValues( ou, period, dataSet.getDataElements(), attributeOptionCombo ) );
+                    dataValues.addAll( dataValueService.getDataValues( new DataExportParams()
+                        .setDataElements( dataSet.getDataElements() )
+                        .setPeriods( Sets.newHashSet( period ) )
+                        .setOrganisationUnits( Sets.newHashSet( ou ) )
+                        .setAttributeOptionCombos( Sets.newHashSet( attributeOptionCombo ) ) ) );
+
                     minMaxDataElements.addAll( minMaxDataElementService.getMinMaxDataElements( ou, dataSet
                         .getDataElements() ) );
                 }
@@ -325,8 +336,8 @@ public class GetDataValuesForDataSetAction
                 lastUpdatedBy = registration.getLastUpdatedBy();
             }
 
-            locked = dataSetService.isLocked( currentUser, dataSet, period, organisationUnit, attributeOptionCombo,
-                null );
+            locked = dataSetService.getLockStatus( currentUser, dataSet, period, organisationUnit,
+                attributeOptionCombo, null );
         }
         else
         {
@@ -338,10 +349,10 @@ public class GetDataValuesForDataSetAction
             {
                 if ( ou.getDataSets().contains( dataSet ) )
                 {
-                    locked = dataSetService.isLocked( currentUser, dataSet, period, organisationUnit,
+                    locked = dataSetService.getLockStatus( currentUser, dataSet, period, ou,
                         attributeOptionCombo, null );
 
-                    if ( locked )
+                    if ( !locked.isOpen() )
                     {
                         break;
                     }

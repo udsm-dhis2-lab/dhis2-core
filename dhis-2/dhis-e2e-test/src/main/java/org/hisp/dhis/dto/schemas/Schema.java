@@ -1,7 +1,5 @@
-package org.hisp.dhis.dto.schemas;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,12 +25,13 @@ package org.hisp.dhis.dto.schemas;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+package org.hisp.dhis.dto.schemas;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>

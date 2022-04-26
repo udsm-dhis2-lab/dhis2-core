@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@ package org.hisp.dhis.tracker.preheat;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hisp.dhis.tracker.TrackerIdentifierParams.builder;
+import static org.hisp.dhis.tracker.TrackerIdSchemeParams.builder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,20 +44,22 @@ import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.ProgramStage;
-import org.hisp.dhis.tracker.TrackerIdentifier;
-import org.hisp.dhis.tracker.TrackerIdentifierParams;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.TrackerTest;
 import org.hisp.dhis.tracker.domain.DataValue;
 import org.hisp.dhis.tracker.domain.Event;
-import org.junit.Test;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * @author Luciano Fiandesio
  */
-public class TrackerPreheatIdentifiersTest extends TrackerTest
+class TrackerPreheatIdentifiersTest extends TrackerTest
 {
+
     @Autowired
     private TrackerPreheatService trackerPreheatService;
 
@@ -69,134 +71,116 @@ public class TrackerPreheatIdentifiersTest extends TrackerTest
     }
 
     @Test
-    public void testOrgUnitIdentifiers()
+    void testOrgUnitIdentifiers()
     {
-        List<Pair<String, TrackerIdentifier>> data = buildDataSet( "PlKwabX2xRW", "COU1", "Country" );
-
-        for ( Pair<String, TrackerIdentifier> pair : data )
+        List<Pair<String, TrackerIdSchemeParam>> data = buildDataSet( "PlKwabX2xRW", "COU1", "Country" );
+        for ( Pair<String, TrackerIdSchemeParam> pair : data )
         {
-            Event event = new Event();
-            event.setOrgUnit( pair.getLeft() );
-
-            TrackerImportParams params = buildParams( event, builder()
-                .orgUnitIdScheme( pair.getRight() )
-                .build() );
+            String id = pair.getLeft();
+            TrackerIdSchemeParam param = pair.getRight();
+            Event event = Event.builder()
+                .orgUnit( param.toMetadataIdentifier( id ) )
+                .build();
+            TrackerImportParams params = buildParams( event, builder().orgUnitIdScheme( param ).build() );
 
             TrackerPreheat preheat = trackerPreheatService.preheat( params );
 
-            assertPreheatedObjectExists( preheat, OrganisationUnit.class, pair.getRight(), pair.getLeft() );
+            assertPreheatedObjectExists( preheat, OrganisationUnit.class, param, id );
         }
     }
 
     @Test
-    public void testProgramStageIdentifiers()
+    void testProgramStageIdentifiers()
     {
-        List<Pair<String, TrackerIdentifier>> data = buildDataSet( "NpsdDv6kKSO", "PRGA", "ProgramA" );
-
-        for ( Pair<String, TrackerIdentifier> pair : data )
+        List<Pair<String, TrackerIdSchemeParam>> data = buildDataSet( "NpsdDv6kKSO", "PRGA", "ProgramA" );
+        for ( Pair<String, TrackerIdSchemeParam> pair : data )
         {
-            Event event = new Event();
-            event.setProgramStage( pair.getLeft() );
-
-            TrackerImportParams params = buildParams( event, builder()
-                .programStageIdScheme( pair.getRight() )
-                .build() );
+            String id = pair.getLeft();
+            TrackerIdSchemeParam param = pair.getRight();
+            Event event = Event.builder()
+                .programStage( param.toMetadataIdentifier( id ) )
+                .build();
+            TrackerImportParams params = buildParams( event, builder().programStageIdScheme( param ).build() );
 
             TrackerPreheat preheat = trackerPreheatService.preheat( params );
 
-            assertPreheatedObjectExists( preheat, ProgramStage.class, pair.getRight(), pair.getLeft() );
+            assertPreheatedObjectExists( preheat, ProgramStage.class, param, id );
         }
     }
 
     @Test
-    public void testDataElementIdentifiers()
+    void testDataElementIdentifiers()
     {
-        List<Pair<String, TrackerIdentifier>> data = buildDataSet( "DSKTW8qFP0z", "DEAGE", "DE Age" );
-
-        for ( Pair<String, TrackerIdentifier> pair : data )
+        List<Pair<String, TrackerIdSchemeParam>> data = buildDataSet( "DSKTW8qFP0z", "DEAGE", "DE Age" );
+        for ( Pair<String, TrackerIdSchemeParam> pair : data )
         {
             Event event = new Event();
-            event.setProgramStage( "NpsdDv6kKSO" );
-
+            event.setProgramStage( MetadataIdentifier.ofUid( "NpsdDv6kKSO" ) );
             DataValue dv1 = new DataValue();
             dv1.setDataElement( pair.getLeft() );
             dv1.setValue( "val1" );
             event.setDataValues( Collections.singleton( dv1 ) );
-
-            TrackerImportParams params = buildParams( event, builder()
-                .dataElementIdScheme( pair.getRight() )
-                .build() );
-
+            TrackerImportParams params = buildParams( event, builder().dataElementIdScheme( pair.getRight() ).build() );
             TrackerPreheat preheat = trackerPreheatService.preheat( params );
-
             assertPreheatedObjectExists( preheat, DataElement.class, pair.getRight(), pair.getLeft() );
         }
     }
 
     @Test
-    public void testCategoryOptionIdentifiers()
+    void testCategoryOptionIdentifiers()
     {
-        List<Pair<String, TrackerIdentifier>> data = buildDataSet( "XXXrKDKCefk", "COA", "COAname" );
-
-        for ( Pair<String, TrackerIdentifier> pair : data )
+        List<Pair<String, TrackerIdSchemeParam>> data = buildDataSet( "XXXrKDKCefk", "COA", "COAname" );
+        for ( Pair<String, TrackerIdSchemeParam> pair : data )
         {
             Event event = new Event();
             event.setAttributeCategoryOptions( pair.getLeft() );
-
-            TrackerImportParams params = buildParams( event, builder()
-                .categoryOptionIdScheme( pair.getRight() )
-                .build() );
+            TrackerImportParams params = buildParams( event,
+                builder().categoryOptionIdScheme( pair.getRight() ).build() );
             TrackerPreheat preheat = trackerPreheatService.preheat( params );
-
             assertPreheatedObjectExists( preheat, CategoryOption.class, pair.getRight(), pair.getLeft() );
         }
     }
 
     @Test
-    public void testCategoryOptionComboIdentifiers()
+    void testCategoryOptionComboIdentifiers()
     {
-        List<Pair<String, TrackerIdentifier>> data = buildDataSet( "XXXvX50cXC0", "COCA", "COCAname" );
-
-        for ( Pair<String, TrackerIdentifier> pair : data )
+        List<Pair<String, TrackerIdSchemeParam>> data = buildDataSet( "XXXvX50cXC0", "COCA", "COCAname" );
+        for ( Pair<String, TrackerIdSchemeParam> pair : data )
         {
             Event event = new Event();
             event.setAttributeOptionCombo( pair.getLeft() );
-            TrackerImportParams params = buildParams( event, builder()
-                .categoryOptionComboIdScheme( pair.getRight() )
-                .build() );
-
+            TrackerImportParams params = buildParams( event,
+                builder().categoryOptionComboIdScheme( pair.getRight() ).build() );
             TrackerPreheat preheat = trackerPreheatService.preheat( params );
-
             assertPreheatedObjectExists( preheat, CategoryOptionCombo.class, pair.getRight(), pair.getLeft() );
         }
     }
 
-    private TrackerImportParams buildParams( Event event, TrackerIdentifierParams idParams )
+    private TrackerImportParams buildParams( Event event, TrackerIdSchemeParams idParams )
     {
         TrackerImportParams params = TrackerImportParams.builder()
             .events( Collections.singletonList( event ) )
             .user( currentUserService.getCurrentUser() )
+            .idSchemes( idParams )
             .build();
-
-        params.setIdentifiers( idParams );
         return params;
     }
 
-    private List<Pair<String, TrackerIdentifier>> buildDataSet( String uid, String code, String name )
+    private List<Pair<String, TrackerIdSchemeParam>> buildDataSet( String uid, String code, String name )
     {
-        List<Pair<String, TrackerIdentifier>> data = new ArrayList<>();
-
-        data.add( ImmutablePair.of( uid, TrackerIdentifier.UID ) );
-        data.add( ImmutablePair.of( code, TrackerIdentifier.CODE ) );
-        data.add( ImmutablePair.of( name, TrackerIdentifier.NAME ) );
+        List<Pair<String, TrackerIdSchemeParam>> data = new ArrayList<>();
+        data.add( ImmutablePair.of( uid, TrackerIdSchemeParam.UID ) );
+        data.add( ImmutablePair.of( code, TrackerIdSchemeParam.CODE ) );
+        data.add( ImmutablePair.of( name, TrackerIdSchemeParam.NAME ) );
         return data;
     }
 
-    private void assertPreheatedObjectExists( TrackerPreheat preheat, Class klazz, TrackerIdentifier identifier,
+    private void assertPreheatedObjectExists( TrackerPreheat preheat, Class klazz, TrackerIdSchemeParam idSchemeParam,
         String id )
     {
         assertThat(
-            "Expecting a preheated object for identifier: " + identifier.getIdScheme().name() + " with value: " + id,
+            "Expecting a preheated object for idSchemeParam: " + idSchemeParam.getIdScheme().name() + " with value: "
+                + id,
             preheat.get( klazz, id ), is( notNullValue() ) );
     }
 }

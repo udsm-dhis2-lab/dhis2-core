@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,9 @@ package org.hisp.dhis.analytics.table.scheduling;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.hisp.dhis.analytics.AnalyticsTableGenerator;
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.springframework.stereotype.Component;
 
@@ -39,8 +40,7 @@ import org.springframework.stereotype.Component;
  * @author Lars Helge Overland
  */
 @Component( "resourceTableJob" )
-public class ResourceTableJob
-    extends AbstractJob
+public class ResourceTableJob implements Job
 {
     private final AnalyticsTableGenerator analyticsTableGenerator;
 
@@ -51,10 +51,6 @@ public class ResourceTableJob
         this.analyticsTableGenerator = analyticsTableGenerator;
     }
 
-    // -------------------------------------------------------------------------
-    // Implementation
-    // -------------------------------------------------------------------------
-
     @Override
     public JobType getJobType()
     {
@@ -62,8 +58,8 @@ public class ResourceTableJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
-        analyticsTableGenerator.generateResourceTables( jobConfiguration );
+        analyticsTableGenerator.generateResourceTables( progress );
     }
 }

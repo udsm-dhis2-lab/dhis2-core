@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,10 +44,9 @@ import org.hisp.dhis.common.event.ApplicationCacheClearedEvent;
  */
 public interface CacheProvider
 {
-
     <V> Cache<V> createAnalyticsResponseCache( Duration initialExpirationTime );
 
-    <V> Cache<V> createAppCache();
+    <V> Cache<V> createAnalyticsCache();
 
     <V> Cache<V> createDefaultObjectCache();
 
@@ -110,4 +109,34 @@ public interface CacheProvider
     <V> Cache<V> createProgramWebHookNotificationTemplateCache();
 
     <V> Cache<V> createProgramStageWebHookNotificationTemplateCache();
+
+    <V> Cache<V> createProgramOrgUnitAssociationCache();
+
+    <V> Cache<V> createCatOptOrgUnitAssociationCache();
+
+    <V> Cache<V> createDataSetOrgUnitAssociationCache();
+
+    <V> Cache<V> createApiKeyCache();
+
+    <V> Cache<V> createProgramCache();
+
+    <V> Cache<V> createTeiAttributesCache();
+
+    <V> Cache<V> createProgramTeiAttributesCache();
+
+    <V> Cache<V> createUserGroupUIDCache();
+
+    <V> Cache<V> createSecurityCache();
+
+    <V> Cache<V> createRunningJobsInfoCache();
+
+    <V> Cache<V> createCompletedJobsInfoCache();
+
+    <V> Cache<V> createJobCancelRequestedCache();
+
+    <V> Cache<V> createDataIntegritySummaryCache();
+
+    <V> Cache<V> createDataIntegrityDetailsCache();
+
+    <V> Cache<V> createSubExpressionCache();
 }

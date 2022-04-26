@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@ package org.hisp.dhis.dxf2.metadata.sync;
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.dxf2.common.ImportSummary;
 import org.hisp.dhis.dxf2.metadata.feedback.ImportReport;
-import org.hisp.dhis.dxf2.webmessage.WebMessageResponse;
 import org.hisp.dhis.metadata.version.MetadataVersion;
+import org.hisp.dhis.webmessage.WebMessageResponse;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;

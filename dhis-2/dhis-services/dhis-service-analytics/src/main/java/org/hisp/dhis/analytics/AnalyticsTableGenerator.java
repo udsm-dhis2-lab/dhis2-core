@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,7 @@
  */
 package org.hisp.dhis.analytics;
 
-import javax.annotation.Nullable;
-
-import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 
 /**
  * Interface responsible for generating analytics tables. Will look for and
@@ -43,18 +41,14 @@ public interface AnalyticsTableGenerator
      * Generates analytics tables.
      *
      * @param params the {@link AnalyticsTableUpdateParams}.
+     * @param progress job progress tracking and control flow
      */
-    void generateTables( AnalyticsTableUpdateParams params );
-
-    /**
-     * Drops all existing analytics tables.
-     */
-    void dropTables();
+    void generateTables( AnalyticsTableUpdateParams params, JobProgress progress );
 
     /**
      * Generates all resource tables.
      *
-     * @param jobId the job identifier, can be null.
+     * @param progress job progress tracking and control flow
      */
-    void generateResourceTables( @Nullable JobConfiguration jobId );
+    void generateResourceTables( JobProgress progress );
 }

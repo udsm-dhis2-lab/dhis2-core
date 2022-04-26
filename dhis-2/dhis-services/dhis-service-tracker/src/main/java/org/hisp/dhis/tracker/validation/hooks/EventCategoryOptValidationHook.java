@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,9 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1056;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1057;
-import static org.hisp.dhis.tracker.report.ValidationErrorReporter.newReport;
 
 import java.time.Instant;
 import java.util.Date;
@@ -44,9 +43,8 @@ import org.hisp.dhis.i18n.I18nFormat;
 import org.hisp.dhis.i18n.I18nManager;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.tracker.domain.Event;
-import org.hisp.dhis.tracker.report.TrackerErrorCode;
+import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.hisp.dhis.util.DateUtils;
 import org.springframework.stereotype.Component;
 
@@ -69,26 +67,24 @@ public class EventCategoryOptValidationHook
     @Override
     public void validateEvent( ValidationErrorReporter reporter, Event event )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
-        Program program = context.getProgramStage( event.getProgramStage() ).getProgram();
+        Program program = reporter.getBundle().getPreheat().getProgram( event.getProgram() );
         checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
-        checkNotNull( context.getBundle().getUser(), TrackerImporterAssertErrors.USER_CANT_BE_NULL );
+        checkNotNull( reporter.getBundle().getUser(), TrackerImporterAssertErrors.USER_CANT_BE_NULL );
         checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
         checkNotNull( event, TrackerImporterAssertErrors.EVENT_CANT_BE_NULL );
 
-        CategoryOptionCombo categoryOptionCombo = reporter.getValidationContext()
-            .getCachedEventCategoryOptionCombo( event.getUid() );
-
-        checkNotNull( categoryOptionCombo, TrackerImporterAssertErrors.CATEGORY_OPTION_COMBO_CANT_BE_NULL );
-
-        if ( categoryOptionCombo.isDefault()
-            && program.getCategoryCombo() != null
-            && !program.getCategoryCombo().isDefault() )
+        TrackerPreheat preheat = reporter.getBundle().getPreheat();
+        CategoryOptionCombo categoryOptionCombo;
+        if ( program.getCategoryCombo().isDefault() )
         {
-            reporter.addError( newReport( TrackerErrorCode.E1055 ) );
-            return;
+            categoryOptionCombo = preheat.getDefault( CategoryOptionCombo.class );
         }
+        else
+        {
+            categoryOptionCombo = preheat
+                .getCategoryOptionCombo( event.getAttributeOptionCombo() );
+        }
+        checkNotNull( categoryOptionCombo, TrackerImporterAssertErrors.CATEGORY_OPTION_COMBO_CANT_BE_NULL );
 
         Date eventDate;
         try
@@ -108,13 +104,15 @@ public class EventCategoryOptValidationHook
         {
             if ( option.getStartDate() != null && eventDate.compareTo( option.getStartDate() ) < 0 )
             {
-                addError( reporter, E1056, i18nFormat.formatDate( eventDate ),
+                reporter.addError( event, E1056, i18nFormat.formatDate( eventDate ),
                     i18nFormat.formatDate( option.getStartDate() ), option.getName() );
             }
 
-            if ( option.getEndDate() != null && eventDate.compareTo( option.getEndDate() ) > 0 )
+            if ( option.getEndDate() != null && eventDate.compareTo( option.getAdjustedEndDate( program ) ) > 0 )
             {
-                addError( reporter, E1057, eventDate, option.getEndDate(), categoryOptionCombo );
+                reporter.addError( event, E1057, i18nFormat.formatDate( eventDate ),
+                    i18nFormat.formatDate( option.getAdjustedEndDate( program ) ), option.getName(),
+                    program.getName() );
             }
         }
     }

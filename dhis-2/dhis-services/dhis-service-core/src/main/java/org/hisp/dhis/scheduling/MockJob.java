@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,7 @@ import org.springframework.stereotype.Component;
  * @author Henning Håkonsen
  */
 @Component( "mockJob" )
-public class MockJob
-    extends AbstractJob
+public class MockJob implements Job
 {
     @Override
     public JobType getJobType()
@@ -43,7 +42,7 @@ public class MockJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
         try
         {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1020;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1021;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1023;
@@ -35,13 +35,13 @@ import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1025;
 import static org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors.ENROLLMENT_CANT_BE_NULL;
 import static org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL;
 
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,18 +54,16 @@ public class EnrollmentDateValidationHook
     @Override
     public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
         validateMandatoryDates( reporter, enrollment );
 
-        Program program = context.getProgram( enrollment.getProgram() );
+        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgram() );
 
         validateEnrollmentDatesNotInFuture( reporter, program, enrollment );
 
         if ( Boolean.TRUE.equals( program.getDisplayIncidentDate() ) &&
             Objects.isNull( enrollment.getOccurredAt() ) )
         {
-            addError( reporter, E1023, enrollment.getOccurredAt() );
+            reporter.addError( enrollment, E1023, enrollment.getOccurredAt() );
         }
     }
 
@@ -75,7 +73,7 @@ public class EnrollmentDateValidationHook
 
         if ( Objects.isNull( enrollment.getEnrolledAt() ) )
         {
-            addError( reporter, E1025, enrollment.getEnrolledAt() );
+            reporter.addError( enrollment, E1025, enrollment.getEnrolledAt() );
         }
     }
 
@@ -85,18 +83,19 @@ public class EnrollmentDateValidationHook
         checkNotNull( program, PROGRAM_CANT_BE_NULL );
         checkNotNull( enrollment, ENROLLMENT_CANT_BE_NULL );
 
+        final LocalDate now = LocalDate.now();
         if ( Objects.nonNull( enrollment.getEnrolledAt() )
             && Boolean.FALSE.equals( program.getSelectEnrollmentDatesInFuture() )
-            && enrollment.getEnrolledAt().isAfter( Instant.now() ) )
+            && enrollment.getEnrolledAt().atOffset( ZoneOffset.UTC ).toLocalDate().isAfter( now ) )
         {
-            addError( reporter, E1020, enrollment.getEnrolledAt() );
+            reporter.addError( enrollment, E1020, enrollment.getEnrolledAt() );
         }
 
         if ( Objects.nonNull( enrollment.getOccurredAt() )
             && Boolean.FALSE.equals( program.getSelectIncidentDatesInFuture() )
-            && enrollment.getOccurredAt().isAfter( Instant.now() ) )
+            && enrollment.getOccurredAt().atOffset( ZoneOffset.UTC ).toLocalDate().isAfter( now ) )
         {
-            addError( reporter, E1021, enrollment.getOccurredAt() );
+            reporter.addError( enrollment, E1021, enrollment.getOccurredAt() );
         }
     }
 }

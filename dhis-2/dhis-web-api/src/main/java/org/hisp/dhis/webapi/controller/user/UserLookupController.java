@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,7 @@ public class UserLookupController
     {
         UserQueryParams params = new UserQueryParams()
             .setQuery( query )
+            .setCanSeeOwnUserRoles( true )
             .setMax( 25 );
 
         List<UserLookup> users = userService.getUsers( params ).stream()
@@ -107,6 +108,7 @@ public class UserLookupController
         UserQueryParams params = new UserQueryParams()
             .setQuery( query )
             .setUserGroups( Sets.newHashSet( feedbackRecipients ) )
+            .setCanSeeOwnUserRoles( true )
             .setMax( 25 );
 
         List<UserLookup> users = userService.getUsers( params ).stream()

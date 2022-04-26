@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@ package org.hisp.dhis.scheduling;
 import java.io.Serializable;
 import java.util.Optional;
 
+import org.hisp.dhis.common.EmbeddedObject;
 import org.hisp.dhis.feedback.ErrorReport;
 
 /**
@@ -39,7 +40,7 @@ import org.hisp.dhis.feedback.ErrorReport;
  * @author Henning Håkonsen
  */
 public interface JobParameters
-    extends Serializable
+    extends Serializable, EmbeddedObject
 {
     Optional<ErrorReport> validate();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,21 +38,21 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.text.StrSubstitutor;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.text.StringSubstitutor;
 import org.hisp.dhis.category.CategoryCombo;
 import org.hisp.dhis.category.CategoryOption;
 import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.common.IdScheme;
 import org.hisp.dhis.common.IdentifiableProperty;
 import org.hisp.dhis.common.IllegalQueryException;
-import org.hisp.dhis.commons.config.JacksonObjectMapperConfig;
+import org.hisp.dhis.commons.jackson.config.JacksonObjectMapperConfig;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.user.sharing.Sharing;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
@@ -127,7 +127,7 @@ public class AttributeOptionComboLoader
     public CategoryOptionCombo getAttributeOptionCombo( CategoryCombo categoryCombo, String categoryOptions,
         String attributeOptionCombo, IdScheme idScheme )
     {
-        final Set<String> opts = TextUtils.splitToArray( categoryOptions, TextUtils.SEMICOLON );
+        final Set<String> opts = TextUtils.splitToSet( categoryOptions, TextUtils.SEMICOLON );
 
         return getAttributeOptionCombo( categoryCombo, opts, attributeOptionCombo, idScheme );
     }
@@ -252,7 +252,7 @@ public class AttributeOptionComboLoader
             .map( s -> "'" + s + "'" )
             .collect( Collectors.joining( "," ) );
 
-        StrSubstitutor sub = new StrSubstitutor( ImmutableMap.<String, String> builder()
+        StringSubstitutor sub = new StringSubstitutor( ImmutableMap.<String, String> builder()
             .put( "resolvedScheme", Objects.requireNonNull( categoryComboKey ) )
             .put( "option_ids", optionsId )
             .build() );
@@ -288,7 +288,7 @@ public class AttributeOptionComboLoader
     {
         String key = "categoryoptioncomboid";
 
-        StrSubstitutor sub = new StrSubstitutor( ImmutableMap.<String, String> builder()
+        StringSubstitutor sub = new StringSubstitutor( ImmutableMap.<String, String> builder()
             .put( "key", key )
             .put( "resolvedScheme", Objects.requireNonNull( resolveId( idScheme, key, id ) ) )
             .build() );
@@ -315,7 +315,7 @@ public class AttributeOptionComboLoader
         categoryOptionCombo.setName( rs.getString( "name" ) );
 
         String cat_ids = rs.getString( "cat_ids" );
-        if ( Strings.isNotEmpty( cat_ids ) )
+        if ( !ObjectUtils.isEmpty( cat_ids ) )
         {
             categoryOptionCombo.setCategoryOptions( Arrays.stream( cat_ids.split( "," ) )
                 .map( coid -> getCategoryOption( IdScheme.ID, coid ) ).collect( Collectors.toSet() )
@@ -333,7 +333,8 @@ public class AttributeOptionComboLoader
     private CategoryOption loadCategoryOption( IdScheme idScheme, String id )
     {
         String key = "categoryoptionid";
-        final String sql = "select " + key + ", uid, code, name, sharing from dataelementcategoryoption "
+        final String sql = "select " + key
+            + ", uid, code, name, startdate, enddate, sharing from dataelementcategoryoption "
             + "where " + resolveId( idScheme, key, id );
 
         try
@@ -344,7 +345,9 @@ public class AttributeOptionComboLoader
                 categoryOption.setUid( rs.getString( "uid" ) );
                 categoryOption.setCode( rs.getString( "code" ) );
                 categoryOption.setName( rs.getString( "name" ) );
-                categoryOption.setSharing( getSharing( rs.getString( "sharing" ) ) );
+                categoryOption.setStartDate( rs.getDate( "startdate" ) );
+                categoryOption.setEndDate( rs.getDate( "enddate" ) );
+                categoryOption.setSharing( getSharing( rs.getObject( "sharing" ).toString() ) );
                 return categoryOption;
             } );
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,7 +98,7 @@ public class RuleActionSendMessageImplementer extends NotificationRuleActionImpl
 
         String key = generateKey( template, programInstance );
 
-        publisher.publishEvent( new ProgramRuleEnrollmentEvent( this, template.getId(), programInstance.getId() ) );
+        publisher.publishEvent( new ProgramRuleEnrollmentEvent( this, template.getId(), programInstance ) );
 
         if ( result.getLogEntry() != null )
         {
@@ -137,7 +137,7 @@ public class RuleActionSendMessageImplementer extends NotificationRuleActionImpl
 
         String key = generateKey( template, pi );
 
-        publisher.publishEvent( new ProgramRuleStageEvent( this, template.getId(), programStageInstance.getId() ) );
+        publisher.publishEvent( new ProgramRuleStageEvent( this, template.getId(), programStageInstance ) );
 
         if ( result.getLogEntry() != null )
         {
@@ -151,18 +151,6 @@ public class RuleActionSendMessageImplementer extends NotificationRuleActionImpl
         notificationLoggingService.save( entry );
     }
 
-    @Override
-    public void implementEnrollmentAction( RuleEffect ruleEffect, String programInstance )
-    {
-        implement( ruleEffect, programInstanceService.getProgramInstance( programInstance ) );
-    }
-
-    @Override
-    public void implementEventAction( RuleEffect ruleEffect, String programStageInstance )
-    {
-        implement( ruleEffect, programStageInstanceService.getProgramStageInstance( programStageInstance ) );
-    }
-
     private void handleSingleEvent( RuleEffect ruleEffect, ProgramStageInstance programStageInstance )
     {
         ProgramNotificationTemplate template = getNotificationTemplate( ruleEffect.ruleAction() );
@@ -172,6 +160,6 @@ public class RuleActionSendMessageImplementer extends NotificationRuleActionImpl
             return;
         }
 
-        publisher.publishEvent( new ProgramRuleStageEvent( this, template.getId(), programStageInstance.getId() ) );
+        publisher.publishEvent( new ProgramRuleStageEvent( this, template.getId(), programStageInstance ) );
     }
 }

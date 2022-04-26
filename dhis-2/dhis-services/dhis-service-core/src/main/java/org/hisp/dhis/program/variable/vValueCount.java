@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.program.variable;
 
+import java.util.Set;
+
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
 
@@ -41,9 +43,16 @@ public class vValueCount
     @Override
     public Object getSql( CommonExpressionVisitor visitor )
     {
+        Set<String> uids = visitor.getProgParams().getDataElementAndAttributeIdentifiers();
+
+        if ( uids.isEmpty() )
+        {
+            return "0";
+        }
+
         String sql = "nullif(cast((";
 
-        for ( String uid : visitor.getDataElementAndAttributeIdentifiers() )
+        for ( String uid : uids )
         {
             sql += "case when " + visitor.getStatementBuilder().columnQuote( uid )
                 + " is not null then 1 else 0 end + ";

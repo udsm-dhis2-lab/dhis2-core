@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -231,7 +231,7 @@ public abstract class AbstractHibernateListener
         }
         catch ( Exception ex )
         {
-            log.error( "Couldn't create proxy " + ex );
+            log.debug( "Couldn't create proxy " + DebugUtils.getStackTrace( ex ) );
         }
 
         return null;

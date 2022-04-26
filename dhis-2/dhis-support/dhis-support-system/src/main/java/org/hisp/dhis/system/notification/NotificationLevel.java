@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,11 @@ public enum NotificationLevel
 {
     OFF,
     DEBUG,
+    /**
+     * Similar to {@link #DEBUG} but is replaced (not appended) by any later
+     * message including messages of type {@code LOOP}.
+     */
+    LOOP,
     INFO,
     WARN,
     ERROR;

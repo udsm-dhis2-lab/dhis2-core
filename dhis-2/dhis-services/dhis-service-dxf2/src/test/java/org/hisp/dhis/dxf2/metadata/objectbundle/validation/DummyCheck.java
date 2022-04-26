@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,11 +46,11 @@ public class DummyCheck implements ObjectValidationCheck
 {
 
     @Override
-    public void check( ObjectBundle bundle, Class<? extends IdentifiableObject> klass,
-        List<IdentifiableObject> persistedObjects, List<IdentifiableObject> nonPersistedObjects,
+    public <T extends IdentifiableObject> void check( ObjectBundle bundle, Class<T> klass,
+        List<T> persistedObjects, List<T> nonPersistedObjects,
         ImportStrategy importStrategy, ValidationContext context, Consumer<ObjectReport> addReports )
     {
-        for ( IdentifiableObject nonPersistedObject : nonPersistedObjects )
+        for ( T nonPersistedObject : nonPersistedObjects )
         {
             if ( nonPersistedObject.getUid().startsWith( "u" ) )
             {

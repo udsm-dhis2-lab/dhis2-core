@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,11 @@
 package org.hisp.dhis.user.hibernate;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
+import static java.time.ZoneId.systemDefault;
+import static java.util.stream.Collectors.toSet;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,6 +40,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -59,6 +64,7 @@ import org.hisp.dhis.common.hibernate.HibernateIdentifiableObjectStore;
 import org.hisp.dhis.commons.collection.CollectionUtils;
 import org.hisp.dhis.commons.util.SqlHelper;
 import org.hisp.dhis.commons.util.TextUtils;
+import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.query.JpaQueryUtils;
 import org.hisp.dhis.query.Order;
 import org.hisp.dhis.query.QueryUtils;
@@ -68,7 +74,7 @@ import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.CurrentUserGroupInfo;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.UserAccountExpiryInfo;
 import org.hisp.dhis.user.UserInvitationStatus;
 import org.hisp.dhis.user.UserQueryParams;
 import org.hisp.dhis.user.UserStore;
@@ -126,6 +132,19 @@ public class HibernateUserStore
     }
 
     @Override
+    public List<UserAccountExpiryInfo> getExpiringUserAccounts( int inDays )
+    {
+        Date expiryLookAheadDate = Date.from( LocalDate.now().plusDays( inDays )
+            .atStartOfDay( systemDefault() ).toInstant() );
+        String hql = "select new org.hisp.dhis.user.UserAccountExpiryInfo(u.username, u.email, u.accountExpiry) " +
+            "from User u " +
+            "where u.email is not null and u.disabled = false and u.accountExpiry <= :expiryLookAheadDate";
+        return getSession().createQuery( hql, UserAccountExpiryInfo.class )
+            .setParameter( "expiryLookAheadDate", expiryLookAheadDate )
+            .list();
+    }
+
+    @Override
     public int getUserCount( UserQueryParams params )
     {
         Long count = (Long) getUserQuery( params, null, true ).uniqueResult();
@@ -178,15 +197,6 @@ public class HibernateUserStore
 
         hql += "from User u ";
 
-        if ( count )
-        {
-            hql += "inner join u.userCredentials uc ";
-        }
-        else
-        {
-            hql += "inner join fetch u.userCredentials uc ";
-        }
-
         if ( params.isPrefetchUserGroups() && !count )
         {
             hql += "left join fetch u.groups g ";
@@ -204,9 +214,9 @@ public class HibernateUserStore
             {
                 hql += hlp.whereAnd() + " (";
 
-                for ( int i = 0; i < params.getOrganisationUnits().size(); i++ )
+                for ( OrganisationUnit ou : params.getOrganisationUnits() )
                 {
-                    hql += String.format( "ou.path like :ouUid%d or ", i );
+                    hql += format( "ou.path like :ou%s or ", ou.getUid() );
                 }
 
                 hql = TextUtils.removeLastOr( hql ) + ")";
@@ -217,6 +227,48 @@ public class HibernateUserStore
             }
         }
 
+        if ( params.hasDataViewOrganisationUnits() )
+        {
+            hql += "left join u.dataViewOrganisationUnits dwou ";
+
+            if ( params.isIncludeOrgUnitChildren() )
+            {
+                hql += hlp.whereAnd() + " (";
+
+                for ( OrganisationUnit ou : params.getDataViewOrganisationUnits() )
+                {
+                    hql += format( "dwou.path like :dwOu%s or ", ou.getUid() );
+                }
+
+                hql = TextUtils.removeLastOr( hql ) + ")";
+            }
+            else
+            {
+                hql += hlp.whereAnd() + " dwou.id in (:dwOuIds) ";
+            }
+        }
+
+        if ( params.hasTeiSearchOrganisationUnits() )
+        {
+            hql += "left join u.teiSearchOrganisationUnits tsou ";
+
+            if ( params.isIncludeOrgUnitChildren() )
+            {
+                hql += hlp.whereAnd() + " (";
+
+                for ( OrganisationUnit ou : params.getTeiSearchOrganisationUnits() )
+                {
+                    hql += format( "tsou.path like :tsOu%s or ", ou.getUid() );
+                }
+
+                hql = TextUtils.removeLastOr( hql ) + ")";
+            }
+            else
+            {
+                hql += hlp.whereAnd() + " tsou.id in (:tsOuIds) ";
+            }
+        }
+
         if ( params.hasUserGroups() )
         {
             hql += hlp.whereAnd() + " g.id in (:userGroupIds) ";
@@ -224,12 +276,12 @@ public class HibernateUserStore
 
         if ( params.getDisabled() != null )
         {
-            hql += hlp.whereAnd() + " uc.disabled = :disabled ";
+            hql += hlp.whereAnd() + " u.disabled = :disabled ";
         }
 
         if ( params.isNot2FA() )
         {
-            hql += hlp.whereAnd() + " uc.secret is null ";
+            hql += hlp.whereAnd() + " u.secret is null ";
         }
 
         if ( params.getQuery() != null )
@@ -237,7 +289,7 @@ public class HibernateUserStore
             hql += hlp.whereAnd() + " (" +
                 "concat(lower(u.firstName),' ',lower(u.surname)) like :key " +
                 "or lower(u.email) like :key " +
-                "or lower(uc.username) like :key) ";
+                "or lower(u.username) like :key) ";
         }
 
         if ( params.getPhoneNumber() != null )
@@ -253,10 +305,10 @@ public class HibernateUserStore
         if ( params.isAuthSubset() && params.getUser() != null )
         {
             hql += hlp.whereAnd() + " not exists (" +
-                "select uc2 from UserCredentials uc2 " +
-                "inner join uc2.userAuthorityGroups ag2 " +
+                "select uc2 from User uc2 " +
+                "inner join uc2.userRoles ag2 " +
                 "inner join ag2.authorities a " +
-                "where uc2.id = uc.id " +
+                "where uc2.id = u.id " +
                 "and a not in (:auths) ) ";
         }
 
@@ -265,43 +317,43 @@ public class HibernateUserStore
         if ( params.isDisjointRoles() && params.getUser() != null )
         {
             hql += hlp.whereAnd() + " not exists (" +
-                "select uc3 from UserCredentials uc3 " +
-                "inner join uc3.userAuthorityGroups ag3 " +
-                "where uc3.id = uc.id " +
+                "select uc3 from User uc3 " +
+                "inner join uc3.userRoles ag3 " +
+                "where uc3.id = u.id " +
                 "and ag3.id in (:roles) ) ";
         }
 
         if ( params.getLastLogin() != null )
         {
-            hql += hlp.whereAnd() + " uc.lastLogin >= :lastLogin ";
+            hql += hlp.whereAnd() + " u.lastLogin >= :lastLogin ";
         }
 
         if ( params.getInactiveSince() != null )
         {
-            hql += hlp.whereAnd() + " uc.lastLogin < :inactiveSince ";
+            hql += hlp.whereAnd() + " u.lastLogin < :inactiveSince ";
         }
 
         if ( params.getPasswordLastUpdated() != null )
         {
-            hql += hlp.whereAnd() + " uc.passwordLastUpdated < :passwordLastUpdated ";
+            hql += hlp.whereAnd() + " u.passwordLastUpdated < :passwordLastUpdated ";
         }
 
         if ( params.isSelfRegistered() )
         {
-            hql += hlp.whereAnd() + " uc.selfRegistered = true ";
+            hql += hlp.whereAnd() + " u.selfRegistered = true ";
         }
 
         if ( UserInvitationStatus.ALL.equals( params.getInvitationStatus() ) )
         {
-            hql += hlp.whereAnd() + " uc.invitation = true ";
+            hql += hlp.whereAnd() + " u.invitation = true ";
         }
 
         if ( UserInvitationStatus.EXPIRED.equals( params.getInvitationStatus() ) )
         {
-            hql += hlp.whereAnd() + " uc.invitation = true " +
-                "and uc.restoreToken is not null " +
-                "and uc.restoreExpiry is not null " +
-                "and uc.restoreExpiry < current_timestamp() ";
+            hql += hlp.whereAnd() + " u.invitation = true " +
+                "and u.restoreToken is not null " +
+                "and u.restoreExpiry is not null " +
+                "and u.restoreExpiry < current_timestamp() ";
         }
 
         if ( !count )
@@ -343,7 +395,7 @@ public class HibernateUserStore
 
         if ( params.isAuthSubset() && params.getUser() != null )
         {
-            Set<String> auths = params.getUser().getUserCredentials().getAllAuthorities();
+            Set<String> auths = params.getUser().getAllAuthorities();
 
             query.setParameterList( "auths", auths );
         }
@@ -351,7 +403,7 @@ public class HibernateUserStore
         if ( params.isDisjointRoles() && params.getUser() != null )
         {
             Collection<Long> roles = IdentifiableObjectUtils
-                .getIdentifiers( params.getUser().getUserCredentials().getUserAuthorityGroups() );
+                .getIdentifiers( params.getUser().getUserRoles() );
 
             query.setParameterList( "roles", roles );
         }
@@ -375,10 +427,9 @@ public class HibernateUserStore
         {
             if ( params.isIncludeOrgUnitChildren() )
             {
-                for ( int i = 0; i < params.getOrganisationUnits().size(); i++ )
+                for ( OrganisationUnit ou : params.getOrganisationUnits() )
                 {
-                    query.setParameter( String.format( "ouUid%d", i ),
-                        "%/" + params.getOrganisationUnits().get( i ).getUid() + "%" );
+                    query.setParameter( format( "ou%s", ou.getUid() ), "%/" + ou.getUid() + "%" );
                 }
             }
             else
@@ -386,6 +437,42 @@ public class HibernateUserStore
                 Collection<Long> ouIds = IdentifiableObjectUtils.getIdentifiers( params.getOrganisationUnits() );
 
                 query.setParameterList( "ouIds", ouIds );
+            }
+        }
+
+        if ( params.hasDataViewOrganisationUnits() )
+        {
+            if ( params.isIncludeOrgUnitChildren() )
+            {
+                for ( OrganisationUnit ou : params.getDataViewOrganisationUnits() )
+                {
+                    query.setParameter( format( "dwOu%s", ou.getUid() ), "%/" + ou.getUid() + "%" );
+                }
+            }
+            else
+            {
+                Collection<Long> ouIds = IdentifiableObjectUtils
+                    .getIdentifiers( params.getDataViewOrganisationUnits() );
+
+                query.setParameterList( "dwOuIds", ouIds );
+            }
+        }
+
+        if ( params.hasTeiSearchOrganisationUnits() )
+        {
+            if ( params.isIncludeOrgUnitChildren() )
+            {
+                for ( OrganisationUnit ou : params.getTeiSearchOrganisationUnits() )
+                {
+                    query.setParameter( format( "tsOu%s", ou.getUid() ), "%/" + ou.getUid() + "%" );
+                }
+            }
+            else
+            {
+                Collection<Long> ouIds = IdentifiableObjectUtils
+                    .getIdentifiers( params.getTeiSearchOrganisationUnits() );
+
+                query.setParameterList( "tsOuIds", ouIds );
             }
         }
 
@@ -426,17 +513,17 @@ public class HibernateUserStore
     }
 
     @Override
-    public UserCredentials getUserCredentialsByUsername( String username )
+    public User getUserByUsername( String username )
     {
         if ( username == null )
         {
             return null;
         }
 
-        String hql = "from UserCredentials uc where uc.username = :username";
+        String hql = "from User u where u.username = :username";
 
-        TypedQuery<UserCredentials> typedQuery = sessionFactory.getCurrentSession().createQuery( hql,
-            UserCredentials.class );
+        TypedQuery<User> typedQuery = sessionFactory.getCurrentSession().createQuery( hql,
+            User.class );
         typedQuery.setParameter( "username", username );
         typedQuery.setHint( QueryHints.CACHEABLE, true );
 
@@ -481,14 +568,26 @@ public class HibernateUserStore
     public int disableUsersInactiveSince( Date inactiveSince )
     {
         CriteriaBuilder builder = getCriteriaBuilder();
-        CriteriaUpdate<UserCredentials> update = builder.createCriteriaUpdate( UserCredentials.class );
-        Root<UserCredentials> uc = update.from( UserCredentials.class );
+        CriteriaUpdate<User> update = builder.createCriteriaUpdate( User.class );
+        Root<User> user = update.from( User.class );
         update.where( builder.and(
             // just so we do not count rows already disabled
-            builder.equal( uc.get( DISABLED_COLUMN ), false ),
-            builder.lessThanOrEqualTo( uc.get( "lastLogin" ), inactiveSince ) ) );
+            builder.equal( user.get( DISABLED_COLUMN ), false ),
+            builder.lessThanOrEqualTo( user.get( "lastLogin" ), inactiveSince ) ) );
         update.set( DISABLED_COLUMN, true );
         return getSession().createQuery( update ).executeUpdate();
+    }
+
+    @Override
+    public Set<String> findNotifiableUsersWithLastLoginBetween( Date from, Date to )
+    {
+        String hql = "select u.email " +
+            "from User u " +
+            "where u.email is not null and u.disabled = false and u.lastLogin >= :from and u.lastLogin < :to";
+        return getSession().createQuery( hql, String.class )
+            .setParameter( "from", from )
+            .setParameter( "to", to )
+            .stream().collect( toSet() );
     }
 
     @Override
@@ -498,5 +597,65 @@ public class HibernateUserStore
         Query<String> query = getSession().createNativeQuery( sql );
         query.setParameter( "uid", userUid );
         return query.getSingleResult();
+    }
+
+    @Override
+    public User getUserByOpenId( String openId )
+    {
+        Query<User> query = getQuery( "from User u where u.openId = :openId" );
+        query.setParameter( "openId", openId );
+        return query.uniqueResult();
+    }
+
+    @Override
+    public User getUserByLdapId( String ldapId )
+    {
+        Query<User> query = getQuery( "from User u where u.ldapId = :ldapId" );
+        query.setParameter( "ldapId", ldapId );
+        return query.uniqueResult();
+    }
+
+    @Override
+    public User getUserByIdToken( String token )
+    {
+        Query<User> query = getQuery( "from User u where u.idToken = :token" );
+        query.setParameter( "token", token );
+        return query.uniqueResult();
+    }
+
+    @Override
+    public User getUserByUuid( UUID uuid )
+    {
+        Query<User> query = getQuery( "from User u where u.uuid = :uuid" );
+        query.setParameter( "uuid", uuid );
+        return query.uniqueResult();
+    }
+
+    @Override
+    public List<User> getHasAuthority( String authority )
+    {
+        String hql = "select distinct uc2 from User uc2 " +
+            "inner join uc2.userRoles ag2 " +
+            "inner join ag2.authorities a " +
+            "where :authority in elements(a)";
+
+        Query<User> query = getQuery( hql );
+        query.setParameter( "authority", authority );
+
+        return query.getResultList();
+    }
+
+    @Override
+    public List<User> getUserByUsernames( Collection<String> usernames )
+    {
+        if ( usernames == null || usernames.isEmpty() )
+        {
+            return new ArrayList<>();
+        }
+
+        Query<User> query = getQuery( "from User u where u.username in (:usernames) " );
+        query.setParameter( "usernames", usernames );
+
+        return query.getResultList();
     }
 }

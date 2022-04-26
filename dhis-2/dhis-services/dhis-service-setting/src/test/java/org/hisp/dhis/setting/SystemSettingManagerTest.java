@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,18 @@
  */
 package org.hisp.dhis.setting;
 
-import static org.hisp.dhis.setting.SettingKey.*;
-import static org.junit.Assert.*;
+import static org.hisp.dhis.setting.SettingKey.APPLICATION_INTRO;
+import static org.hisp.dhis.setting.SettingKey.APPLICATION_NOTIFICATION;
+import static org.hisp.dhis.setting.SettingKey.APPLICATION_TITLE;
+import static org.hisp.dhis.setting.SettingKey.EMAIL_HOST_NAME;
+import static org.hisp.dhis.setting.SettingKey.EMAIL_PASSWORD;
+import static org.hisp.dhis.setting.SettingKey.EMAIL_PORT;
+import static org.hisp.dhis.setting.SettingKey.HELP_PAGE_LINK;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -36,7 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.hisp.dhis.DhisSpringTest;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.common.collect.ImmutableSet;
@@ -45,9 +55,9 @@ import com.google.common.collect.ImmutableSet;
  * @author Stian Strandli
  * @author Lars Helge Overland
  */
-public class SystemSettingManagerTest
-    extends DhisSpringTest
+class SystemSettingManagerTest extends DhisSpringTest
 {
+
     @Autowired
     private SystemSettingManager systemSettingManager;
 
@@ -58,67 +68,55 @@ public class SystemSettingManagerTest
     }
 
     @Test
-    public void testSaveGetSetting()
+    void testSaveGetSetting()
     {
         systemSettingManager.saveSystemSetting( APPLICATION_INTRO, "valueA" );
         systemSettingManager.saveSystemSetting( APPLICATION_NOTIFICATION, "valueB" );
-
-        assertEquals( "valueA", systemSettingManager.getSystemSetting( APPLICATION_INTRO ) );
-        assertEquals( "valueB", systemSettingManager.getSystemSetting( APPLICATION_NOTIFICATION ) );
+        assertEquals( "valueA", systemSettingManager.getStringSetting( APPLICATION_INTRO ) );
+        assertEquals( "valueB", systemSettingManager.getStringSetting( APPLICATION_NOTIFICATION ) );
     }
 
     @Test
-    public void testSaveGetSettingWithDefault()
+    void testSaveGetSettingWithDefault()
     {
-        assertEquals( EMAIL_PORT.getDefaultValue(), systemSettingManager.getSystemSetting( EMAIL_PORT ) );
+        assertEquals( EMAIL_PORT.getDefaultValue(), systemSettingManager.getIntegerSetting( EMAIL_PORT ) );
     }
 
     @Test
-    public void testSaveGetDeleteSetting()
+    void testSaveGetDeleteSetting()
     {
-        assertNull( systemSettingManager.getSystemSetting( APPLICATION_INTRO ) );
-        assertEquals( HELP_PAGE_LINK.getDefaultValue(), systemSettingManager.getSystemSetting( HELP_PAGE_LINK ) );
-
+        assertNull( systemSettingManager.getStringSetting( APPLICATION_INTRO ) );
+        assertEquals( HELP_PAGE_LINK.getDefaultValue(), systemSettingManager.getStringSetting( HELP_PAGE_LINK ) );
         systemSettingManager.saveSystemSetting( APPLICATION_INTRO, "valueA" );
         systemSettingManager.saveSystemSetting( HELP_PAGE_LINK, "valueB" );
-
-        assertEquals( "valueA", systemSettingManager.getSystemSetting( APPLICATION_INTRO ) );
-        assertEquals( "valueB", systemSettingManager.getSystemSetting( HELP_PAGE_LINK ) );
-
+        assertEquals( "valueA", systemSettingManager.getStringSetting( APPLICATION_INTRO ) );
+        assertEquals( "valueB", systemSettingManager.getStringSetting( HELP_PAGE_LINK ) );
         systemSettingManager.deleteSystemSetting( APPLICATION_INTRO );
-
-        assertNull( systemSettingManager.getSystemSetting( APPLICATION_INTRO ) );
-        assertEquals( "valueB", systemSettingManager.getSystemSetting( HELP_PAGE_LINK ) );
-
+        assertNull( systemSettingManager.getStringSetting( APPLICATION_INTRO ) );
+        assertEquals( "valueB", systemSettingManager.getStringSetting( HELP_PAGE_LINK ) );
         systemSettingManager.deleteSystemSetting( HELP_PAGE_LINK );
-
-        assertNull( systemSettingManager.getSystemSetting( APPLICATION_INTRO ) );
-        assertEquals( HELP_PAGE_LINK.getDefaultValue(), systemSettingManager.getSystemSetting( HELP_PAGE_LINK ) );
+        assertNull( systemSettingManager.getStringSetting( APPLICATION_INTRO ) );
+        assertEquals( HELP_PAGE_LINK.getDefaultValue(), systemSettingManager.getStringSetting( HELP_PAGE_LINK ) );
     }
 
     @Test
-    public void testGetAllSystemSettings()
+    void testGetAllSystemSettings()
     {
         systemSettingManager.saveSystemSetting( APPLICATION_INTRO, "valueA" );
         systemSettingManager.saveSystemSetting( APPLICATION_NOTIFICATION, "valueB" );
-
         List<SystemSetting> settings = systemSettingManager.getAllSystemSettings();
-
         assertNotNull( settings );
         assertEquals( 2, settings.size() );
     }
 
     @Test
-    public void testGetSystemSettingsAsMap()
+    void testGetSystemSettingsAsMap()
     {
         systemSettingManager.saveSystemSetting( SettingKey.APPLICATION_TITLE, "valueA" );
         systemSettingManager.saveSystemSetting( SettingKey.APPLICATION_NOTIFICATION, "valueB" );
-
         Map<String, Serializable> settingsMap = systemSettingManager.getSystemSettingsAsMap();
-
         assertTrue( settingsMap.containsKey( SettingKey.APPLICATION_TITLE.getName() ) );
         assertTrue( settingsMap.containsKey( SettingKey.APPLICATION_NOTIFICATION.getName() ) );
-
         assertEquals( "valueA", settingsMap.get( SettingKey.APPLICATION_TITLE.getName() ) );
         assertEquals( "valueB", settingsMap.get( SettingKey.APPLICATION_NOTIFICATION.getName() ) );
         assertEquals( SettingKey.CACHE_STRATEGY.getDefaultValue(),
@@ -128,24 +126,20 @@ public class SystemSettingManagerTest
     }
 
     @Test
-    public void testGetSystemSettingsByCollection()
+    void testGetSystemSettingsByCollection()
     {
-        Collection<SettingKey> keys = ImmutableSet
-            .of( SettingKey.APPLICATION_TITLE, SettingKey.APPLICATION_INTRO );
-
+        Collection<SettingKey> keys = ImmutableSet.of( SettingKey.APPLICATION_TITLE, SettingKey.APPLICATION_INTRO );
         systemSettingManager.saveSystemSetting( APPLICATION_TITLE, "valueA" );
         systemSettingManager.saveSystemSetting( APPLICATION_INTRO, "valueB" );
-
-        assertEquals( systemSettingManager.getSystemSettings( keys ).size(), 2 );
+        assertEquals( 2, systemSettingManager.getSystemSettings( keys ).size() );
     }
 
     @Test
-    public void testIsConfidential()
+    void testIsConfidential()
     {
-        assertEquals( SettingKey.EMAIL_PASSWORD.isConfidential(), true );
-        assertEquals( systemSettingManager.isConfidential( SettingKey.EMAIL_PASSWORD.getName() ), true );
-
-        assertEquals( SettingKey.EMAIL_HOST_NAME.isConfidential(), false );
-        assertEquals( systemSettingManager.isConfidential( SettingKey.EMAIL_HOST_NAME.getName() ), false );
+        assertTrue( EMAIL_PASSWORD.isConfidential() );
+        assertTrue( systemSettingManager.isConfidential( EMAIL_PASSWORD.getName() ) );
+        assertFalse( EMAIL_HOST_NAME.isConfidential() );
+        assertFalse( systemSettingManager.isConfidential( EMAIL_HOST_NAME.getName() ) );
     }
 }

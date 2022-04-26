@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,46 @@
  */
 package org.hisp.dhis.common;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.replaceOnce;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 /**
  * @author Lars Helge Overland
  */
+@Getter
+@RequiredArgsConstructor
 public enum QueryOperator
 {
-    EQ( "=" ),
+    EQ( "=", true ),
     GT( ">" ),
     GE( ">=" ),
     LT( "<" ),
     LE( "<=" ),
-    NE( "!=" ),
     LIKE( "like" ),
-    IN( "in" );
+    IN( "in", true ),
+    SW( "sw" ),
+    EW( "ew" ),
+    // Analytics specifics
+    IEQ( "==", true ),
+    @Deprecated // Prefer NEQ instead
+    NE( "!=", true ),
+    NEQ( "!=", true ),
+    NIEQ( "!==", true ),
+    NLIKE( "not like" ),
+    ILIKE( "ilike" ),
+    NILIKE( "not ilike" );
 
     private final String value;
+
+    private final boolean nullAllowed;
 
     QueryOperator( String value )
     {
         this.value = value;
+        this.nullAllowed = false;
     }
 
     public static QueryOperator fromString( String string )
@@ -55,11 +76,12 @@ public enum QueryOperator
             return null;
         }
 
+        if ( string.trim().startsWith( "!" ) )
+        {
+            return valueOf( "N" + replaceOnce( string, "!", EMPTY ).toUpperCase() );
+        }
+
         return valueOf( string.toUpperCase() );
     }
 
-    public String getValue()
-    {
-        return value;
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,6 +135,14 @@ public interface ProgramInstanceStore
      * @return a list of ProgramInstance.
      */
     List<ProgramInstance> getWithScheduledNotifications( ProgramNotificationTemplate template, Date notificationDate );
+
+    /**
+     * Return all program instance linked to programs.
+     *
+     * @param programs Programs to fetch by
+     * @return List of all PIs that that are linked to programs
+     */
+    List<ProgramInstance> getByPrograms( List<Program> programs );
 
     /**
      * Return all program instance by type.

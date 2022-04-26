@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@ import org.hisp.dhis.fileresource.FileResourceService;
 import org.hisp.dhis.program.ProgramInstanceService;
 import org.hisp.dhis.query.QueryService;
 import org.hisp.dhis.relationship.RelationshipService;
-import org.hisp.dhis.relationship.RelationshipType;
 import org.hisp.dhis.relationship.RelationshipTypeService;
 import org.hisp.dhis.reservedvalue.ReservedValueService;
 import org.hisp.dhis.schema.SchemaService;
@@ -294,8 +293,9 @@ public class JacksonTrackedEntityInstanceService extends AbstractTrackedEntityIn
 
     private void setTeiRelationshipBidirectionalFlag( Relationship relationship )
     {
-        RelationshipType relationshipType = relationshipTypeService
-            .getRelationshipType( relationship.getRelationshipType() );
-        relationship.setBidirectional( relationshipType.isBidirectional() );
+        Optional.of( relationship )
+            .map( Relationship::getRelationshipType )
+            .map( relationshipTypeService::getRelationshipType )
+            .ifPresent( relationshipType -> relationship.setBidirectional( relationshipType.isBidirectional() ) );
     }
 }

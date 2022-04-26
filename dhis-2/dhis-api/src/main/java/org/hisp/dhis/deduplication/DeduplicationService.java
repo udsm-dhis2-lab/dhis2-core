@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,28 @@ import java.util.List;
 
 public interface DeduplicationService
 {
-    long addPotentialDuplicate( PotentialDuplicate potentialDuplicate );
-
     PotentialDuplicate getPotentialDuplicateById( long id );
 
     PotentialDuplicate getPotentialDuplicateByUid( String uid );
 
     List<PotentialDuplicate> getAllPotentialDuplicates();
 
-    void markPotentialDuplicateInvalid( PotentialDuplicate potentialDuplicate );
-
     int countPotentialDuplicates( PotentialDuplicateQuery query );
 
-    boolean exists( PotentialDuplicate potentialDuplicate );
+    boolean exists( PotentialDuplicate potentialDuplicate )
+        throws PotentialDuplicateConflictException;
 
-    List<PotentialDuplicate> getAllPotentialDuplicates( PotentialDuplicateQuery query );
+    List<PotentialDuplicate> getAllPotentialDuplicatesBy( PotentialDuplicateQuery query );
 
-    void deletePotentialDuplicate( PotentialDuplicate potentialDuplicate );
+    void addPotentialDuplicate( PotentialDuplicate potentialDuplicate );
+
+    void updatePotentialDuplicate( PotentialDuplicate potentialDuplicate );
+
+    void autoMerge( DeduplicationMergeParams deduplicationRequest )
+        throws PotentialDuplicateConflictException,
+        PotentialDuplicateForbiddenException;
+
+    void manualMerge( DeduplicationMergeParams deduplicationRequest )
+        throws PotentialDuplicateConflictException,
+        PotentialDuplicateForbiddenException;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,8 @@ public class TrackedEntityInstance
 
     private Set<TrackedEntityProgramOwner> programOwners = new HashSet<>();
 
+    private boolean potentialDuplicate;
+
     @AuditAttribute
     private OrganisationUnit organisationUnit;
 
@@ -135,6 +137,18 @@ public class TrackedEntityInstance
     // -------------------------------------------------------------------------
     // Getters and setters
     // -------------------------------------------------------------------------
+
+    @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public boolean isPotentialDuplicate()
+    {
+        return potentialDuplicate;
+    }
+
+    public void setPotentialDuplicate( boolean potentialDuplicate )
+    {
+        this.potentialDuplicate = potentialDuplicate;
+    }
 
     @JsonProperty
     @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,18 +28,11 @@
 package org.hisp.dhis.dashboard;
 
 import static org.hisp.dhis.common.DxfNamespaces.DXF_2_0;
-import static org.hisp.dhis.visualization.VisualizationType.PIVOT_TABLE;
-import static org.springframework.beans.BeanUtils.copyProperties;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.hisp.dhis.chart.Chart;
-import org.hisp.dhis.chart.Series;
 import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.common.EmbeddedObject;
@@ -48,18 +41,14 @@ import org.hisp.dhis.common.InterpretableObject;
 import org.hisp.dhis.document.Document;
 import org.hisp.dhis.eventchart.EventChart;
 import org.hisp.dhis.eventreport.EventReport;
+import org.hisp.dhis.eventvisualization.EventVisualization;
 import org.hisp.dhis.interpretation.Interpretation;
 import org.hisp.dhis.mapping.Map;
 import org.hisp.dhis.report.Report;
-import org.hisp.dhis.reporttable.ReportParams;
-import org.hisp.dhis.reporttable.ReportTable;
 import org.hisp.dhis.schema.annotation.PropertyTransformer;
 import org.hisp.dhis.schema.transformer.UserPropertyTransformer;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.visualization.Axis;
-import org.hisp.dhis.visualization.ReportingParams;
 import org.hisp.dhis.visualization.Visualization;
-import org.hisp.dhis.visualization.VisualizationType;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -82,9 +71,7 @@ public class DashboardItem
 
     private Visualization visualization;
 
-    private ReportTable reportTable;
-
-    private Chart chart;
+    private EventVisualization eventVisualization;
 
     private EventChart eventChart;
 
@@ -136,15 +123,7 @@ public class DashboardItem
     @JacksonXmlProperty( namespace = DXF_2_0 )
     public DashboardItemType getType()
     {
-        if ( chart != null )
-        {
-            return DashboardItemType.CHART;
-        }
-        else if ( reportTable != null )
-        {
-            return DashboardItemType.REPORT_TABLE;
-        }
-        else if ( visualization != null )
+        if ( visualization != null )
         {
             return DashboardItemType.VISUALIZATION;
         }
@@ -152,13 +131,17 @@ public class DashboardItem
         {
             return DashboardItemType.EVENT_CHART;
         }
-        else if ( map != null )
-        {
-            return DashboardItemType.MAP;
-        }
         else if ( eventReport != null )
         {
             return DashboardItemType.EVENT_REPORT;
+        }
+        if ( eventVisualization != null )
+        {
+            return DashboardItemType.EVENT_VISUALIZATION;
+        }
+        else if ( map != null )
+        {
+            return DashboardItemType.MAP;
         }
         else if ( text != null )
         {
@@ -194,15 +177,7 @@ public class DashboardItem
      */
     public InterpretableObject getEmbeddedItem()
     {
-        if ( chart != null )
-        {
-            return chart;
-        }
-        else if ( reportTable != null )
-        {
-            return reportTable;
-        }
-        else if ( visualization != null )
+        if ( visualization != null )
         {
             return visualization;
         }
@@ -210,13 +185,17 @@ public class DashboardItem
         {
             return eventChart;
         }
-        else if ( map != null )
-        {
-            return map;
-        }
         else if ( eventReport != null )
         {
             return eventReport;
+        }
+        if ( eventVisualization != null )
+        {
+            return eventVisualization;
+        }
+        else if ( map != null )
+        {
+            return map;
         }
 
         return null;
@@ -268,10 +247,9 @@ public class DashboardItem
     {
         int count = 0;
         count += visualization != null ? 1 : 0;
-        count += chart != null ? 1 : 0;
+        count += eventVisualization != null ? 1 : 0;
         count += eventChart != null ? 1 : 0;
         count += map != null ? 1 : 0;
-        count += reportTable != null ? 1 : 0;
         count += eventReport != null ? 1 : 0;
         count += text != null ? 1 : 0;
         count += users.size();
@@ -341,29 +319,14 @@ public class DashboardItem
     @JsonProperty
     @JsonSerialize( as = BaseIdentifiableObject.class )
     @JacksonXmlProperty( namespace = DXF_2_0 )
-    public Chart getChart()
+    public EventVisualization getEventVisualization()
     {
-        return chart;
+        return eventVisualization;
     }
 
-    public void setChart( Chart chart )
+    public void setEventVisualization( EventVisualization eventVisualization )
     {
-        this.chart = chart;
-        this.visualization = convertToVisualization( chart );
-    }
-
-    @JsonProperty
-    @JsonSerialize( as = BaseIdentifiableObject.class )
-    @JacksonXmlProperty( namespace = DXF_2_0 )
-    public ReportTable getReportTable()
-    {
-        return reportTable;
-    }
-
-    public void setReportTable( ReportTable reportTable )
-    {
-        this.reportTable = reportTable;
-        this.visualization = convertToVisualization( reportTable );
+        this.eventVisualization = eventVisualization;
     }
 
     @JsonProperty
@@ -543,98 +506,5 @@ public class DashboardItem
     public void setWidth( Integer width )
     {
         this.width = width;
-    }
-
-    /******************************
-     * Deprecated methods required to keep ReportTable and Chart backward
-     * compatible
-     ******************************/
-
-    private Visualization convertToVisualization( final Chart chart )
-    {
-        final Visualization visualization = new Visualization();
-
-        if ( chart != null )
-        {
-            copyProperties( chart, visualization );
-
-            if ( chart.getType() != null )
-            {
-                visualization.setType( VisualizationType.valueOf( chart.getType().name() ) );
-            }
-
-            // Copy seriesItems
-            if ( CollectionUtils.isNotEmpty( chart.getSeriesItems() ) )
-            {
-                final List<Series> seriesItems = chart.getSeriesItems();
-                final List<Axis> axes = visualization.getOptionalAxes();
-
-                for ( final Series seriesItem : seriesItems )
-                {
-                    final Axis axis = new Axis();
-                    axis.setDimensionalItem( seriesItem.getSeries() );
-                    axis.setAxis( seriesItem.getAxis() );
-                    axis.setId( seriesItem.getId() );
-
-                    axes.add( axis );
-                }
-                visualization.setOptionalAxes( axes );
-            }
-
-            // Add series into columns
-            if ( !StringUtils.isEmpty( chart.getSeries() ) )
-            {
-                if ( visualization.getColumnDimensions() != null )
-                {
-                    visualization.getColumnDimensions().add( chart.getSeries() );
-                }
-                else
-                {
-                    visualization.setColumnDimensions( Arrays.asList( chart.getSeries() ) );
-                }
-            }
-
-            // Add category into rows
-            if ( !StringUtils.isEmpty( chart.getCategory() ) )
-            {
-                if ( visualization.getRowDimensions() != null )
-                {
-                    visualization.getRowDimensions().add( chart.getCategory() );
-                }
-                else
-                {
-                    visualization.setRowDimensions( Arrays.asList( chart.getCategory() ) );
-                }
-            }
-
-            visualization.setCumulativeValues( chart.isCumulativeValues() );
-        }
-        return visualization;
-    }
-
-    private Visualization convertToVisualization( final ReportTable reportTable )
-    {
-        final Visualization visualization = new Visualization();
-
-        if ( reportTable != null )
-        {
-            copyProperties( reportTable, visualization );
-            visualization.setType( PIVOT_TABLE );
-
-            // Copy report params
-            if ( reportTable.hasReportParams() )
-            {
-                final ReportingParams reportingParams = new ReportingParams();
-                final ReportParams reportParams = reportTable.getReportParams();
-
-                reportingParams.setGrandParentOrganisationUnit( reportParams.isParamGrandParentOrganisationUnit() );
-                reportingParams.setOrganisationUnit( reportParams.isParamOrganisationUnit() );
-                reportingParams.setParentOrganisationUnit( reportParams.isParamParentOrganisationUnit() );
-                reportingParams.setReportingPeriod( reportParams.isParamReportingMonth() );
-
-                visualization.setReportingParams( reportingParams );
-            }
-        }
-        return visualization;
     }
 }

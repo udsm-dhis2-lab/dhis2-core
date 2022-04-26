@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,13 +40,13 @@ import static org.hisp.dhis.expression.ParseType.PREDICTOR_EXPRESSION;
 import static org.hisp.dhis.expression.ParseType.PREDICTOR_SKIP_TEST;
 import static org.hisp.dhis.expression.ParseType.SIMPLE_TEST;
 import static org.hisp.dhis.expression.ParseType.VALIDATION_RULE_EXPRESSION;
+import static org.hisp.dhis.parser.expression.ExpressionItem.ITEM_EVALUATE;
+import static org.hisp.dhis.parser.expression.ExpressionItem.ITEM_GET_DESCRIPTIONS;
+import static org.hisp.dhis.parser.expression.ExpressionItem.ITEM_GET_EXPRESSION_INFO;
 import static org.hisp.dhis.parser.expression.ParserUtils.COMMON_EXPRESSION_ITEMS;
-import static org.hisp.dhis.parser.expression.ParserUtils.DEFAULT_SAMPLE_PERIODS;
 import static org.hisp.dhis.parser.expression.ParserUtils.DOUBLE_VALUE_IF_NULL;
-import static org.hisp.dhis.parser.expression.ParserUtils.ITEM_EVALUATE;
-import static org.hisp.dhis.parser.expression.ParserUtils.ITEM_GET_DESCRIPTIONS;
-import static org.hisp.dhis.parser.expression.ParserUtils.ITEM_GET_IDS;
-import static org.hisp.dhis.parser.expression.ParserUtils.ITEM_GET_ORG_UNIT_GROUPS;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionLexer.SUB_EXPRESSION;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.AGGREGATION_TYPE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.AVG;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.A_BRACE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.COUNT;
@@ -55,11 +55,18 @@ import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.D_BRACE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.HASH_BRACE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.I_BRACE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.MAX;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.MAX_DATE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.MEDIAN;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.MIN;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.MIN_DATE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.N_BRACE;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ORGUNIT_ANCESTOR;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ORGUNIT_DATASET;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ORGUNIT_GROUP;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ORGUNIT_PROGRAM;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.OUG_BRACE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.PERCENTILE_CONT;
+import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.PERIOD_OFFSET;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.R_BRACE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.STDDEV;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.STDDEV_POP;
@@ -69,7 +76,6 @@ import static org.springframework.util.ObjectUtils.isEmpty;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -82,22 +88,25 @@ import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.analytics.DataType;
 import org.hisp.dhis.antlr.Parser;
 import org.hisp.dhis.antlr.ParserException;
 import org.hisp.dhis.cache.Cache;
 import org.hisp.dhis.cache.CacheProvider;
+import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.common.DimensionService;
 import org.hisp.dhis.common.DimensionalItemId;
 import org.hisp.dhis.common.DimensionalItemObject;
+import org.hisp.dhis.common.IdScheme;
+import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.common.IdentifiableObjectManager;
-import org.hisp.dhis.common.MapMap;
+import org.hisp.dhis.common.IdentifiableObjectUtils;
 import org.hisp.dhis.commons.collection.CachingMap;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.constant.Constant;
 import org.hisp.dhis.constant.ConstantService;
-import org.hisp.dhis.dataelement.DataElement;
-import org.hisp.dhis.dataelement.DataElementService;
+import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.expression.dataitem.DimItemDataElementAndOperand;
 import org.hisp.dhis.expression.dataitem.DimItemIndicator;
 import org.hisp.dhis.expression.dataitem.DimItemProgramAttribute;
@@ -105,15 +114,26 @@ import org.hisp.dhis.expression.dataitem.DimItemProgramDataElement;
 import org.hisp.dhis.expression.dataitem.DimItemProgramIndicator;
 import org.hisp.dhis.expression.dataitem.DimItemReportingRate;
 import org.hisp.dhis.expression.dataitem.ItemDays;
-import org.hisp.dhis.expression.dataitem.ItemOrgUnitGroup;
+import org.hisp.dhis.expression.dataitem.ItemOrgUnitGroupCount;
+import org.hisp.dhis.expression.function.FunctionOrgUnitAncestor;
+import org.hisp.dhis.expression.function.FunctionOrgUnitDataSet;
+import org.hisp.dhis.expression.function.FunctionOrgUnitGroup;
+import org.hisp.dhis.expression.function.FunctionOrgUnitProgram;
+import org.hisp.dhis.expression.function.FunctionSubExpression;
 import org.hisp.dhis.hibernate.HibernateGenericStore;
+import org.hisp.dhis.i18n.I18nManager;
 import org.hisp.dhis.indicator.Indicator;
 import org.hisp.dhis.indicator.IndicatorValue;
+import org.hisp.dhis.jdbc.StatementBuilder;
 import org.hisp.dhis.organisationunit.OrganisationUnitGroup;
-import org.hisp.dhis.organisationunit.OrganisationUnitGroupService;
 import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
 import org.hisp.dhis.parser.expression.ExpressionItem;
 import org.hisp.dhis.parser.expression.ExpressionItemMethod;
+import org.hisp.dhis.parser.expression.ExpressionState;
+import org.hisp.dhis.parser.expression.function.FunctionAggregationType;
+import org.hisp.dhis.parser.expression.function.FunctionMaxDate;
+import org.hisp.dhis.parser.expression.function.FunctionMinDate;
+import org.hisp.dhis.parser.expression.function.PeriodOffset;
 import org.hisp.dhis.parser.expression.function.VectorAvg;
 import org.hisp.dhis.parser.expression.function.VectorCount;
 import org.hisp.dhis.parser.expression.function.VectorMax;
@@ -124,6 +144,7 @@ import org.hisp.dhis.parser.expression.function.VectorStddevPop;
 import org.hisp.dhis.parser.expression.function.VectorStddevSamp;
 import org.hisp.dhis.parser.expression.function.VectorSum;
 import org.hisp.dhis.period.Period;
+import org.hisp.dhis.program.Program;
 import org.hisp.dhis.util.DateUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -151,30 +172,39 @@ public class DefaultExpressionService
 
     private final HibernateGenericStore<Expression> expressionStore;
 
-    private final DataElementService dataElementService;
-
     private final ConstantService constantService;
-
-    private final OrganisationUnitGroupService organisationUnitGroupService;
 
     private final DimensionService dimensionService;
 
     private final IdentifiableObjectManager idObjectManager;
 
+    private final StatementBuilder statementBuilder;
+
+    private final I18nManager i18nManager;
+
     // -------------------------------------------------------------------------
     // Static data
     // -------------------------------------------------------------------------
 
-    private static final ImmutableMap<Integer, ExpressionItem> VALIDATION_RULE_EXPRESSION_ITEMS = ImmutableMap
+    private static final ImmutableMap<Integer, ExpressionItem> BASE_EXPRESSION_ITEMS = ImmutableMap
         .<Integer, ExpressionItem> builder()
         .putAll( COMMON_EXPRESSION_ITEMS )
         .put( HASH_BRACE, new DimItemDataElementAndOperand() )
         .put( A_BRACE, new DimItemProgramAttribute() )
         .put( D_BRACE, new DimItemProgramDataElement() )
         .put( I_BRACE, new DimItemProgramIndicator() )
-        .put( OUG_BRACE, new ItemOrgUnitGroup() )
+        .put( OUG_BRACE, new ItemOrgUnitGroupCount() )
         .put( R_BRACE, new DimItemReportingRate() )
         .put( DAYS, new ItemDays() )
+        .build();
+
+    private static final ImmutableMap<Integer, ExpressionItem> VALIDATION_RULE_EXPRESSION_ITEMS = ImmutableMap
+        .<Integer, ExpressionItem> builder()
+        .putAll( BASE_EXPRESSION_ITEMS )
+        .put( ORGUNIT_ANCESTOR, new FunctionOrgUnitAncestor() )
+        .put( ORGUNIT_DATASET, new FunctionOrgUnitDataSet() )
+        .put( ORGUNIT_GROUP, new FunctionOrgUnitGroup() )
+        .put( ORGUNIT_PROGRAM, new FunctionOrgUnitProgram() )
         .build();
 
     private static final ImmutableMap<Integer, ExpressionItem> PREDICTOR_EXPRESSION_ITEMS = ImmutableMap
@@ -194,8 +224,13 @@ public class DefaultExpressionService
 
     private static final ImmutableMap<Integer, ExpressionItem> INDICATOR_EXPRESSION_ITEMS = ImmutableMap
         .<Integer, ExpressionItem> builder()
-        .putAll( VALIDATION_RULE_EXPRESSION_ITEMS )
+        .putAll( BASE_EXPRESSION_ITEMS )
+        .put( AGGREGATION_TYPE, new FunctionAggregationType() )
         .put( N_BRACE, new DimItemIndicator() )
+        .put( MAX_DATE, new FunctionMaxDate() )
+        .put( MIN_DATE, new FunctionMinDate() )
+        .put( PERIOD_OFFSET, new PeriodOffset() )
+        .put( SUB_EXPRESSION, new FunctionSubExpression() )
         .build();
 
     private static final ImmutableMap<ParseType, ImmutableMap<Integer, ExpressionItem>> PARSE_TYPE_EXPRESSION_ITEMS = ImmutableMap
@@ -240,24 +275,30 @@ public class DefaultExpressionService
 
     public DefaultExpressionService(
         @Qualifier( "org.hisp.dhis.expression.ExpressionStore" ) HibernateGenericStore<Expression> expressionStore,
-        DataElementService dataElementService, ConstantService constantService,
-        OrganisationUnitGroupService organisationUnitGroupService, DimensionService dimensionService,
-        IdentifiableObjectManager idObjectManager, CacheProvider cacheProvider )
+        ConstantService constantService, DimensionService dimensionService, IdentifiableObjectManager idObjectManager,
+        StatementBuilder statementBuilder, I18nManager i18nManager, CacheProvider cacheProvider )
     {
         checkNotNull( expressionStore );
-        checkNotNull( dataElementService );
         checkNotNull( constantService );
-        checkNotNull( organisationUnitGroupService );
         checkNotNull( dimensionService );
+        checkNotNull( idObjectManager );
+        checkNotNull( statementBuilder );
+        checkNotNull( i18nManager );
         checkNotNull( cacheProvider );
 
         this.expressionStore = expressionStore;
-        this.dataElementService = dataElementService;
         this.constantService = constantService;
-        this.organisationUnitGroupService = organisationUnitGroupService;
         this.dimensionService = dimensionService;
         this.idObjectManager = idObjectManager;
+        this.statementBuilder = statementBuilder;
+        this.i18nManager = i18nManager;
         this.constantMapCache = cacheProvider.createAllConstantsCache();
+
+        FunctionSubExpression fn = (FunctionSubExpression) INDICATOR_EXPRESSION_ITEMS.get( SUB_EXPRESSION );
+        if ( fn != null )
+        {
+            fn.init( cacheProvider );
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -306,7 +347,8 @@ public class DefaultExpressionService
     // -------------------------------------------------------------------------
 
     @Override
-    public Set<DimensionalItemObject> getIndicatorDimensionalItemObjects( Collection<Indicator> indicators )
+    public Map<DimensionalItemId, DimensionalItemObject> getIndicatorDimensionalItemMap(
+        Collection<Indicator> indicators )
     {
         Set<DimensionalItemId> itemIds = indicators.stream()
             .flatMap( i -> Stream.of( i.getNumerator(), i.getDenominator() ) )
@@ -314,45 +356,31 @@ public class DefaultExpressionService
             .flatMap( Set::stream )
             .collect( Collectors.toSet() );
 
-        return dimensionService.getDataDimensionalItemObjects( itemIds );
+        return dimensionService.getDataDimensionalItemObjectMap( itemIds );
     }
 
     @Override
-    public Set<OrganisationUnitGroup> getIndicatorOrgUnitGroups( Collection<Indicator> indicators )
+    public List<OrganisationUnitGroup> getOrgUnitGroupCountGroups( Collection<Indicator> indicators )
     {
-        Set<OrganisationUnitGroup> groups = new HashSet<>();
-
-        if ( indicators != null )
+        if ( indicators == null )
         {
-            for ( Indicator indicator : indicators )
-            {
-                try
-                {
-                    groups.addAll( getExpressionOrgUnitGroups( indicator.getNumerator(), INDICATOR_EXPRESSION ) );
-                }
-                catch ( Exception e )
-                {
-                    log.warn( "Parsing error in indicator " + indicator.getUid() + " numerator '"
-                        + indicator.getNumerator() + "': " + e.toString() );
-                }
-                try
-                {
-                    groups.addAll( getExpressionOrgUnitGroups( indicator.getDenominator(), INDICATOR_EXPRESSION ) );
-                }
-                catch ( Exception e )
-                {
-                    log.warn( "Parsing error in indicator " + indicator.getUid() + " denominator '"
-                        + indicator.getDenominator() + "': " + e.toString() );
-                }
-            }
+            return Collections.emptyList();
         }
 
-        return groups;
+        Set<String> uids = new HashSet<>();
+
+        for ( Indicator indicator : indicators )
+        {
+            uids.addAll( getOrgUnitGroupCountIds( indicator.getNumerator() ) );
+            uids.addAll( getOrgUnitGroupCountIds( indicator.getDenominator() ) );
+        }
+
+        return idObjectManager.getByUid( OrganisationUnitGroup.class, uids );
     }
 
     @Override
     public IndicatorValue getIndicatorValueObject( Indicator indicator, List<Period> periods,
-        Map<DimensionalItemObject, Double> valueMap, Map<String, Constant> constantMap,
+        Map<DimensionalItemId, DimensionalItemObject> itemMap, Map<DimensionalItemObject, Object> valueMap,
         Map<String, Integer> orgUnitCountMap )
     {
         if ( indicator == null || indicator.getNumerator() == null || indicator.getDenominator() == null )
@@ -362,11 +390,20 @@ public class DefaultExpressionService
 
         Integer days = periods != null ? getDaysFromPeriods( periods ) : null;
 
-        Double denominatorValue = getExpressionValue( indicator.getDenominator(), INDICATOR_EXPRESSION,
-            valueMap, constantMap, orgUnitCountMap, days, SKIP_IF_ALL_VALUES_MISSING );
+        ExpressionParams params = ExpressionParams.builder()
+            .parseType( INDICATOR_EXPRESSION )
+            .itemMap( itemMap )
+            .valueMap( valueMap )
+            .orgUnitCountMap( orgUnitCountMap )
+            .days( days )
+            .missingValueStrategy( SKIP_IF_ALL_VALUES_MISSING )
+            .build();
 
-        Double numeratorValue = getExpressionValue( indicator.getNumerator(), INDICATOR_EXPRESSION,
-            valueMap, constantMap, orgUnitCountMap, days, SKIP_IF_ALL_VALUES_MISSING );
+        Double denominatorValue = castDouble( getExpressionValue( params.toBuilder()
+            .expression( indicator.getDenominator() ).build() ) );
+
+        Double numeratorValue = castDouble( getExpressionValue( params.toBuilder()
+            .expression( indicator.getNumerator() ).build() ) );
 
         if ( denominatorValue != null && denominatorValue != 0d && numeratorValue != null )
         {
@@ -403,10 +440,10 @@ public class DefaultExpressionService
         }
 
         Map<String, Constant> constants = new CachingMap<String, Constant>()
-            .load( idObjectManager.getAllNoAcl( Constant.class ), c -> c.getUid() );
+            .load( idObjectManager.getAllNoAcl( Constant.class ), BaseIdentifiableObject::getUid );
 
         Map<String, OrganisationUnitGroup> orgUnitGroups = new CachingMap<String, OrganisationUnitGroup>()
-            .load( idObjectManager.getAllNoAcl( OrganisationUnitGroup.class ), g -> g.getUid() );
+            .load( idObjectManager.getAllNoAcl( OrganisationUnitGroup.class ), BaseIdentifiableObject::getUid );
 
         for ( Indicator indicator : indicators )
         {
@@ -418,7 +455,7 @@ public class DefaultExpressionService
     }
 
     // -------------------------------------------------------------------------
-    // Expression logic
+    // Get information about the expression
     // -------------------------------------------------------------------------
 
     @Override
@@ -440,15 +477,25 @@ public class DefaultExpressionService
     @Override
     public String getExpressionDescription( String expression, ParseType parseType )
     {
+        return getExpressionDescription( expression, parseType, parseType.getDataType() );
+    }
+
+    @Override
+    public String getExpressionDescription( String expression, ParseType parseType, DataType dataType )
+    {
         if ( isEmpty( expression ) )
         {
             return "";
         }
 
-        CommonExpressionVisitor visitor = newVisitor( parseType, ITEM_GET_DESCRIPTIONS,
-            DEFAULT_SAMPLE_PERIODS, getConstantMap(), NEVER_SKIP );
+        CommonExpressionVisitor visitor = newVisitor( ITEM_GET_DESCRIPTIONS, ExpressionParams.builder()
+            .expression( expression )
+            .parseType( parseType )
+            .dataType( dataType )
+            .missingValueStrategy( NEVER_SKIP )
+            .build() );
 
-        visit( expression, parseType.getDataType(), visitor, false );
+        visit( expression, dataType, visitor, false );
 
         Map<String, String> itemDescriptions = visitor.getItemDescriptions();
 
@@ -463,6 +510,32 @@ public class DefaultExpressionService
     }
 
     @Override
+    public ExpressionInfo getExpressionInfo( ExpressionParams params )
+    {
+        if ( StringUtils.isEmpty( params.getExpression() ) )
+        {
+            return new ExpressionInfo();
+        }
+
+        CommonExpressionVisitor visitor = newVisitor( ITEM_GET_EXPRESSION_INFO, params );
+
+        visit( params.getExpression(), params.getDataType(), visitor, true );
+
+        return visitor.getInfo();
+    }
+
+    @Override
+    public ExpressionParams getBaseExpressionParams( ExpressionInfo info )
+    {
+        return ExpressionParams.builder()
+            .itemMap( dimensionService.getNoAclDataDimensionalItemObjectMap( info.getAllItemIds() ) )
+            .orgUnitGroupMap( getUidMap( OrganisationUnitGroup.class, info.getOrgUnitGroupIds() ) )
+            .dataSetMap( getUidMap( DataSet.class, info.getOrgUnitDataSetIds() ) )
+            .programMap( getUidMap( Program.class, info.getOrgUnitProgramIds() ) )
+            .build();
+    }
+
+    @Override
     public Set<String> getExpressionElementAndOptionComboIds( String expression, ParseType parseType )
     {
         return getExpressionDimensionalItemIds( expression, parseType ).stream()
@@ -472,11 +545,11 @@ public class DefaultExpressionService
     }
 
     @Override
-    public Set<DataElement> getExpressionDataElements( String expression, ParseType parseType )
+    public Set<String> getExpressionDataElementIds( String expression, ParseType parseType )
     {
         return getExpressionDimensionalItemIds( expression, parseType ).stream()
             .filter( DimensionalItemId::isDataElementOrOperand )
-            .map( i -> dataElementService.getDataElement( i.getId0() ) )
+            .map( DimensionalItemId::getId0 )
             .collect( Collectors.toSet() );
     }
 
@@ -504,28 +577,6 @@ public class DefaultExpressionService
     }
 
     @Override
-    public Set<DimensionalItemObject> getExpressionDimensionalItemObjects( String expression, ParseType parseType )
-    {
-        Set<DimensionalItemId> itemIds = getExpressionDimensionalItemIds( expression, parseType );
-
-        return dimensionService.getDataDimensionalItemObjects( itemIds );
-    }
-
-    @Override
-    public void getExpressionDimensionalItemObjects( String expression, ParseType parseType,
-        Set<DimensionalItemObject> items,
-        Set<DimensionalItemObject> sampleItems )
-    {
-        Set<DimensionalItemId> itemIds = new HashSet<>();
-        Set<DimensionalItemId> sampleItemIds = new HashSet<>();
-
-        getExpressionDimensionalItemIds( expression, parseType, itemIds, sampleItemIds );
-
-        items.addAll( dimensionService.getDataDimensionalItemObjects( itemIds ) );
-        sampleItems.addAll( dimensionService.getDataDimensionalItemObjects( sampleItemIds ) );
-    }
-
-    @Override
     public Set<DimensionalItemId> getExpressionDimensionalItemIds( String expression, ParseType parseType )
     {
         Set<DimensionalItemId> itemIds = new HashSet<>();
@@ -536,101 +587,79 @@ public class DefaultExpressionService
     }
 
     @Override
-    public Set<OrganisationUnitGroup> getExpressionOrgUnitGroups( String expression, ParseType parseType )
+    public Set<String> getExpressionOrgUnitGroupIds( String expression, ParseType parseType )
     {
         if ( isEmpty( expression ) )
         {
-            return new HashSet<>();
+            return Collections.emptySet();
         }
 
-        CommonExpressionVisitor visitor = newVisitor( INDICATOR_EXPRESSION, ITEM_GET_ORG_UNIT_GROUPS,
-            DEFAULT_SAMPLE_PERIODS, getConstantMap(), NEVER_SKIP );
+        ExpressionInfo info = getExpressionInfo( ExpressionParams.builder()
+            .expression( expression )
+            .parseType( parseType )
+            .build() );
 
-        visit( expression, parseType.getDataType(), visitor, true );
-
-        Set<String> orgUnitGroupIds = visitor.getOrgUnitGroupIds();
-
-        return orgUnitGroupIds.stream()
-            .map( organisationUnitGroupService::getOrganisationUnitGroup )
-            .filter( Objects::nonNull )
-            .collect( Collectors.toSet() );
+        return info.getOrgUnitGroupIds();
     }
 
-    @Override
-    public Object getExpressionValue( String expression, ParseType parseType )
-    {
-        return getExpressionValue( expression, parseType,
-            new HashMap<>(), new HashMap<>(), new HashMap<>(),
-            null, NEVER_SKIP, DEFAULT_SAMPLE_PERIODS, new MapMap<>() );
-    }
+    // -------------------------------------------------------------------------
+    // Compute the value of the expression
+    // -------------------------------------------------------------------------
 
     @Override
-    public Double getExpressionValue( String expression, ParseType parseType,
-        Map<DimensionalItemObject, Double> valueMap, Map<String, Constant> constantMap,
-        Map<String, Integer> orgUnitCountMap, Integer days,
-        MissingValueStrategy missingValueStrategy )
+    public Object getExpressionValue( ExpressionParams params )
     {
-        return castDouble( getExpressionValue( expression, parseType, valueMap, constantMap,
-            orgUnitCountMap, days, missingValueStrategy, DEFAULT_SAMPLE_PERIODS, new MapMap<>() ) );
-    }
-
-    @Override
-    public Object getExpressionValue( String expression, ParseType parseType,
-        Map<DimensionalItemObject, Double> valueMap, Map<String, Constant> constantMap,
-        Map<String, Integer> orgUnitCountMap, Integer days,
-        MissingValueStrategy missingValueStrategy,
-        List<Period> samplePeriods, MapMap<Period, DimensionalItemObject, Double> periodValueMap )
-    {
-        if ( isEmpty( expression ) )
+        if ( isEmpty( params.getExpression() ) )
         {
             return null;
         }
 
-        CommonExpressionVisitor visitor = newVisitor( parseType, ITEM_EVALUATE,
-            samplePeriods, constantMap, missingValueStrategy );
+        CommonExpressionVisitor visitor = newVisitor( ITEM_EVALUATE, params );
 
-        visitor.setItemValueMap( convertToIdentifierMap( valueMap ) );
-        visitor.setPeriodItemValueMap( convertToIdentifierPeriodMap( periodValueMap ) );
-        visitor.setOrgUnitCountMap( orgUnitCountMap );
+        Object value = visit( params.getExpression(), params.getDataType(), visitor, true );
 
-        if ( days != null )
+        ExpressionState state = visitor.getState();
+
+        int itemsFound = state.getItemsFound();
+        int itemValuesFound = state.getItemValuesFound();
+
+        if ( state.isUnprotectedNullDateFound() )
         {
-            visitor.setDays( Double.valueOf( days ) );
+            return null;
         }
 
-        Object value = visit( expression, parseType.getDataType(), visitor, true );
-
-        int itemsFound = visitor.getItemsFound();
-        int itemValuesFound = visitor.getItemValuesFound();
-
-        switch ( missingValueStrategy )
+        switch ( params.getMissingValueStrategy() )
         {
         case SKIP_IF_ANY_VALUE_MISSING:
             if ( itemValuesFound < itemsFound )
             {
                 return null;
             }
+            break;
 
         case SKIP_IF_ALL_VALUES_MISSING:
             if ( itemsFound != 0 && itemValuesFound == 0 )
             {
                 return null;
             }
+            break;
 
         case NEVER_SKIP:
-            if ( value == null )
+            break;
+        }
+
+        if ( value == null && state.isReplaceNulls() )
+        {
+            switch ( params.getDataType() )
             {
-                switch ( parseType.getDataType() )
-                {
-                case NUMERIC:
-                    return 0d;
+            case NUMERIC:
+                return 0d;
 
-                case BOOLEAN:
-                    return FALSE;
+            case BOOLEAN:
+                return FALSE;
 
-                case TEXT:
-                    return "";
-                }
+            case TEXT:
+                return "";
             }
         }
 
@@ -638,46 +667,48 @@ public class DefaultExpressionService
     }
 
     // -------------------------------------------------------------------------
+    // Create a new CommonExpressionVisitor
+    // -------------------------------------------------------------------------
+
+    @Override
+    public Map<String, Constant> getConstantMap()
+    {
+        return constantMapCache.get( "x", key -> constantService.getConstantMap() );
+    }
+
+    // -------------------------------------------------------------------------
     // Supportive methods
     // -------------------------------------------------------------------------
 
     /**
-     * Gets the (possibly cached) constant map.
-     *
-     * @return the constant map.
+     * Returns the OrgUnitGroupCountIds from an expression
      */
-    private Map<String, Constant> getConstantMap()
+    private Set<String> getOrgUnitGroupCountIds( String expression )
     {
-        return constantMapCache.get( "x", key -> constantService.getConstantMap() )
-            .orElse( Collections.emptyMap() );
-    }
+        if ( expression == null )
+        {
+            return Collections.emptySet();
+        }
+        try
+        {
+            ExpressionInfo info = getExpressionInfo( ExpressionParams.builder()
+                .expression( expression )
+                .parseType( INDICATOR_EXPRESSION )
+                .build() );
 
-    /**
-     * Creates a new ExpressionItemsVisitor object.
-     */
-    private CommonExpressionVisitor newVisitor( ParseType parseType,
-        ExpressionItemMethod itemMethod, List<Period> samplePeriods,
-        Map<String, Constant> constantMap, MissingValueStrategy missingValueStrategy )
-    {
-        return CommonExpressionVisitor.newBuilder()
-            .withItemMap( PARSE_TYPE_EXPRESSION_ITEMS.get( parseType ) )
-            .withItemMethod( itemMethod )
-            .withConstantMap( constantMap )
-            .withDimensionService( dimensionService )
-            .withOrganisationUnitGroupService( organisationUnitGroupService )
-            .withSamplePeriods( samplePeriods )
-            .withMissingValueStrategy( missingValueStrategy )
-            .buildForExpressions();
+            return info.getOrgUnitGroupCountIds();
+        }
+        catch ( ParserException e )
+        {
+            log.warn( "Parsing error in indicator expression " + expression );
+
+            return Collections.emptySet();
+        }
     }
 
     /**
      * Returns all non-aggregated and all aggregated dimensional item object ids
-     * in the given expression.
-     *
-     * @param expression the expression to parse.
-     * @param parseType the type of expression to parse.
-     * @param itemIds Set to insert the itemIds into.
-     * @param sampleItemIds Set to insert the aggregatedItemIds into.
+     * in the given expression
      */
     private void getExpressionDimensionalItemIds( String expression, ParseType parseType,
         Set<DimensionalItemId> itemIds,
@@ -688,23 +719,42 @@ public class DefaultExpressionService
             return;
         }
 
-        CommonExpressionVisitor visitor = newVisitor( parseType, ITEM_GET_IDS,
-            DEFAULT_SAMPLE_PERIODS, getConstantMap(), NEVER_SKIP );
+        ExpressionInfo info = getExpressionInfo( ExpressionParams.builder()
+            .expression( expression )
+            .parseType( parseType )
+            .build() );
 
-        visitor.setItemIds( itemIds );
-        visitor.setSampleItemIds( sampleItemIds );
+        itemIds.addAll( info.getItemIds() );
+        sampleItemIds.addAll( info.getSampleItemIds() );
+    }
 
-        visit( expression, parseType.getDataType(), visitor, true );
+    private <T extends IdentifiableObject> Map<String, T> getUidMap( Class<T> type, Collection<String> uids )
+    {
+        List<T> objects = idObjectManager.getNoAcl( type, uids );
+
+        return IdentifiableObjectUtils.getIdMap( objects, IdScheme.UID );
+    }
+
+    /**
+     * Creates a new {@see CommonExpressionVisitor}
+     */
+    private CommonExpressionVisitor newVisitor( ExpressionItemMethod itemMethod, ExpressionParams params )
+    {
+        return CommonExpressionVisitor.builder()
+            .idObjectManager( idObjectManager )
+            .dimensionService( dimensionService )
+            .statementBuilder( statementBuilder )
+            .i18n( i18nManager.getI18n() )
+            .constantMap( getConstantMap() )
+            .itemMap( PARSE_TYPE_EXPRESSION_ITEMS.get( params.getParseType() ) )
+            .itemMethod( itemMethod )
+            .params( params )
+            .info( params.getExpressionInfo() )
+            .build();
     }
 
     /**
      * Visits an expression and returns the expected expression type.
-     *
-     * @param expression the expresion to visit.
-     * @param dataType the expected data type of the expression value.
-     * @param visitor the visitor to use.
-     * @param logWarnings whether to log warnings or not.
-     * @return the expression value.
      */
     private Object visit( String expression, DataType dataType, CommonExpressionVisitor visitor, boolean logWarnings )
     {
@@ -744,11 +794,6 @@ public class DefaultExpressionService
     /**
      * Regenerates an expression from the parse tree, with values substituted
      * for constants and orgUnitCounts.
-     *
-     * @param expression the expresion to regenerate.
-     * @param constants map of constants to use for calculation.
-     * @param orgUnitGroups map of organisation unit groups.
-     * @return the regenerated expression string.
      */
     private String regenerateIndicatorExpression( String expression,
         Map<String, Constant> constants, Map<String, OrganisationUnitGroup> orgUnitGroups )
@@ -803,57 +848,11 @@ public class DefaultExpressionService
 
     /**
      * Finds the total number of days in a list of periods.
-     *
-     * @param periods the periods.
-     * @return the total number of days.
      */
     private int getDaysFromPeriods( List<Period> periods )
     {
         return periods.stream()
             .filter( Objects::nonNull )
             .mapToInt( Period::getDaysInPeriod ).sum();
-    }
-
-    /**
-     * Converts a Map of {@see DimensionalItemObject} and values into a Map of
-     * {@see DimensionalItemObject} identifier and value.
-     *
-     * If the {@see DimensionalItemObject} has a Period offset set, the value of
-     * the offset is added to the Map key:
-     *
-     * [identifier.periodOffset]
-     *
-     *
-     * @param valueMap a Map
-     * @return a Map of DimensionalItemObject and value
-     */
-    private Map<String, Double> convertToIdentifierMap( Map<DimensionalItemObject, Double> valueMap )
-    {
-        return valueMap.entrySet().stream().collect(
-            Collectors.toMap(
-                e -> e.getKey().getDimensionItem()
-                    + (e.getKey().getPeriodOffset() == 0 ? "" : "." + e.getKey().getPeriodOffset()),
-                Map.Entry::getValue ) );
-    }
-
-    /**
-     * Converts a Map of Maps of {@see Period}, {@see DimensionalItemObject} and
-     * values into a Map of Maps of {@see Period}, {@see DimensionalItemObject}
-     * identifier and value
-     *
-     * @param periodValueMap a Map of Maps
-     *
-     */
-    private MapMap<Period, String, Double> convertToIdentifierPeriodMap(
-        MapMap<Period, DimensionalItemObject, Double> periodValueMap )
-    {
-        MapMap<Period, String, Double> periodItemValueMap = new MapMap<>();
-
-        for ( Period p : periodValueMap.keySet() )
-        {
-            periodItemValueMap.put( p, periodValueMap.get( p ).entrySet().stream().collect(
-                Collectors.toMap( e -> e.getKey().getDimensionItem(), Map.Entry::getValue ) ) );
-        }
-        return periodItemValueMap;
     }
 }

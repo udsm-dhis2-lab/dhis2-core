@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,15 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.hisp.dhis.tracker.TrackerType.EVENT;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1031;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1042;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1043;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1046;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1047;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1050;
+import static org.hisp.dhis.tracker.validation.hooks.AssertValidationErrorReporter.hasTrackerError;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -39,38 +44,36 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import org.hisp.dhis.DhisConvenienceTest;
+import org.hisp.dhis.common.CodeGenerator;
 import org.hisp.dhis.event.EventStatus;
 import org.hisp.dhis.period.DailyPeriodType;
 import org.hisp.dhis.program.Program;
-import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.program.ProgramType;
 import org.hisp.dhis.security.Authorities;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Event;
-import org.hisp.dhis.tracker.report.TrackerErrorCode;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
+import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserAuthorityGroup;
-import org.hisp.dhis.user.UserCredentials;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.hisp.dhis.user.UserRole;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import com.google.common.collect.Sets;
 
 /**
  * @author Enrico Colasante
  */
-public class EventDateValidationHookTest
-    extends DhisConvenienceTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class EventDateValidationHookTest extends DhisConvenienceTest
 {
-    private static final String PROGRAM_STAGE_WITH_REGISTRATION_ID = "ProgramStageWithRegistration";
-
-    private static final String PROGRAM_STAGE_WITHOUT_REGISTRATION_ID = "ProgramStageWithoutRegistration";
 
     private static final String PROGRAM_WITH_REGISTRATION_ID = "ProgramWithRegistration";
 
@@ -78,44 +81,43 @@ public class EventDateValidationHookTest
 
     private EventDateValidationHook hookToTest;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
     @Mock
-    private TrackerImportValidationContext validationContext;
+    private TrackerPreheat preheat;
 
-    @Before
+    private TrackerBundle bundle;
+
+    @BeforeEach
     public void setUp()
     {
         hookToTest = new EventDateValidationHook();
 
         User user = createUser( 'A' );
 
-        TrackerBundle bundle = TrackerBundle.builder().user( user ).build();
+        bundle = TrackerBundle.builder()
+            .user( user )
+            .preheat( preheat )
+            .build();
 
-        when( validationContext.getBundle() ).thenReturn( bundle );
-
-        when( validationContext.getProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID ) )
-            .thenReturn( getProgramStageWithRegistration() );
-
-        when( validationContext.getProgramStage( PROGRAM_STAGE_WITHOUT_REGISTRATION_ID ) )
-            .thenReturn( getProgramStageWithoutRegistration() );
+        when( preheat.getProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) ) )
+            .thenReturn( getProgramWithRegistration() );
+        when( preheat.getProgram( MetadataIdentifier.ofUid( PROGRAM_WITHOUT_REGISTRATION_ID ) ) )
+            .thenReturn( getProgramWithoutRegistration() );
     }
 
     @Test
-    public void testEventIsValid()
+    void testEventIsValid()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITHOUT_REGISTRATION_ID );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITHOUT_REGISTRATION_ID ) );
         event.setOccurredAt( now() );
         event.setStatus( EventStatus.ACTIVE );
 
-        TrackerBundle bundle = TrackerBundle.builder().user( getEditExpiredUser() ).build();
-
-        when( validationContext.getBundle() ).thenReturn( bundle );
-
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        TrackerBundle bundle = TrackerBundle.builder()
+            .user( getEditExpiredUser() )
+            .preheat( preheat )
+            .build();
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
@@ -125,170 +127,153 @@ public class EventDateValidationHookTest
     }
 
     @Test
-    public void testEventIsNotValidWhenOccurredDateIsNotPresentAndProgramIsWithoutRegistration()
+    void testEventIsNotValidWhenOccurredDateIsNotPresentAndProgramIsWithoutRegistration()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITHOUT_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITHOUT_REGISTRATION_ID ) );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1031 ) );
-
+        hasTrackerError( reporter, E1031, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenOccurredDateIsNotPresentAndEventIsActive()
+    void testEventIsNotValidWhenOccurredDateIsNotPresentAndEventIsActive()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setStatus( EventStatus.ACTIVE );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1031 ) );
+        hasTrackerError( reporter, E1031, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenOccurredDateIsNotPresentAndEventIsCompleted()
+    void testEventIsNotValidWhenOccurredDateIsNotPresentAndEventIsCompleted()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setStatus( EventStatus.COMPLETED );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1031 ) );
+        hasTrackerError( reporter, E1031, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenScheduledDateIsNotPresentAndEventIsSchedule()
+    void testEventIsNotValidWhenScheduledDateIsNotPresentAndEventIsSchedule()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setOccurredAt( Instant.now() );
         event.setStatus( EventStatus.SCHEDULE );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1050 ) );
+        hasTrackerError( reporter, E1050, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenCompletedAtIsNotPresentAndEventIsCompleted()
+    void testEventIsNotValidWhenCompletedAtIsNotPresentAndEventIsCompleted()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setOccurredAt( now() );
         event.setStatus( EventStatus.COMPLETED );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1042 ) );
+        hasTrackerError( reporter, E1042, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenCompletedAtIsTooSoonAndEventIsCompleted()
+    void testEventIsNotValidWhenCompletedAtIsTooSoonAndEventIsCompleted()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setOccurredAt( now() );
         event.setCompletedAt( sevenDaysAgo() );
         event.setStatus( EventStatus.COMPLETED );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1043 ) );
+        hasTrackerError( reporter, E1043, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenOccurredAtAndScheduledAtAreNotPresent()
+    void testEventIsNotValidWhenOccurredAtAndScheduledAtAreNotPresent()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setOccurredAt( null );
         event.setScheduledAt( null );
         event.setStatus( EventStatus.SKIPPED );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1046 ) );
+        hasTrackerError( reporter, E1046, EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventIsNotValidWhenDateBelongsToExpiredPeriod()
+    void testEventIsNotValidWhenDateBelongsToExpiredPeriod()
     {
         // given
         Event event = new Event();
-        event.setProgramStage( PROGRAM_STAGE_WITH_REGISTRATION_ID );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setProgram( MetadataIdentifier.ofUid( PROGRAM_WITH_REGISTRATION_ID ) );
         event.setOccurredAt( sevenDaysAgo() );
         event.setStatus( EventStatus.ACTIVE );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1047 ) );
-    }
-
-    private ProgramStage getProgramStageWithRegistration()
-    {
-        ProgramStage programStage = new ProgramStage();
-        programStage.setUid( PROGRAM_STAGE_WITH_REGISTRATION_ID );
-        programStage.setProgram( getProgramWithRegistration() );
-        return programStage;
-    }
-
-    private ProgramStage getProgramStageWithoutRegistration()
-    {
-        ProgramStage programStage = new ProgramStage();
-        programStage.setUid( PROGRAM_STAGE_WITHOUT_REGISTRATION_ID );
-        programStage.setProgram( getProgramWithoutRegistration() );
-        return programStage;
+        hasTrackerError( reporter, E1047, EVENT, event.getUid() );
     }
 
     private Program getProgramWithRegistration()
@@ -313,12 +298,10 @@ public class EventDateValidationHookTest
     private User getEditExpiredUser()
     {
         User user = createUser( 'A' );
-        UserCredentials userCredentials = createUserCredentials( 'A', user );
-        UserAuthorityGroup userAuthorityGroup = createUserAuthorityGroup( 'A' );
-        userAuthorityGroup.setAuthorities( Sets.newHashSet( Authorities.F_EDIT_EXPIRED.getAuthority() ) );
+        UserRole userRole = createUserRole( 'A' );
+        userRole.setAuthorities( Sets.newHashSet( Authorities.F_EDIT_EXPIRED.getAuthority() ) );
 
-        userCredentials.setUserAuthorityGroups( Sets.newHashSet( userAuthorityGroup ) );
-        user.setUserCredentials( userCredentials );
+        user.setUserRoles( Sets.newHashSet( userRole ) );
 
         return user;
     }

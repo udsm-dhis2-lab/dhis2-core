@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,24 +25,28 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.tracker.importer;
 
 import com.google.gson.JsonObject;
 import org.hamcrest.Matchers;
+import org.hisp.dhis.Constants;
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.dto.TrackerApiResponse;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.helpers.file.FileReaderUtils;
 import org.hisp.dhis.tracker.TrackerNtiApiTest;
+import org.hisp.dhis.tracker.importer.databuilder.TeiDataBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
+import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -71,9 +75,6 @@ public class ImportStrategyTests
             .readJsonAndGenerateData( new File( fileName ) );
 
         trackerActions.postAndGetJobReport( teiBody ).validateSuccessfulImport();
-
-        teiBody = new FileReaderUtils()
-            .readJsonAndGenerateData( new File( fileName ) );
 
         // act
         ApiResponse response = trackerActions
@@ -107,28 +108,27 @@ public class ImportStrategyTests
         response.validateSuccessfulImport()
             .validate().body( "stats.deleted", Matchers.equalTo( 1 ) );
 
-        trackerActions.get( "/trackedEntities/" + teiId )
+        trackerActions.getTrackedEntity( teiId )
             .validate().statusCode( 404 );
         trackerActions.get( "/enrollments/" + enrollmentId )
             .validate().statusCode( 404 );
     }
 
     @Test
-    public void shouldDeleteReferencingEventsWhenEnrollmentIsDeletedInNestedPayload()
-        throws Exception
+    public void shouldDeleteReferencingEventsWhenEnrollmentIsDeleted()
     {
         // arrange
-        JsonObject body = new FileReaderUtils()
-            .readJsonAndGenerateData(
-                new File( "src/test/resources/tracker/importer/teis/teiWithEnrollmentAndEventsNested.json" ) );
+        JsonObject body = new TeiDataBuilder()
+            .buildWithEnrollmentAndEvent( Constants.TRACKED_ENTITY_TYPE, Constants.ORG_UNIT_IDS[0], Constants.TRACKER_PROGRAM_ID,
+                "PaOOjwLVW23" );
 
         TrackerApiResponse response = trackerActions.postAndGetJobReport( body ).validateSuccessfulImport();
         String teiId = response.extractImportedTeis().get( 0 );
         String enrollmentId = response.extractImportedEnrollments().get( 0 );
         String eventId1 = response.extractImportedEvents().get( 0 );
-        String eventId2 = response.extractImportedEvents().get( 1 );
 
-        body.remove( "events" );
+        body = trackerActions.getEnrollment( enrollmentId ).validateStatus( 200 ).getBodyAsJsonBuilder()
+            .wrapIntoArray( "enrollments" );
 
         // act
         response = trackerActions.postAndGetJobReport( body, new QueryParamsBuilder().add( "importStrategy=DELETE" ) )
@@ -136,15 +136,39 @@ public class ImportStrategyTests
 
         // assert
         response.validateSuccessfulImport()
-            .validate().body( "stats.deleted", Matchers.equalTo( 4 ) );
+            .validate().body( "stats.deleted", Matchers.equalTo( 1 ) );
 
-        trackerActions.get( "/trackedEntities/" + teiId )
-            .validate().statusCode( 404 );
+        trackerActions.getTrackedEntity( teiId + "?fields=*" )
+            .validate().statusCode( 200 )
+            .body( "enrollments", hasSize( 0 ) );
+
         trackerActions.get( "/enrollments/" + enrollmentId )
             .validate().statusCode( 404 );
         trackerActions.get( "/events/" + eventId1 )
             .validate().statusCode( 404 );
-        trackerActions.get( "/events/" + eventId2 )
-            .validate().statusCode( 404 );
+    }
+
+    @Test
+    public void shouldDeleteWithOnlyIdInThePayload()
+        throws Exception
+    {
+        TrackerApiResponse response = super.importTeisWithEnrollmentAndEvent();
+
+        String eventId = response.extractImportedEvents().get( 0 );
+        String enrollmentId = response.extractImportedEnrollments().get( 0 );
+        String teiId = response.extractImportedTeis().get( 0 );
+
+        Consumer<JsonObject> deleteAndValidate = ( payload ) -> {
+            trackerActions.postAndGetJobReport( payload, new QueryParamsBuilder().add( "importStrategy=DELETE" ) )
+                .validateSuccessfulImport()
+                .validate().body( "stats.deleted", Matchers.equalTo( 1 ) );
+        };
+
+        deleteAndValidate.accept( new JsonObjectBuilder().addProperty( "event", eventId ).wrapIntoArray( "events" ) );
+        deleteAndValidate
+            .accept( new JsonObjectBuilder().addProperty( "enrollment", enrollmentId ).wrapIntoArray( "enrollments" ) );
+        deleteAndValidate
+            .accept( new JsonObjectBuilder().addProperty( "trackedEntity", teiId ).wrapIntoArray( "trackedEntities" ) );
     }
 }
+

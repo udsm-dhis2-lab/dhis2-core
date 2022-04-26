@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,29 +27,17 @@
  */
 package org.hisp.dhis.common;
 
-import static org.hisp.dhis.common.DimensionalObject.DIMENSION_NAME_SEP;
-import static org.hisp.dhis.common.DimensionalObject.DIMENSION_SEP;
-import static org.hisp.dhis.common.DimensionalObject.ITEM_SEP;
-import static org.hisp.dhis.common.DimensionalObject.OPTION_SEP;
+import static org.hisp.dhis.common.DimensionalObject.*;
 import static org.hisp.dhis.expression.ExpressionService.SYMBOL_WILDCARD;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.common.comparator.ObjectStringValueComparator;
-import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementOperand;
 
 import com.google.common.collect.Lists;
@@ -78,6 +66,9 @@ public class DimensionalObjectUtils
      */
     private static final Pattern COMPOSITE_DIM_OBJECT_PATTERN = Pattern
         .compile( "(?<id1>\\w+)\\.(?<id2>\\w+|\\*)(\\.(?<id3>\\w+|\\*))?" );
+
+    private static final Set<QueryOperator> IGNORED_OPERATORS = Set.of( QueryOperator.LIKE, QueryOperator.IN,
+        QueryOperator.SW, QueryOperator.EW );
 
     public static List<DimensionalObject> getCopies( List<DimensionalObject> dimensions )
     {
@@ -192,7 +183,14 @@ public class DimensionalObjectUtils
 
         if ( param.split( DIMENSION_NAME_SEP ).length > 1 )
         {
-            return new ArrayList<>( Arrays.asList( param.split( DIMENSION_NAME_SEP )[1].split( OPTION_SEP ) ) );
+            // extracts dimensionItems by removing the dimension name and the
+            // separator
+            // example: pe:TODAY;YESTERDAY:INCIDENT_DATE ->
+            // TODAY;YESTERDAY:INCIDENT_DATE
+            String dimensionItems = param.substring( param.indexOf( DIMENSION_NAME_SEP ) + 1 );
+
+            // returns them as List<String>
+            return Arrays.asList( dimensionItems.split( OPTION_SEP ) );
         }
 
         return new ArrayList<>();
@@ -332,7 +330,7 @@ public class DimensionalObjectUtils
 
             if ( operator != null )
             {
-                boolean ignoreOperator = (QueryOperator.LIKE.equals( operator ) || QueryOperator.IN.equals( operator ));
+                boolean ignoreOperator = IGNORED_OPERATORS.contains( operator );
 
                 value = value.replaceAll( QueryFilter.OPTION_SEP, TITLE_ITEM_SEP );
 
@@ -514,13 +512,7 @@ public class DimensionalObjectUtils
      */
     public static Set<DimensionalItemObject> getDataElements( Collection<DataElementOperand> operands )
     {
-        return operands.stream().map( o -> {
-
-            DataElement dataElement = o.getDataElement();
-            dataElement.setPeriodOffset( o.getPeriodOffset() );
-            return dataElement;
-
-        } ).collect( Collectors.toSet() );
+        return operands.stream().map( DataElementOperand::getDataElement ).collect( Collectors.toSet() );
     }
 
     /**
@@ -534,13 +526,7 @@ public class DimensionalObjectUtils
     {
         return operands.stream()
             .filter( o -> o.getCategoryOptionCombo() != null )
-            .map( o -> {
-
-                CategoryOptionCombo coc = o.getCategoryOptionCombo();
-                coc.setPeriodOffset( o.getPeriodOffset() );
-                return coc;
-
-            } )
+            .map( DataElementOperand::getCategoryOptionCombo )
             .collect( Collectors.toSet() );
     }
 
@@ -555,13 +541,7 @@ public class DimensionalObjectUtils
     {
         return operands.stream()
             .filter( o -> o.getAttributeOptionCombo() != null )
-            .map( o -> {
-
-                CategoryOptionCombo aoc = o.getAttributeOptionCombo();
-                aoc.setPeriodOffset( o.getPeriodOffset() );
-                return aoc;
-
-            } )
+            .map( DataElementOperand::getAttributeOptionCombo )
             .collect( Collectors.toSet() );
     }
 
@@ -620,29 +600,6 @@ public class DimensionalObjectUtils
     public static String getDimensionItem( String uid, ReportingRateMetric metric )
     {
         return uid + COMPOSITE_DIM_OBJECT_PLAIN_SEP + metric.name();
-    }
-
-    /**
-     * Replaces total {@link DataElementOperand} items with {@link DataElement}
-     * items in the given list of items.
-     *
-     * @param items the list of items.
-     * @return a list of dimensional item objects.
-     */
-    public static List<DimensionalItemObject> replaceOperandTotalsWithDataElements( List<DimensionalItemObject> items )
-    {
-        for ( int i = 0; i < items.size(); i++ )
-        {
-            DimensionalItemObject item = items.get( i );
-
-            if ( DimensionItemType.DATA_ELEMENT_OPERAND.equals( item.getDimensionItemType() )
-                && ((DataElementOperand) item).isTotal() )
-            {
-                items.set( i, ((DataElementOperand) item).getDataElement() );
-            }
-        }
-
-        return items;
     }
 
     /**
@@ -747,7 +704,7 @@ public class DimensionalObjectUtils
      * Transforms a List of {@see DimensionItemObjectValue} into a Map of
      * {@see DimensionalItemObject} and value
      */
-    public static Map<DimensionalItemObject, Double> convertToDimItemValueMap(
+    public static Map<DimensionalItemObject, Object> convertToDimItemValueMap(
         List<DimensionItemObjectValue> dimensionItemObjectValues )
     {
         return dimensionItemObjectValues.stream()

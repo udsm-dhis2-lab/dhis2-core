@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.webapi.service;
 
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.unauthorized;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,7 +41,6 @@ import org.hisp.dhis.dxf2.events.trackedentity.ProgramOwner;
 import org.hisp.dhis.dxf2.events.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.dxf2.events.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
@@ -54,6 +55,9 @@ import org.springframework.stereotype.Service;
 
 import com.google.common.base.Joiner;
 
+/**
+ * This service should not be used in the new tracker.
+ */
 @Service
 @RequiredArgsConstructor
 public class TrackedEntityInstanceSupportService
@@ -74,6 +78,8 @@ public class TrackedEntityInstanceSupportService
     @SneakyThrows
     public TrackedEntityInstance getTrackedEntityInstance( String id, String pr, List<String> fields )
     {
+        User user = currentUserService.getCurrentUser();
+
         TrackedEntityInstanceParams trackedEntityInstanceParams = getTrackedEntityInstanceParams( fields );
 
         TrackedEntityInstance trackedEntityInstance = trackedEntityInstanceService.getTrackedEntityInstance( id,
@@ -83,8 +89,6 @@ public class TrackedEntityInstanceSupportService
         {
             throw new NotFoundException( "TrackedEntityInstance", id );
         }
-
-        User user = currentUserService.getCurrentUser();
 
         if ( pr != null )
         {
@@ -104,10 +108,10 @@ public class TrackedEntityInstanceSupportService
                 if ( program.getAccessLevel() == AccessLevel.CLOSED )
                 {
                     throw new WebMessageException(
-                        WebMessageUtils.unathorized( TrackerOwnershipManager.PROGRAM_ACCESS_CLOSED ) );
+                        unauthorized( TrackerOwnershipManager.PROGRAM_ACCESS_CLOSED ) );
                 }
                 throw new WebMessageException(
-                    WebMessageUtils.unathorized( TrackerOwnershipManager.OWNERSHIP_ACCESS_DENIED ) );
+                    unauthorized( TrackerOwnershipManager.OWNERSHIP_ACCESS_DENIED ) );
             }
 
             if ( trackedEntityInstanceParams.isIncludeProgramOwners() )
@@ -146,26 +150,26 @@ public class TrackedEntityInstanceSupportService
             return TrackedEntityInstanceParams.TRUE;
         }
 
-        TrackedEntityInstanceParams params = new TrackedEntityInstanceParams();
+        TrackedEntityInstanceParams params = TrackedEntityInstanceParams.FALSE;
 
         if ( joined.contains( "relationships" ) )
         {
-            params.setIncludeRelationships( true );
+            params = params.withIncludeRelationships( true );
         }
 
         if ( joined.contains( "enrollments" ) )
         {
-            params.setIncludeEnrollments( true );
+            params = params.withIncludeEnrollments( true );
         }
 
         if ( joined.contains( "events" ) )
         {
-            params.setIncludeEvents( true );
+            params = params.withIncludeEvents( true );
         }
 
         if ( joined.contains( "programOwners" ) )
         {
-            params.setIncludeProgramOwners( true );
+            params = params.withIncludeProgramOwners( true );
         }
 
         return params;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,8 @@ public class Query extends Criteria
     private boolean plannedQuery;
 
     private Defaults defaults = Defaults.EXCLUDE;
+
+    private boolean cacheable = true;
 
     private List<? extends IdentifiableObject> objects;
 
@@ -141,6 +143,16 @@ public class Query extends Criteria
     {
         this.user = user;
         return this;
+    }
+
+    public boolean isCacheable()
+    {
+        return cacheable;
+    }
+
+    public void setCacheable( boolean cacheable )
+    {
+        this.cacheable = cacheable;
     }
 
     public String getLocale()

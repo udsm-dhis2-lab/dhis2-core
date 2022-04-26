@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ import java.util.Set;
 
 import org.hisp.dhis.category.CategoryCombo;
 import org.hisp.dhis.category.CategoryOptionCombo;
+import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.IdentifiableObjectStore;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataset.DataSet;
@@ -69,17 +70,21 @@ public class DefaultValidationRuleService
 
     private final ExpressionService expressionService;
 
+    private final IdentifiableObjectManager idObjectManager;
+
     public DefaultValidationRuleService( ValidationRuleStore validationRuleStore,
         @Qualifier( "org.hisp.dhis.validation.ValidationRuleGroupStore" ) IdentifiableObjectStore<ValidationRuleGroup> validationRuleGroupStore,
-        ExpressionService expressionService )
+        ExpressionService expressionService, IdentifiableObjectManager idObjectManager )
     {
         checkNotNull( validationRuleGroupStore );
         checkNotNull( validationRuleStore );
         checkNotNull( expressionService );
+        checkNotNull( idObjectManager );
 
         this.validationRuleStore = validationRuleStore;
         this.validationRuleGroupStore = validationRuleGroupStore;
         this.expressionService = expressionService;
+        this.idObjectManager = idObjectManager;
     }
 
     // -------------------------------------------------------------------------
@@ -221,12 +226,12 @@ public class DefaultValidationRuleService
     @Override
     public Set<DataElement> getDataElements( ValidationRule validationRule )
     {
-        Set<DataElement> elements = new HashSet<>();
-        elements.addAll( expressionService.getExpressionDataElements( validationRule.getLeftSide().getExpression(),
+        Set<String> uids = new HashSet<>();
+        uids.addAll( expressionService.getExpressionDataElementIds( validationRule.getLeftSide().getExpression(),
             VALIDATION_RULE_EXPRESSION ) );
-        elements.addAll( expressionService.getExpressionDataElements( validationRule.getRightSide().getExpression(),
+        uids.addAll( expressionService.getExpressionDataElementIds( validationRule.getRightSide().getExpression(),
             VALIDATION_RULE_EXPRESSION ) );
-        return elements;
+        return new HashSet<>( idObjectManager.getByUid( DataElement.class, uids ) );
     }
 
     @Transactional( readOnly = true )

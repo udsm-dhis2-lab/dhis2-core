@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,67 +28,125 @@
 package org.hisp.dhis.webapi.controller.tracker.export;
 
 import static org.hisp.dhis.webapi.controller.tracker.TrackerControllerSupport.RESOURCE_PATH;
+import static org.hisp.dhis.webapi.utils.ContextUtils.CONTENT_TYPE_CSV;
+import static org.hisp.dhis.webapi.utils.ContextUtils.CONTENT_TYPE_CSV_GZIP;
+import static org.hisp.dhis.webapi.utils.ContextUtils.CONTENT_TYPE_TEXT_CSV;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import org.hisp.dhis.dataelement.DataElementService;
+import org.hisp.dhis.common.DhisApiVersion;
+import org.hisp.dhis.commons.collection.CollectionUtils;
 import org.hisp.dhis.dxf2.events.event.Event;
 import org.hisp.dhis.dxf2.events.event.EventSearchParams;
 import org.hisp.dhis.dxf2.events.event.EventService;
 import org.hisp.dhis.dxf2.events.event.Events;
+import org.hisp.dhis.dxf2.events.event.csv.CsvEventService;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
+import org.hisp.dhis.fieldfiltering.FieldFilterService;
 import org.hisp.dhis.node.Preset;
 import org.hisp.dhis.program.ProgramStageInstanceService;
-import org.hisp.dhis.schema.SchemaService;
-import org.hisp.dhis.tracker.domain.mapper.EventMapper;
 import org.hisp.dhis.webapi.controller.event.mapper.RequestToSearchParamsMapper;
 import org.hisp.dhis.webapi.controller.event.webrequest.PagingWrapper;
 import org.hisp.dhis.webapi.controller.event.webrequest.tracker.TrackerEventCriteria;
+import org.hisp.dhis.webapi.controller.exception.NotFoundException;
+import org.hisp.dhis.webapi.mvc.annotation.ApiVersion;
 import org.hisp.dhis.webapi.service.ContextService;
 import org.hisp.dhis.webapi.utils.ContextUtils;
 import org.mapstruct.factory.Mappers;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Lists;
 
 @RestController
 @RequestMapping( value = RESOURCE_PATH + "/" + TrackerEventsExportController.EVENTS )
+@ApiVersion( { DhisApiVersion.DEFAULT, DhisApiVersion.ALL } )
 @RequiredArgsConstructor
 public class TrackerEventsExportController
 {
     protected static final String EVENTS = "events";
 
+    private static final String DEFAULT_FIELDS_PARAM = "*,!relationships";
+
     private static final EventMapper EVENTS_MAPPER = Mappers.getMapper( EventMapper.class );
 
+    @NonNull
     private final EventService eventService;
 
+    @NonNull
     private final ContextService contextService;
 
-    private final DataElementService dataElementService;
-
+    @NonNull
     private final RequestToSearchParamsMapper requestToSearchParamsMapper;
 
-    private final SchemaService schemaService;
-
+    @NonNull
     private final ProgramStageInstanceService programStageInstanceService;
 
+    @NonNull
+    private final CsvEventService<org.hisp.dhis.webapi.controller.tracker.view.Event> csvEventService;
+
+    @NonNull
+    private final FieldFilterService fieldFilterService;
+
     @GetMapping( produces = APPLICATION_JSON_VALUE )
-    public PagingWrapper<org.hisp.dhis.tracker.domain.Event> getEvents(
-        TrackerEventCriteria eventCriteria, @RequestParam Map<String, String> parameters, HttpServletRequest request )
+    public PagingWrapper<ObjectNode> getEvents(
+        TrackerEventCriteria eventCriteria, HttpServletRequest request,
+        @RequestParam( defaultValue = DEFAULT_FIELDS_PARAM ) List<String> fields )
         throws WebMessageException
+    {
+
+        EventSearchParams eventSearchParams = requestToSearchParamsMapper.map( eventCriteria );
+
+        if ( areAllEnrollmentsInvalid( eventCriteria, eventSearchParams ) )
+        {
+            return new PagingWrapper<ObjectNode>().withInstances( Collections.emptyList() );
+        }
+
+        Events events = eventService.getEvents( eventSearchParams );
+
+        if ( hasHref( fields, eventCriteria.getSkipEventId() ) )
+        {
+            events.getEvents().forEach( e -> e.setHref( getUri( e.getEvent(), request ) ) );
+        }
+
+        PagingWrapper<ObjectNode> pagingWrapper = new PagingWrapper<>();
+
+        if ( eventCriteria.isPagingRequest() )
+        {
+            pagingWrapper = pagingWrapper.withPager(
+                PagingWrapper.Pager.fromLegacy( eventCriteria, events.getPager() ) );
+        }
+
+        List<ObjectNode> objectNodes = fieldFilterService
+            .toObjectNodes( EVENTS_MAPPER.fromCollection( events.getEvents() ), fields );
+        return pagingWrapper.withInstances( objectNodes );
+
+    }
+
+    @GetMapping( produces = { CONTENT_TYPE_CSV, CONTENT_TYPE_CSV_GZIP, CONTENT_TYPE_TEXT_CSV } )
+    public void getCsvEvents(
+        TrackerEventCriteria eventCriteria,
+        HttpServletResponse response,
+        @RequestParam( required = false, defaultValue = "false" ) boolean skipHeader,
+        HttpServletRequest request )
+        throws IOException
     {
         List<String> fields = Lists.newArrayList( contextService.getParameterValues( "fields" ) );
 
@@ -99,6 +157,11 @@ public class TrackerEventsExportController
 
         EventSearchParams eventSearchParams = requestToSearchParamsMapper.map( eventCriteria );
 
+        if ( areAllEnrollmentsInvalid( eventCriteria, eventSearchParams ) )
+        {
+            return;
+        }
+
         Events events = eventService.getEvents( eventSearchParams );
 
         if ( hasHref( fields, eventCriteria.getSkipEventId() ) )
@@ -106,16 +169,23 @@ public class TrackerEventsExportController
             events.getEvents().forEach( e -> e.setHref( getUri( e.getEvent(), request ) ) );
         }
 
-        PagingWrapper<org.hisp.dhis.tracker.domain.Event> eventPagingWrapper = new PagingWrapper<>();
+        OutputStream outputStream = response.getOutputStream();
+        response.setContentType( CONTENT_TYPE_CSV );
 
-        if ( eventCriteria.isPagingRequest() )
+        if ( ContextUtils.isAcceptCsvGzip( request ) )
         {
-            eventPagingWrapper = eventPagingWrapper.withPager(
-                PagingWrapper.Pager.fromLegacy( eventCriteria, events.getPager() ) );
+            response.addHeader( ContextUtils.HEADER_CONTENT_TRANSFER_ENCODING, "binary" );
+            outputStream = new GZIPOutputStream( outputStream );
+            response.setContentType( CONTENT_TYPE_CSV_GZIP );
         }
 
-        return eventPagingWrapper.withInstances( EVENTS_MAPPER.fromCollection( events.getEvents() ) );
+        csvEventService.writeEvents( outputStream, EVENTS_MAPPER.fromCollection( events.getEvents() ), !skipHeader );
+    }
 
+    private boolean areAllEnrollmentsInvalid( TrackerEventCriteria eventCriteria, EventSearchParams eventSearchParams )
+    {
+        return !CollectionUtils.isEmpty( eventCriteria.getEnrollments() ) &&
+            CollectionUtils.isEmpty( eventSearchParams.getProgramInstances() );
     }
 
     private String getUri( String eventUid, HttpServletRequest request )
@@ -145,23 +215,21 @@ public class TrackerEventsExportController
         return false;
     }
 
-    @RequestMapping( value = "/{uid}", method = RequestMethod.GET )
-    public org.hisp.dhis.tracker.domain.Event getEvent(
-        @PathVariable( "uid" ) String uid,
-        @RequestParam Map<String, String> parameters,
-        HttpServletRequest request )
-        throws Exception
+    @GetMapping( "{uid}" )
+    public ResponseEntity<ObjectNode> getEvent(
+        @PathVariable String uid,
+        HttpServletRequest request,
+        @RequestParam( defaultValue = DEFAULT_FIELDS_PARAM ) List<String> fields )
+        throws NotFoundException
     {
-        Event event = eventService.getEvent( programStageInstanceService.getProgramStageInstance( uid ) );
 
+        Event event = eventService.getEvent( programStageInstanceService.getProgramStageInstance( uid ) );
         if ( event == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "Event not found for ID " + uid ) );
+            throw new NotFoundException( "Event", uid );
         }
 
         event.setHref( getUri( uid, request ) );
-
-        return EVENTS_MAPPER.from( event );
+        return ResponseEntity.ok( fieldFilterService.toObjectNode( EVENTS_MAPPER.from( event ), fields ) );
     }
-
 }

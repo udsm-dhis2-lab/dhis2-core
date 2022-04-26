@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,6 @@ import static org.hisp.dhis.system.util.ValidationUtils.dataValueIsValid;
 import static org.hisp.dhis.system.util.ValidationUtils.dataValueIsZeroAndInsignificant;
 
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -257,6 +256,22 @@ public class DefaultDataValueService
         return dataValueStore.getDataValue( dataElement, period, source, categoryOptionCombo, attributeOptionCombo );
     }
 
+    @Override
+    @Transactional( readOnly = true )
+    public DataValue getAndValidateDataValue( DataElement dataElement, Period period, OrganisationUnit source,
+        CategoryOptionCombo categoryOptionCombo, CategoryOptionCombo attributeOptionCombo )
+    {
+        DataValue dataValue = dataValueStore.getDataValue(
+            dataElement, period, source, categoryOptionCombo, attributeOptionCombo );
+
+        if ( dataValue == null )
+        {
+            throw new IllegalQueryException( ErrorCode.E2032 );
+        }
+
+        return dataValue;
+    }
+
     // -------------------------------------------------------------------------
     // Collections of DataValues
     // -------------------------------------------------------------------------
@@ -311,12 +326,12 @@ public class DefaultDataValueService
             error = new ErrorMessage( ErrorCode.E2006 );
         }
 
-        if ( params.isIncludeChildren() && params.hasOrganisationUnitGroups() )
+        if ( params.isIncludeDescendants() && params.hasOrganisationUnitGroups() )
         {
             error = new ErrorMessage( ErrorCode.E2007 );
         }
 
-        if ( params.isIncludeChildren() && !params.hasOrganisationUnits() )
+        if ( params.isIncludeDescendants() && !params.hasOrganisationUnits() )
         {
             error = new ErrorMessage( ErrorCode.E2008 );
         }
@@ -339,14 +354,6 @@ public class DefaultDataValueService
     public List<DataValue> getAllDataValues()
     {
         return dataValueStore.getAllDataValues();
-    }
-
-    @Override
-    @Transactional( readOnly = true )
-    public List<DataValue> getDataValues( OrganisationUnit source, Period period,
-        Collection<DataElement> dataElements, CategoryOptionCombo attributeOptionCombo )
-    {
-        return dataValueStore.getDataValues( source, period, dataElements, attributeOptionCombo );
     }
 
     @Override

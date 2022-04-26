@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.helpers.matchers;
 
 import com.google.gson.JsonObject;
@@ -48,10 +47,13 @@ public class MatchesJson
 
     private JSONCompareMode jsonCompareMode;
 
+    private String mismatch;
+
     public MatchesJson( final String expectedJSON )
     {
         this.expectedJSON = expectedJSON;
         this.jsonCompareMode = JSONCompareMode.LENIENT;
+        this.mismatch = "";
     }
 
     private static String toJSONString( final Object o )
@@ -67,14 +69,13 @@ public class MatchesJson
     public static MatchesJson matchesJSON( final Object obj )
     {
         return new MatchesJson( toJSONString(
-            obj
-        ) );
+            obj ) );
     }
 
     @Override
     public void describeTo( Description description )
     {
-        description.appendValue( expectedJSON );
+        description.appendValue( mismatch );
     }
 
     @Override
@@ -86,8 +87,7 @@ public class MatchesJson
             JSONCompareResult result = JSONCompare.compareJSON( expectedJSON, actualJSON, jsonCompareMode );
             if ( result.failed() )
             {
-                mismatchDescription.appendText( "\n Actual: " + actualJSON + "\n" );
-                mismatchDescription.appendText( result.getMessage() );
+                mismatch = result.getMessage();
             }
 
             return result.passed();

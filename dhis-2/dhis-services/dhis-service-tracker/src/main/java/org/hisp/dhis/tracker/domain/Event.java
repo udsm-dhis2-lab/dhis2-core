@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,16 +63,16 @@ public class Event
     private EventStatus status = EventStatus.ACTIVE;
 
     @JsonProperty
-    private String program;
+    private MetadataIdentifier program;
 
     @JsonProperty
-    private String programStage;
+    private MetadataIdentifier programStage;
 
     @JsonProperty
     private String enrollment;
 
     @JsonProperty
-    private String orgUnit;
+    private MetadataIdentifier orgUnit;
 
     @JsonProperty
     private String orgUnitName;
@@ -124,13 +124,13 @@ public class Event
     private Geometry geometry;
 
     @JsonProperty
-    private String assignedUser;
+    private User assignedUser;
 
     @JsonProperty
-    private String createdBy;
+    private User createdBy;
 
     @JsonProperty
-    private String updatedBy;
+    private User updatedBy;
 
     @JsonProperty
     @Builder.Default

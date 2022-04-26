@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.program;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -155,8 +156,8 @@ public class ProgramStage
     public Set<DataElement> getDataElements()
     {
         return programStageDataElements.stream()
-            .filter( element -> element.getDataElement() != null )
             .map( ProgramStageDataElement::getDataElement )
+            .filter( Objects::nonNull )
             .collect( Collectors.toSet() );
     }
 

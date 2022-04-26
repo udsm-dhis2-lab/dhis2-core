@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,12 @@ package org.hisp.dhis.dashboard;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.hisp.dhis.chart.Chart;
 import org.hisp.dhis.document.Document;
 import org.hisp.dhis.eventchart.EventChart;
 import org.hisp.dhis.eventreport.EventReport;
+import org.hisp.dhis.eventvisualization.EventVisualization;
 import org.hisp.dhis.mapping.Map;
 import org.hisp.dhis.report.Report;
-import org.hisp.dhis.reporttable.ReportTable;
 import org.hisp.dhis.system.deletion.DeletionHandler;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.visualization.Visualization;
@@ -59,8 +58,7 @@ public class DashboardItemDeletionHandler extends DeletionHandler
     protected void register()
     {
         whenDeleting( Visualization.class, this::deleteVisualization );
-        whenDeleting( ReportTable.class, this::deleteReportTable );
-        whenDeleting( Chart.class, this::deleteChart );
+        whenDeleting( EventVisualization.class, this::deleteEventVisualization );
         whenDeleting( EventChart.class, this::deleteEventChart );
         whenDeleting( Map.class, this::deleteMap );
         whenDeleting( EventReport.class, this::deleteEventReport );
@@ -77,17 +75,9 @@ public class DashboardItemDeletionHandler extends DeletionHandler
         }
     }
 
-    private void deleteReportTable( ReportTable reportTable )
+    private void deleteEventVisualization( EventVisualization eventVisualization )
     {
-        for ( DashboardItem item : dashboardService.getReportTableDashboardItems( reportTable ) )
-        {
-            dashboardService.deleteDashboardItem( item );
-        }
-    }
-
-    private void deleteChart( Chart chart )
-    {
-        for ( DashboardItem item : dashboardService.getChartDashboardItems( chart ) )
+        for ( DashboardItem item : dashboardService.getEventVisualizationDashboardItems( eventVisualization ) )
         {
             dashboardService.deleteDashboardItem( item );
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.webapi.controller.dataelement;
 
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -44,8 +46,6 @@ import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.dxf2.common.TranslateParams;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
-import org.hisp.dhis.node.types.RootNode;
 import org.hisp.dhis.schema.descriptors.DataElementGroupSchemaDescriptor;
 import org.hisp.dhis.webapi.controller.AbstractCrudController;
 import org.hisp.dhis.webapi.controller.metadata.MetadataExportControllerUtils;
@@ -55,11 +55,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 
 /**
@@ -76,7 +77,7 @@ public class DataElementGroupController
     @Autowired
     private DataElementService dataElementService;
 
-    @RequestMapping( value = "/{uid}/operands", method = RequestMethod.GET )
+    @GetMapping( "/{uid}/operands" )
     public String getOperands( @PathVariable( "uid" ) String uid, @RequestParam Map<String, String> parameters,
         Model model,
         TranslateParams translateParams, HttpServletRequest request, HttpServletResponse response )
@@ -88,7 +89,7 @@ public class DataElementGroupController
 
         if ( dataElementGroups.isEmpty() )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "DataElementGroup not found for uid: " + uid ) );
+            throw new WebMessageException( notFound( "DataElementGroup not found for uid: " + uid ) );
         }
 
         WebMetadata metadata = new WebMetadata();
@@ -114,7 +115,7 @@ public class DataElementGroupController
         return StringUtils.uncapitalize( getEntitySimpleName() );
     }
 
-    @RequestMapping( value = "/{uid}/operands/query/{q}", method = RequestMethod.GET )
+    @GetMapping( "/{uid}/operands/query/{q}" )
     public String getOperandsByQuery( @PathVariable( "uid" ) String uid,
         @PathVariable( "q" ) String q, @RequestParam Map<String, String> parameters, TranslateParams translateParams,
         Model model,
@@ -127,7 +128,7 @@ public class DataElementGroupController
 
         if ( dataElementGroups.isEmpty() )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "DataElementGroup not found for uid: " + uid ) );
+            throw new WebMessageException( notFound( "DataElementGroup not found for uid: " + uid ) );
         }
 
         WebMetadata metadata = new WebMetadata();
@@ -160,8 +161,8 @@ public class DataElementGroupController
         return StringUtils.uncapitalize( getEntitySimpleName() );
     }
 
-    @RequestMapping( value = "/{uid}/metadata", method = RequestMethod.GET )
-    public ResponseEntity<RootNode> getDataElementGroupWithDependencies(
+    @GetMapping( "/{uid}/metadata" )
+    public ResponseEntity<JsonNode> getDataElementGroupWithDependencies(
         @PathVariable( "uid" ) String dataElementGroupId,
         @RequestParam( required = false, defaultValue = "false" ) boolean download )
         throws WebMessageException,
@@ -172,7 +173,7 @@ public class DataElementGroupController
         if ( dataElementGroup == null )
         {
             throw new WebMessageException(
-                WebMessageUtils.notFound( "DataElementGroup not found for uid: " + dataElementGroupId ) );
+                notFound( "DataElementGroup not found for uid: " + dataElementGroupId ) );
         }
 
         return MetadataExportControllerUtils.getWithDependencies( contextService, exportService, dataElementGroup,

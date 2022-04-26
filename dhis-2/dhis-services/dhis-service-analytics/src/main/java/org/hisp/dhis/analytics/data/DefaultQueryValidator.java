@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,6 +182,10 @@ public class DefaultQueryValidator
         {
             error = new ErrorMessage( ErrorCode.E7115, getUids( nonAggDataElements ) );
         }
+        else if ( !params.getSkipTotalDataElements().isEmpty() )
+        {
+            error = new ErrorMessage( ErrorCode.E7134 );
+        }
         else if ( params.isOutputFormat( OutputFormat.DATA_VALUE_SET ) )
         {
             if ( !params.hasDimension( DATA_X_DIM_ID ) )
@@ -240,7 +244,7 @@ public class DefaultQueryValidator
     public void validateMaintenanceMode()
         throws MaintenanceModeException
     {
-        boolean maintenance = (Boolean) systemSettingManager.getSystemSetting( SettingKey.ANALYTICS_MAINTENANCE_MODE );
+        boolean maintenance = systemSettingManager.getBoolSetting( SettingKey.ANALYTICS_MAINTENANCE_MODE );
 
         if ( maintenance )
         {

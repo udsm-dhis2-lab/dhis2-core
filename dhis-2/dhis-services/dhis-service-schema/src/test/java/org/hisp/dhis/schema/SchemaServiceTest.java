@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,33 +27,41 @@
  */
 package org.hisp.dhis.schema;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.HashSet;
 
 import org.hisp.dhis.DhisSpringTest;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
+import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramTrackedEntityAttribute;
-import org.junit.Test;
+import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobParameters;
+import org.hisp.dhis.scheduling.parameters.AnalyticsJobParameters;
+import org.hisp.dhis.sqlview.SqlView;
+import org.hisp.dhis.system.util.ReflectionUtils;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
-public class SchemaServiceTest
-    extends DhisSpringTest
+class SchemaServiceTest extends DhisSpringTest
 {
     @Autowired
     private SchemaService schemaService;
 
     @Test
-    public void testHaveSchemas()
+    void testHaveSchemas()
     {
         assertFalse( schemaService.getSchemas().isEmpty() );
     }
 
     @Test
-    public void testOrganisationUnit()
+    void testOrganisationUnit()
     {
         Schema schema = schemaService.getSchema( OrganisationUnit.class );
         assertNotNull( schema );
@@ -61,7 +69,7 @@ public class SchemaServiceTest
     }
 
     @Test
-    public void testProgramTrackedEntityAttribute()
+    void testProgramTrackedEntityAttribute()
     {
         Schema schema = schemaService.getSchema( ProgramTrackedEntityAttribute.class );
         assertNotNull( schema );
@@ -69,5 +77,57 @@ public class SchemaServiceTest
         assertNotNull( groups );
         assertFalse( groups.isSimple() );
         assertTrue( groups.isCollection() );
+    }
+
+    @Test
+    void testSqlViewSchema()
+    {
+        Schema schema = schemaService.getSchema( SqlView.class );
+        assertNotNull( schema );
+        assertFalse( schema.isDataWriteShareable() );
+    }
+
+    @Test
+    void testProgramSchema()
+    {
+        Schema schema = schemaService.getSchema( Program.class );
+        assertNotNull( schema );
+        assertTrue( schema.isDataShareable() );
+        assertTrue( schema.isDataWriteShareable() );
+        assertTrue( schema.isDataReadShareable() );
+    }
+
+    @Test
+    void testCanScanJobParameters()
+    {
+        JobParameters parameters = new AnalyticsJobParameters( 10, new HashSet<>(), new HashSet<>(), true );
+        Schema schema = schemaService.getDynamicSchema( parameters.getClass() );
+
+        assertNotNull( schema );
+        assertFalse( schema.getProperties().isEmpty() );
+        assertEquals( 4, schema.getProperties().size() );
+    }
+
+    @Test
+    void testCanScanJobConfigurationWithJobParameters()
+    {
+        JobConfiguration configuration = new JobConfiguration();
+        configuration.setJobParameters( new AnalyticsJobParameters( 10, new HashSet<>(), new HashSet<>(), true ) );
+
+        Schema schema = schemaService.getDynamicSchema( configuration.getClass() );
+        assertNotNull( schema );
+        assertFalse( schema.getProperties().isEmpty() );
+
+        Property property = schema.getProperty( "jobParameters" );
+        assertNotNull( property );
+
+        Object jobParameters = ReflectionUtils.invokeMethod( configuration, property.getGetterMethod() );
+        assertNotNull( jobParameters );
+
+        schema = schemaService.getDynamicSchema( jobParameters.getClass() );
+
+        assertNotNull( schema );
+        assertFalse( schema.getProperties().isEmpty() );
+        assertEquals( 4, schema.getProperties().size() );
     }
 }

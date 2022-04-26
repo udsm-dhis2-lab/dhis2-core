@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -217,6 +217,8 @@ public interface TrackedEntityInstanceService
      * @param lastSynchronized The date of last successful sync
      */
     void updateTrackedEntityInstancesSyncTimestamp( List<String> trackedEntityInstanceUIDs, Date lastSynchronized );
+
+    void updateTrackedEntityInstanceLastUpdated( Set<String> trackedEntityInstanceUIDs, Date lastUpdated );
 
     /**
      * Returns a {@link TrackedEntityInstance}.

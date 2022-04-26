@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.analytics.event.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.hisp.dhis.analytics.QueryKey.NV;
 import static org.hisp.dhis.util.DateUtils.getMediumDateString;
 
 import java.util.List;
@@ -39,6 +40,7 @@ import org.hisp.dhis.analytics.event.EventQueryParams;
 import org.hisp.dhis.analytics.event.EventQueryValidator;
 import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.common.MaintenanceModeException;
+import org.hisp.dhis.common.QueryFilter;
 import org.hisp.dhis.common.QueryItem;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorMessage;
@@ -174,6 +176,14 @@ public class DefaultEventQueryValidator
             {
                 error = new ErrorMessage( ErrorCode.E7216, item.getItemId() );
             }
+
+            for ( QueryFilter queryFilter : item.getFilters() )
+            {
+                if ( !queryFilter.getOperator().isNullAllowed() && queryFilter.getFilter().contains( NV ) )
+                {
+                    error = new ErrorMessage( ErrorCode.E7229, queryFilter.getOperator().getValue() );
+                }
+            }
         }
 
         // TODO validate coordinate field
@@ -219,6 +229,6 @@ public class DefaultEventQueryValidator
     @Override
     public int getMaxLimit()
     {
-        return (Integer) systemSettingManager.getSystemSetting( SettingKey.ANALYTICS_MAX_LIMIT );
+        return systemSettingManager.getIntSetting( SettingKey.ANALYTICS_MAX_LIMIT );
     }
 }

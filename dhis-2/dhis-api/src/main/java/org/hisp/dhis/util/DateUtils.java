@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,7 @@ import org.joda.time.format.PeriodFormatterBuilder;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.ObjectArrays;
 
 /**
  * @author Lars Helge Overland
@@ -82,8 +83,16 @@ public class DateUtils
 
     private static final Pattern DEFAULT_DATE_REGEX_PATTERN = Pattern.compile( DEFAULT_DATE_REGEX );
 
-    private static final DateTimeParser[] SUPPORTED_DATE_FORMAT_PARSERS = {
+    private static final DateTimeParser[] SUPPORTED_DATE_ONLY_PARSERS = {
+        DateTimeFormat.forPattern( "yyyy-MM-dd" ).getParser(),
+        DateTimeFormat.forPattern( "yyyy-MM" ).getParser(),
+        DateTimeFormat.forPattern( "yyyy" ).getParser()
+    };
+
+    private static final DateTimeParser[] SUPPORTED_DATE_TIME_FORMAT_PARSERS = {
+        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSZ" ).getParser(),
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ" ).getParser(),
+        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSSSS" ).getParser(),
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSSZ" ).getParser(),
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSS" ).getParser(),
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSZ" ).getParser(),
@@ -94,24 +103,16 @@ public class DateUtils
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm" ).getParser(),
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HHZ" ).getParser(),
         DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM-dd HH:mm:ssZ" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM-dd" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy" ).getParser()
+        DateTimeFormat.forPattern( "yyyy-MM-dd HH:mm:ssZ" ).getParser()
     };
+
+    private static final DateTimeParser[] SUPPORTED_DATE_FORMAT_PARSERS = ObjectArrays
+        .concat( SUPPORTED_DATE_ONLY_PARSERS, SUPPORTED_DATE_TIME_FORMAT_PARSERS, DateTimeParser.class );
 
     private static final DateTimeFormatter DATE_FORMATTER = new DateTimeFormatterBuilder()
         .append( null, SUPPORTED_DATE_FORMAT_PARSERS ).toFormatter();
 
-    private static final DateTimeParser[] SUPPORTED_DATE_TIME_FORMAT_PARSERS = {
-        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss.SSSZ" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ssZ" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mmZ" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm:ss" ).getParser(),
-        DateTimeFormat.forPattern( "yyyy-MM-dd'T'HH:mm" ).getParser()
-    };
-
-    private static final DateTimeFormatter DATE_TIME_FORMAT = (new DateTimeFormatterBuilder())
+    private static final DateTimeFormatter DATE_TIME_FORMAT = new DateTimeFormatterBuilder()
         .append( null, SUPPORTED_DATE_TIME_FORMAT_PARSERS ).toFormatter();
 
     public static final PeriodFormatter DAY_SECOND_FORMAT = new PeriodFormatterBuilder()
@@ -209,6 +210,19 @@ public class DateUtils
     public static String getMediumDateString()
     {
         return getMediumDateString( Calendar.getInstance().getTime() );
+    }
+
+    /**
+     * adds 1 day to provided Date and returns it
+     *
+     * @param date
+     * @return day after provided date
+     */
+    public static Date plusOneDay( Date date )
+    {
+        return Date.from( date
+            .toInstant()
+            .plus( 1, ChronoUnit.DAYS ) );
     }
 
     /**
@@ -828,6 +842,20 @@ public class DateUtils
     public static java.sql.Date asSqlDate( Date date )
     {
         return new java.sql.Date( date.getTime() );
+    }
+
+    /**
+     * Returns the latest, non-null date of the given dates. If all dates are
+     * null, then null is returned.
+     *
+     * @param dates the dates.
+     * @return the earliest, non-null date.
+     */
+    public static Date getEarliest( Date... dates )
+    {
+        return Lists.newArrayList( dates ).stream()
+            .filter( Objects::nonNull )
+            .min( Date::compareTo ).orElse( null );
     }
 
     /**

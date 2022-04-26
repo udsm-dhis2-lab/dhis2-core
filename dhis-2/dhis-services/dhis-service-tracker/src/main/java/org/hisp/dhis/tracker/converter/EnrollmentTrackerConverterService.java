@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 package org.hisp.dhis.tracker.converter;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
 import java.util.ArrayList;
@@ -43,7 +43,6 @@ import org.hisp.dhis.program.ProgramInstance;
 import org.hisp.dhis.program.ProgramStatus;
 import org.hisp.dhis.program.UserInfoSnapshot;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
-import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.EnrollmentStatus;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
@@ -51,7 +50,7 @@ import org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors;
 import org.hisp.dhis.util.DateUtils;
 import org.springframework.stereotype.Service;
 
-import com.google.api.client.util.Objects;
+import com.google.common.base.Objects;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
@@ -97,7 +96,7 @@ public class EnrollmentTrackerConverterService
     @Override
     public ProgramInstance from( TrackerPreheat preheat, Enrollment enrollment )
     {
-        ProgramInstance programInstance = preheat.getEnrollment( TrackerIdScheme.UID, enrollment.getEnrollment() );
+        ProgramInstance programInstance = preheat.getEnrollment( enrollment.getEnrollment() );
         return from( preheat, enrollment, programInstance );
     }
 
@@ -128,7 +127,7 @@ public class EnrollmentTrackerConverterService
         checkNotNull( program, TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL );
 
         TrackedEntityInstance trackedEntityInstance = preheat
-            .getTrackedEntity( TrackerIdScheme.UID, enrollment.getTrackedEntity() );
+            .getTrackedEntity( enrollment.getTrackedEntity() );
 
         Date now = new Date();
 
@@ -164,9 +163,6 @@ public class EnrollmentTrackerConverterService
             enrollment.setStatus( EnrollmentStatus.ACTIVE );
         }
 
-        programInstance.setEndDate( DateUtils.fromInstant( enrollment.getCompletedAt() ) );
-        programInstance.setCompletedBy( enrollment.getCompletedBy() );
-
         ProgramStatus previousStatus = programInstance.getStatus();
         programInstance.setStatus( enrollment.getStatus().getProgramStatus() );
 
@@ -174,18 +170,12 @@ public class EnrollmentTrackerConverterService
         {
             if ( programInstance.isCompleted() )
             {
-                programInstance
-                    .setEndDate(
-                        enrollment.getCompletedAt() != null ? DateUtils.fromInstant( enrollment.getCompletedAt() )
-                            : new Date() );
-                programInstance.setCompletedBy(
-                    enrollment.getCompletedBy() != null ? enrollment.getCompletedBy() : preheat.getUsername() );
+                programInstance.setEndDate( new Date() );
+                programInstance.setCompletedBy( preheat.getUsername() );
             }
             else if ( programInstance.getStatus().equals( ProgramStatus.CANCELLED ) )
             {
-                programInstance.setEndDate(
-                    enrollment.getCompletedAt() != null ? DateUtils.fromInstant( enrollment.getCompletedAt() )
-                        : new Date() );
+                programInstance.setEndDate( new Date() );
             }
         }
 

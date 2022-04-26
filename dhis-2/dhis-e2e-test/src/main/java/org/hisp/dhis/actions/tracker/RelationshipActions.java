@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions.tracker;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +25,11 @@ package org.hisp.dhis.actions.tracker;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+package org.hisp.dhis.actions.tracker;
 
 import com.google.gson.JsonObject;
 import org.hisp.dhis.actions.RestApiActions;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -43,25 +42,17 @@ public class RelationshipActions
         super( "/relationships" );
     }
 
-    public JsonObject createRelationshipBody( String relationshipTypeId, String fromEntity, String fromEntityId, String toEntity,
+    public JsonObject createRelationshipBody( String relationshipTypeId, String fromEntity, String fromEntityId,
+        String toEntity,
         String toEntityId )
     {
-        JsonObject relationship = new JsonObject();
-        relationship.addProperty( "relationshipType", relationshipTypeId );
-
-        JsonObject from = new JsonObject();
-        JsonObject fromEntityObj = new JsonObject();
-        fromEntityObj.addProperty( fromEntity, fromEntityId );
-        from.add( fromEntity, fromEntityObj );
-
-        relationship.add( "from", from );
-
-        JsonObject to = new JsonObject();
-        JsonObject toEntityObj = new JsonObject();
-        toEntityObj.addProperty( toEntity, toEntityId );
-        to.add( toEntity, toEntityObj );
-
-        relationship.add( "to", to );
+        JsonObject relationship = new JsonObjectBuilder()
+            .addProperty( "relationshipType", relationshipTypeId )
+            .addObject( "from", new JsonObjectBuilder()
+                .addObject( fromEntity, new JsonObjectBuilder().addProperty( fromEntity, fromEntityId ) ) )
+            .addObject( "to", new JsonObjectBuilder()
+                .addObject( toEntity, new JsonObjectBuilder().addProperty( toEntity, toEntityId ) ) )
+            .build();
 
         return relationship;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,9 @@
  */
 package org.hisp.dhis.sms.listener;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -47,6 +47,7 @@ import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.dataset.CompleteDataSetRegistrationService;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.dataset.DataSetService;
+import org.hisp.dhis.dataset.LockStatus;
 import org.hisp.dhis.datavalue.DataValueService;
 import org.hisp.dhis.message.MessageSender;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
@@ -63,23 +64,21 @@ import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
 import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import com.google.common.collect.Sets;
 
-public class AggregateDataSetSMSListenerTest
-    extends
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class AggregateDataSetSMSListenerTest extends
     CompressionSMSListenerTest
 {
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
-
-    // Needed for parent
 
     @Mock
     private UserService userService;
@@ -151,7 +150,7 @@ public class AggregateDataSetSMSListenerTest
 
     private DataSet dataSet;
 
-    @Before
+    @BeforeEach
     public void initTest()
         throws SmsCompressionException
     {
@@ -171,6 +170,8 @@ public class AggregateDataSetSMSListenerTest
 
         when( organisationUnitService.getOrganisationUnit( anyString() ) ).thenReturn( organisationUnit );
         when( dataSetService.getDataSet( anyString() ) ).thenReturn( dataSet );
+        when( dataSetService.getLockStatus( any(), any( DataSet.class ), any(), any(), any(), any() ) )
+            .thenReturn( LockStatus.OPEN );
         when( dataValueService.addDataValue( any() ) ).thenReturn( true );
         when( categoryService.getCategoryOptionCombo( anyString() ) ).thenReturn( categoryOptionCombo );
         when( dataElementService.getDataElement( anyString() ) ).thenReturn( dataElement );
@@ -182,7 +183,7 @@ public class AggregateDataSetSMSListenerTest
     }
 
     @Test
-    public void testAggregateDatasetListener()
+    void testAggregateDatasetListener()
     {
         subject.receive( incomingSmsAggregate );
 
@@ -194,7 +195,7 @@ public class AggregateDataSetSMSListenerTest
     }
 
     @Test
-    public void testAggregateDatasetListenerRepeat()
+    void testAggregateDatasetListenerRepeat()
     {
         subject.receive( incomingSmsAggregate );
         subject.receive( incomingSmsAggregate );
@@ -207,7 +208,7 @@ public class AggregateDataSetSMSListenerTest
     }
 
     @Test
-    public void testAggregateDatasetListenerNoValues()
+    void testAggregateDatasetListenerNoValues()
     {
         subject.receive( incomingSmsAggregateNoValues );
 

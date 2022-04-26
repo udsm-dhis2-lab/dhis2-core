@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,13 +139,13 @@ public class DefaultUserGroupService
     {
         UserGroup userGroup = getUserGroup( uid );
 
-        if ( userGroup == null || currentUser == null || currentUser.getUserCredentials() == null )
+        if ( userGroup == null || currentUser == null )
         {
             return false;
         }
 
         boolean canUpdate = aclService.canUpdate( currentUser, userGroup );
-        boolean canAddMember = currentUser.getUserCredentials()
+        boolean canAddMember = currentUser
             .isAuthorized( UserGroup.AUTH_ADD_MEMBERS_TO_READ_ONLY_USER_GROUPS );
 
         return canUpdate || canAddMember;
@@ -264,6 +264,6 @@ public class DefaultUserGroupService
     public String getDisplayName( String uid )
     {
         return userGroupNameCache.get( uid,
-            n -> userGroupStore.getByUidNoAcl( uid ).getDisplayName() ).orElse( null );
+            n -> userGroupStore.getByUidNoAcl( uid ).getDisplayName() );
     }
 }

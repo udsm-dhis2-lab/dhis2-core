@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,12 @@ import org.hisp.dhis.dxf2.events.importer.context.WorkContext;
 import org.hisp.dhis.dxf2.events.importer.shared.ImmutableEvent;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
 import org.hisp.dhis.program.ProgramStage;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Luciano Fiandesio
  */
+@Component
 public class ProgramStageCheck implements Checker
 {
     @Override

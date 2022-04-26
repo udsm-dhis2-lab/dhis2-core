@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,9 @@ import static org.hisp.dhis.analytics.util.AnalyticsSqlUtils.quote;
 import static org.hisp.dhis.util.DateUtils.getLongDateString;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Future;
 
 import org.hisp.dhis.analytics.AnalyticsTable;
 import org.hisp.dhis.analytics.AnalyticsTableColumn;
@@ -55,7 +52,6 @@ import org.hisp.dhis.category.Category;
 import org.hisp.dhis.category.CategoryService;
 import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.commons.collection.ListUtils;
-import org.hisp.dhis.commons.util.ConcurrentUtils;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.dataapproval.DataApprovalLevelService;
 import org.hisp.dhis.jdbc.StatementBuilder;
@@ -148,6 +144,12 @@ public class JdbcValidationResultTableManager
     }
 
     @Override
+    protected String getPartitionColumn()
+    {
+        return "year";
+    }
+
+    @Override
     protected void populateTable( AnalyticsTableUpdateParams params, AnalyticsTablePartition partition )
     {
         final String tableName = partition.getTempTableName();
@@ -173,8 +175,9 @@ public class JdbcValidationResultTableManager
             select += col.getAlias() + ",";
         }
 
-        select = select.replace( "organisationunitid", "sourceid" ); // Legacy
-                                                                     // fix
+        // Database legacy fix
+
+        select = select.replace( "organisationunitid", "sourceid" );
 
         select += "vrs.created as value " +
             "from validationresult vrs " +
@@ -253,19 +256,6 @@ public class JdbcValidationResultTableManager
     private List<AnalyticsTableColumn> getValueColumns()
     {
         return Lists.newArrayList( new AnalyticsTableColumn( quote( "value" ), DATE, "value" ) );
-    }
-
-    @Override
-    public Future<?> applyAggregationLevels( ConcurrentLinkedQueue<AnalyticsTablePartition> partitions,
-        Collection<String> dataElements, int aggregationLevel )
-    {
-        return ConcurrentUtils.getImmediateFuture();
-    }
-
-    @Override
-    public Future<?> vacuumTablesAsync( ConcurrentLinkedQueue<AnalyticsTablePartition> partitions )
-    {
-        return ConcurrentUtils.getImmediateFuture();
     }
 
     @Override

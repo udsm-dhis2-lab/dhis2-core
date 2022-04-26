@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,11 +28,11 @@
 package org.hisp.dhis.webapi.strategy.old.tracker.imports;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-
-import javax.ws.rs.core.MediaType;
 
 import org.hisp.dhis.dxf2.common.ImportOptions;
 import org.hisp.dhis.webapi.controller.exception.BadRequestException;
@@ -40,21 +40,19 @@ import org.hisp.dhis.webapi.strategy.old.tracker.imports.impl.TrackedEntityInsta
 import org.hisp.dhis.webapi.strategy.old.tracker.imports.impl.TrackedEntityInstanceStrategyImpl;
 import org.hisp.dhis.webapi.strategy.old.tracker.imports.impl.TrackedEntityInstanceSyncStrategyImpl;
 import org.hisp.dhis.webapi.strategy.old.tracker.imports.request.TrackerEntityInstanceRequest;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 
 /**
  * @author Luca Cambi <luca@dhis2.org>
  */
-public class TrackedEntityInstanceStrategyHandlerTest
+@ExtendWith( MockitoExtension.class )
+class TrackedEntityInstanceStrategyHandlerTest
 {
-
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
 
     @InjectMocks
     private TrackedEntityInstanceStrategyImpl trackedEntityInstanceStrategyHandler;
@@ -69,14 +67,14 @@ public class TrackedEntityInstanceStrategyHandlerTest
     private ImportOptions importOptions;
 
     @Test
-    public void shouldCallSyncTrackedEntitySyncStrategy()
-        throws IOException,
-        BadRequestException
+    void shouldCallSyncTrackedEntitySyncStrategy()
+        throws BadRequestException,
+        IOException
     {
         when( importOptions.isAsync() ).thenReturn( false );
 
         TrackerEntityInstanceRequest trackerEntityInstanceRequest = TrackerEntityInstanceRequest.builder()
-            .mediaType( MediaType.APPLICATION_JSON ).importOptions( importOptions ).build();
+            .mediaType( MediaType.APPLICATION_JSON.toString() ).importOptions( importOptions ).build();
 
         trackedEntityInstanceStrategyHandler.mergeOrDeleteTrackedEntityInstances( trackerEntityInstanceRequest );
 
@@ -85,14 +83,14 @@ public class TrackedEntityInstanceStrategyHandlerTest
     }
 
     @Test
-    public void shouldCallAsyncTrackedEntitySyncStrategy()
-        throws IOException,
-        BadRequestException
+    void shouldCallAsyncTrackedEntitySyncStrategy()
+        throws BadRequestException,
+        IOException
     {
         when( importOptions.isAsync() ).thenReturn( true );
 
         TrackerEntityInstanceRequest trackerEntityInstanceRequest = TrackerEntityInstanceRequest.builder()
-            .mediaType( MediaType.APPLICATION_JSON ).importOptions( importOptions ).build();
+            .mediaType( MediaType.APPLICATION_JSON.toString() ).importOptions( importOptions ).build();
 
         trackedEntityInstanceStrategyHandler.mergeOrDeleteTrackedEntityInstances( trackerEntityInstanceRequest );
 

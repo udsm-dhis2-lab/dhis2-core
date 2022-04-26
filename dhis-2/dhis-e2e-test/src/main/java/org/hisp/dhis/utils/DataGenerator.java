@@ -1,7 +1,5 @@
-package org.hisp.dhis.utils;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +25,13 @@ package org.hisp.dhis.utils;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.utils;
 
-import com.github.javafaker.Faker;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.actions.IdGenerator;
@@ -41,10 +41,10 @@ import org.hisp.dhis.dto.schemas.PropertyType;
 import org.hisp.dhis.dto.schemas.Schema;
 import org.hisp.dhis.dto.schemas.SchemaProperty;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import com.github.javafaker.Faker;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -81,7 +81,8 @@ public class DataGenerator
         {
         case STRING:
             jsonElement = new JsonPrimitive(
-                generateStringByFieldName( property.getName(), property.getMin().intValue(), property.getMax().intValue() ) );
+                generateStringByFieldName( property.getName(), property.getMin().intValue(),
+                    property.getMax().intValue() ) );
             break;
 
         case DATE:
@@ -122,8 +123,7 @@ public class DataGenerator
     {
         JsonObject objectBody = new JsonObject();
 
-        for ( SchemaProperty prop : schemaProperties
-        )
+        for ( SchemaProperty prop : schemaProperties )
         {
             JsonElement element;
 

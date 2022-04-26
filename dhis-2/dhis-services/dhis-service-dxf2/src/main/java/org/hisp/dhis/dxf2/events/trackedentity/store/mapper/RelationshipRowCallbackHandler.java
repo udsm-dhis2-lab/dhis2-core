@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,8 +95,8 @@ public class RelationshipRowCallbackHandler extends AbstractMapper<Relationship>
         relationship.setFrom( createItem( rs.getString( "from_uid" ) ) );
         relationship.setTo( createItem( rs.getString( "to_uid" ) ) );
         relationship.setBidirectional( rs.getBoolean( "reltype_bi" ) );
-        relationship.setCreated( DateUtils.getIso8601NoTz( rs.getDate( "created" ) ) );
-        relationship.setLastUpdated( DateUtils.getIso8601NoTz( rs.getDate( "lastupdated" ) ) );
+        relationship.setCreated( DateUtils.getIso8601NoTz( rs.getTimestamp( "created" ) ) );
+        relationship.setLastUpdated( DateUtils.getIso8601NoTz( rs.getTimestamp( "lastupdated" ) ) );
 
         return relationship;
     }

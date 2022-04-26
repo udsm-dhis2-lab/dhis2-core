@@ -1,7 +1,5 @@
-package org.hisp.dhis.tracker.teis;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +25,19 @@ package org.hisp.dhis.tracker.teis;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.tracker.teis;
 
-import com.google.gson.JsonObject;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.io.File;
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.hamcrest.Matchers;
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
@@ -47,16 +56,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.io.File;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import com.google.gson.JsonObject;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -81,9 +81,15 @@ public class RelationshipsTest
     private static Stream<Arguments> provideRelationshipData()
     {
         return Stream.of(
-            Arguments.arguments( "HrS7b5Lis6E", "event", events.get( 0 ), "trackedEntityInstance", teis.get( 0 ) ), //event to tei
-            Arguments.arguments( "HrS7b5Lis6w", "trackedEntityInstance", teis.get( 0 ), "event", events.get( 0 ) ), // tei to event
-            Arguments.arguments( "HrS7b5Lis6P", "event", events.get( 0 ), "event", events.get( 1 ) ), // event to event
+            Arguments.arguments( "HrS7b5Lis6E", "event", events.get( 0 ), "trackedEntityInstance", teis.get( 0 ) ), // event
+                                                                                                                    // to
+                                                                                                                    // tei
+            Arguments.arguments( "HrS7b5Lis6w", "trackedEntityInstance", teis.get( 0 ), "event", events.get( 0 ) ), // tei
+                                                                                                                    // to
+                                                                                                                    // event
+            Arguments.arguments( "HrS7b5Lis6P", "event", events.get( 0 ), "event", events.get( 1 ) ), // event
+                                                                                                      // to
+                                                                                                      // event
             Arguments.arguments( "xLmPUYJX8Ks", "trackedEntityInstance", teis.get( 0 ), "trackedEntityInstance",
                 teis.get( 1 ) ) ); // tei to tei
     }
@@ -106,11 +112,11 @@ public class RelationshipsTest
 
         teis = trackedEntityInstanceActions.post( teiObject ).extractUids();
 
-        JsonObject eventObject = new FileReaderUtils().read( new File( "src/test/resources/tracker/events/events.json" ) )
+        JsonObject eventObject = new FileReaderUtils()
+            .read( new File( "src/test/resources/tracker/events/events.json" ) )
             .replacePropertyValuesWithIds( "event" ).get( JsonObject.class );
 
-        ApiResponse response = eventActions.post( eventObject );
-        response.validate().statusCode( 200 );
+        ApiResponse response = eventActions.post( eventObject ).validateStatus( 200 );
         events = response.extractUids();
     }
 
@@ -144,7 +150,8 @@ public class RelationshipsTest
 
     @MethodSource( "provideRelationshipData" )
     @ParameterizedTest( name = "{index} {1} to {3}" )
-    public void bidirectionalRelationshipFromTrackedEntityInstanceToEventCanBeAdded( String relationshipType, String fromInstance,
+    public void bidirectionalRelationshipFromTrackedEntityInstanceToEventCanBeAdded( String relationshipType,
+        String fromInstance,
         String fromInstanceId, String toInstance, String toInstanceId )
     {
         // add relationship
@@ -189,7 +196,8 @@ public class RelationshipsTest
         }
     }
 
-    private void validateRelationship( ApiResponse response, String relationshipTypeId, String fromInstance, String fromInstanceId,
+    private void validateRelationship( ApiResponse response, String relationshipTypeId, String fromInstance,
+        String fromInstanceId,
         String toInstance, String toInstanceId )
     {
         response.validate()
@@ -198,7 +206,8 @@ public class RelationshipsTest
             .body( "relationships.relationshipType", hasItem( relationshipTypeId ) )
             .body( String.format( "relationships.from.%s.%s", fromInstance, fromInstance ),
                 hasItem( Matchers.equalTo( fromInstanceId ) ) )
-            .body( String.format( "relationships.to.%s.%s", toInstance, toInstance ), hasItem( equalTo( toInstanceId ) ) );
+            .body( String.format( "relationships.to.%s.%s", toInstance, toInstance ),
+                hasItem( equalTo( toInstanceId ) ) );
     }
 
     @AfterEach

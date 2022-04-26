@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
  */
 package org.hisp.dhis.leader.election;
 
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.SchedulingManager;
 
 /**
@@ -41,12 +42,12 @@ public interface LeaderManager
      * Extend the expiration time of leadership if this node is the current
      * leader.
      */
-    void renewLeader();
+    void renewLeader( JobProgress progress );
 
     /**
      * Attempt to become the leader.
      */
-    void electLeader();
+    void electLeader( JobProgress progress );
 
     /**
      * Check if the current instance is the leader.

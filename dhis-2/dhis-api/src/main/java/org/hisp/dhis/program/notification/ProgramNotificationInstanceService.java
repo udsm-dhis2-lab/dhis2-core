@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,6 @@ package org.hisp.dhis.program.notification;
 
 import java.util.List;
 
-import org.hisp.dhis.program.ProgramInstance;
-import org.hisp.dhis.program.ProgramStageInstance;
-
 /**
  * @author Zubair Asghar
  */
@@ -45,15 +42,10 @@ public interface ProgramNotificationInstanceService
 
     ProgramNotificationInstance get( long programNotificationInstance );
 
-    /**
-     * return ProgramNotificationInstances associated with this enrollment
-     * (ProgramInstance)
-     */
-    List<ProgramNotificationInstance> getProgramNotificationInstances( ProgramInstance programInstance );
+    List<ProgramNotificationInstance> getProgramNotificationInstances(
+        ProgramNotificationInstanceParam programNotificationInstanceParam );
 
-    /**
-     * return ProgramNotificationInstances associated with this event
-     * (ProgramStageInstance)
-     */
-    List<ProgramNotificationInstance> getProgramNotificationInstances( ProgramStageInstance programStageInstance );
+    Long countProgramNotificationInstances( ProgramNotificationInstanceParam params );
+
+    void validateQueryParameters( ProgramNotificationInstanceParam param );
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,19 +53,18 @@ import org.hisp.dhis.schema.PropertyType;
 import org.hisp.dhis.schema.Schema;
 import org.hisp.dhis.system.util.ReflectionUtils;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
 import org.hisp.dhis.user.sharing.Sharing;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Luciano Fiandesio
  */
-public class ReferencesCheck
-    implements
-    ValidationCheck
+@Component
+public class ReferencesCheck implements ValidationCheck
 {
     @Override
-    public TypeReport check( ObjectBundle bundle, Class<? extends IdentifiableObject> klass,
-        List<IdentifiableObject> persistedObjects, List<IdentifiableObject> nonPersistedObjects,
+    public <T extends IdentifiableObject> TypeReport check( ObjectBundle bundle, Class<T> klass,
+        List<T> persistedObjects, List<T> nonPersistedObjects,
         ImportStrategy importStrategy, ValidationContext ctx )
     {
         if ( persistedObjects.isEmpty() && nonPersistedObjects.isEmpty() )
@@ -88,7 +87,7 @@ public class ReferencesCheck
             }
         }
 
-        if ( !typeReport.getErrorReports().isEmpty() && AtomicMode.ALL == bundle.getAtomicMode() )
+        if ( typeReport.hasErrorReports() && AtomicMode.ALL == bundle.getAtomicMode() )
         {
             typeReport.getStats().incIgnored();
         }
@@ -149,7 +148,8 @@ public class ReferencesCheck
             // HACK this needs to be redone when the move to using
             // uuid as user identifiers is ready
             boolean isUserReference = User.class.isAssignableFrom( property.getKlass() ) &&
-                ("user".equals( property.getName() ) || "lastUpdatedBy".equals( property.getName() ));
+                ("user".equals( property.getName() ) || "lastUpdatedBy".equals( property.getName() )
+                    || "createdBy".equals( property.getName() ));
 
             if ( !(isUserReference && skipSharing) )
             {
@@ -167,22 +167,25 @@ public class ReferencesCheck
         Collection<IdentifiableObject> refObjects = ReflectionUtils.invokeMethod( object,
             property.getGetterMethod() );
 
-        for ( IdentifiableObject refObject : refObjects )
+        if ( refObjects != null )
         {
-            if ( preheat.isDefault( refObject ) )
-                continue;
-
-            IdentifiableObject ref = preheat.get( identifier, refObject );
-
-            if ( ref == null && refObject != null )
+            for ( IdentifiableObject refObject : refObjects )
             {
-                preheatErrorReports.add( new PreheatErrorReport( identifier, object.getClass(),
-                    ErrorCode.E5002, identifier.getIdentifiersWithName( refObject ),
-                    identifier.getIdentifiersWithName( object ), property.getCollectionName() ) );
-            }
-            else
-            {
-                objects.add( refObject );
+                if ( preheat.isDefault( refObject ) )
+                    continue;
+
+                IdentifiableObject ref = preheat.get( identifier, refObject );
+
+                if ( ref == null && refObject != null )
+                {
+                    preheatErrorReports.add( new PreheatErrorReport( identifier, object.getClass(),
+                        ErrorCode.E5002, identifier.getIdentifiersWithName( refObject ),
+                        identifier.getIdentifiersWithName( object ), property.getCollectionName() ) );
+                }
+                else
+                {
+                    objects.add( refObject );
+                }
             }
         }
 
@@ -235,7 +238,7 @@ public class ReferencesCheck
     private boolean skipCheck( Class<?> klass )
     {
         return klass != null
-            && (UserCredentials.class.isAssignableFrom( klass ) || EmbeddedObject.class.isAssignableFrom( klass )
+            && (EmbeddedObject.class.isAssignableFrom( klass )
                 || Period.class.isAssignableFrom( klass ) || PeriodType.class.isAssignableFrom( klass ));
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,15 +28,14 @@
 package org.hisp.dhis.tracker.validation.hooks;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.Set;
 
 import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.dataelement.DataElement;
@@ -44,519 +43,685 @@ import org.hisp.dhis.event.EventStatus;
 import org.hisp.dhis.fileresource.FileResource;
 import org.hisp.dhis.option.Option;
 import org.hisp.dhis.option.OptionSet;
+import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.program.ProgramStageDataElement;
 import org.hisp.dhis.program.ValidationStrategy;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
+import org.hisp.dhis.tracker.TrackerImportStrategy;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.DataValue;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
+import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.TrackerErrorCode;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.hisp.dhis.util.DateUtils;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-
-import com.google.common.collect.Sets;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Enrico Colasante
  */
-public class EventDataValuesValidationHookTest
+@ExtendWith( MockitoExtension.class )
+class EventDataValuesValidationHookTest
 {
-    private EventDataValuesValidationHook hookToTest;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
+    private EventDataValuesValidationHook hook;
 
     @Mock
-    private TrackerImportValidationContext validationContext;
-
-    @Mock
-    private Event event;
-
-    @Mock
-    private ProgramStage programStage;
-
-    @Mock
-    private DataElement dataElement;
+    TrackerPreheat preheat;
 
     private static final String programStageUid = "programStageUid";
 
     private static final String dataElementUid = "dataElement";
 
-    @Before
+    private static final String organisationUnitUid = "organisationUnitUid";
+
+    @Mock
+    private TrackerBundle bundle;
+
+    @BeforeEach
     public void setUp()
     {
-        hookToTest = new EventDataValuesValidationHook();
+        hook = new EventDataValuesValidationHook();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setValueType( ValueType.TEXT );
-
-        when( dataElement.getUid() ).thenReturn( dataElementUid );
-        when( dataElement.getValueType() ).thenReturn( ValueType.TEXT );
-        when( event.getProgramStage() ).thenReturn( programStageUid );
-        when( event.getStatus() ).thenReturn( EventStatus.SKIPPED );
-
-        when( validationContext.getBundle() ).thenReturn( TrackerBundle.builder().build() );
-        when( validationContext.getDataElement( dataElementUid ) ).thenReturn( dataElement );
-        when( validationContext.getProgramStage( anyString() ) ).thenReturn( programStage );
-        DataElement dataElement = new DataElement();
-        dataElement.setUid( dataElementUid );
-
-        when( programStage.getProgramStageDataElements() ).thenReturn(
-            new HashSet<>( Collections.singletonList( new ProgramStageDataElement( programStage, dataElement ) ) ) );
+        when( bundle.getPreheat() ).thenReturn( preheat );
     }
 
     @Test
-    public void successValidationWhenDataElementIsValid()
+    void successValidationWhenDataElementIsValid()
     {
-        // Given
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( getDataValue() ) );
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
 
-        // Then
-        assertThat( reporter.getReportList(), empty() );
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( dataValue() ) ).build();
+
+        hook.validateEvent( reporter, event );
+
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void successValidationWhenCreatedAtIsNull()
+    void successValidationWhenCreatedAtIsNull()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
+
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setCreatedAt( null );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) ).build();
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        hook.validateEvent( reporter, event );
 
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void failValidationWhenUpdatedAtIsNull()
+    void failValidationWhenUpdatedAtIsNull()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
+
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setUpdatedAt( null );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) ).build();
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        hook.validateEvent( reporter, event );
 
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void failValidationWhenDataElementIsInvalid()
+    void failValidationWhenDataElementIsInvalid()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        // When
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( validationContext.getDataElement( dataElementUid ) ).thenReturn( null );
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( null );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        // Then
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( dataValue() ) ).build();
+
+        hook.validateEvent( reporter, event );
+
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1304, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void failValidationWhenMandatoryDataElementIsNotPresent()
+    void failValidationWhenAMandatoryDataElementIsMissing()
     {
-        // Given
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
 
         ProgramStage programStage = new ProgramStage();
-        ProgramStageDataElement mandatoryStageDataElement = new ProgramStageDataElement();
-        DataElement dataElement = new DataElement();
-        dataElement.setUid( "MANDATORY_DE" );
-        mandatoryStageDataElement.setDataElement( dataElement );
-        mandatoryStageDataElement.setCompulsory( true );
+        programStage.setAutoFields();
+        ProgramStageDataElement mandatoryStageElement1 = new ProgramStageDataElement();
+        DataElement mandatoryElement1 = new DataElement();
+        mandatoryElement1.setUid( "MANDATORY_DE" );
+        mandatoryStageElement1.setDataElement( mandatoryElement1 );
+        mandatoryStageElement1.setCompulsory( true );
+        ProgramStageDataElement mandatoryStageElement2 = new ProgramStageDataElement();
+        DataElement mandatoryElement2 = new DataElement();
+        mandatoryElement2.setUid( dataValue().getDataElement() );
+        mandatoryStageElement2.setDataElement( mandatoryElement2 );
+        mandatoryStageElement2.setCompulsory( true );
+        programStage.setProgramStageDataElements( Set.of( mandatoryStageElement1, mandatoryStageElement2 ) );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStage.getUid() ) ) )
+            .thenReturn( programStage );
 
-        ProgramStageDataElement stageDataElement = new ProgramStageDataElement();
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( getDataValue().getDataElement() );
-        stageDataElement.setDataElement( validDataElement );
-        stageDataElement.setCompulsory( true );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
-        programStage.setProgramStageDataElements( Sets.newHashSet( mandatoryStageDataElement, stageDataElement ) );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( getDataValue() ) );
-        when( event.getProgramStage() ).thenReturn( "PROGRAM_STAGE" );
-        when( event.getStatus() ).thenReturn( EventStatus.COMPLETED );
-        when( validationContext.getProgramStage( "PROGRAM_STAGE" ) ).thenReturn( programStage );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( dataValue() ) ).build();
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        hook.validateEvent( reporter, event );
 
-        // Then
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1303, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void failSuccessWhenMandatoryDataElementIsNotPresentButMandatoryValidationIsNotNeeded()
+    void succeedsWhenMandatoryDataElementIsNotPresentButMandatoryValidationIsNotNeeded()
     {
-        // Given
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
+
         ProgramStage programStage = new ProgramStage();
-        ProgramStageDataElement mandatoryStageDataElement = new ProgramStageDataElement();
-        DataElement dataElement = new DataElement();
-        dataElement.setUid( "MANDATORY_DE" );
-        mandatoryStageDataElement.setDataElement( dataElement );
-        mandatoryStageDataElement.setCompulsory( true );
+        programStage.setAutoFields();
+        ProgramStageDataElement mandatoryStageElement1 = new ProgramStageDataElement();
+        DataElement mandatoryElement1 = new DataElement();
+        mandatoryElement1.setUid( "MANDATORY_DE" );
+        mandatoryStageElement1.setDataElement( mandatoryElement1 );
+        mandatoryStageElement1.setCompulsory( true );
+        ProgramStageDataElement mandatoryStageElement2 = new ProgramStageDataElement();
+        DataElement mandatoryElement2 = new DataElement();
+        mandatoryElement2.setUid( dataValue().getDataElement() );
+        mandatoryStageElement2.setDataElement( mandatoryElement2 );
+        mandatoryStageElement2.setCompulsory( true );
+        programStage.setProgramStageDataElements( Set.of( mandatoryStageElement1, mandatoryStageElement2 ) );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStage.getUid() ) ) )
+            .thenReturn( programStage );
 
-        ProgramStageDataElement stageDataElement = new ProgramStageDataElement();
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( getDataValue().getDataElement() );
-        stageDataElement.setDataElement( validDataElement );
-        stageDataElement.setCompulsory( true );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
-        programStage.setProgramStageDataElements( Sets.newHashSet( mandatoryStageDataElement, stageDataElement ) );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( getDataValue() ) );
-        when( event.getProgramStage() ).thenReturn( "PROGRAM_STAGE" );
-        when( event.getStatus() ).thenReturn( EventStatus.ACTIVE );
-        when( validationContext.getProgramStage( "PROGRAM_STAGE" ) ).thenReturn( programStage );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( dataValue() ) ).build();
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        hook.validateEvent( reporter, event );
 
-        // Then
-        assertThat( reporter.getReportList(), empty() );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void failValidationWhenDataElementIsNotPresentInProgramStage()
+    void succeedsWhenMandatoryDataElementIsPartOfProgramStageAndIdSchemeIsSetToCode()
     {
-        // Given
+        TrackerIdSchemeParams params = TrackerIdSchemeParams.builder()
+            .idScheme( TrackerIdSchemeParam.CODE )
+            .programIdScheme( TrackerIdSchemeParam.UID )
+            .programStageIdScheme( TrackerIdSchemeParam.UID )
+            .dataElementIdScheme( TrackerIdSchemeParam.CODE )
+            .build();
+        when( preheat.getIdSchemes() ).thenReturn( params );
+
+        DataElement dataElement = dataElement();
+        dataElement.setCode( "DE_424050" );
+        when( preheat.get( DataElement.class, dataElement.getCode() ) ).thenReturn( dataElement );
+
+        ProgramStage programStage = programStage( dataElement, true );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue dataValue = dataValue();
+        dataValue.setDataElement( "DE_424050" );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( dataValue ) ).build();
+
+        hook.validateEvent( reporter, event );
+
+        assertFalse( reporter.hasErrors() );
+    }
+
+    @Test
+    void failValidationWhenDataElementIsNotPresentInProgramStage()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement dataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
+
+        DataElement notPresentDataElement = dataElement();
+        notPresentDataElement.setUid( "de_not_present_in_program_stage" );
+        when( preheat.get( DataElement.class, "de_not_present_in_program_stage" ) ).thenReturn( notPresentDataElement );
+
         ProgramStage programStage = new ProgramStage();
-        ProgramStageDataElement mandatoryStageDataElement = new ProgramStageDataElement();
-        DataElement dataElement = new DataElement();
-        dataElement.setUid( getDataValue().getDataElement() );
-        mandatoryStageDataElement.setDataElement( dataElement );
-        mandatoryStageDataElement.setCompulsory( true );
+        programStage.setAutoFields();
+        ProgramStageDataElement mandatoryStageElement1 = new ProgramStageDataElement();
+        DataElement mandatoryElement1 = new DataElement();
+        mandatoryElement1.setUid( dataValue().getDataElement() );
+        mandatoryStageElement1.setDataElement( mandatoryElement1 );
+        mandatoryStageElement1.setCompulsory( true );
+        programStage.setProgramStageDataElements( Set.of( mandatoryStageElement1 ) );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStage.getUid() ) ) )
+            .thenReturn( programStage );
 
-        DataValue notPresentDataValue = getDataValue();
-        notPresentDataValue.setDataElement( "de_not_present_in_progam_stage" );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
-        DataElement notPresentDataElement = new DataElement();
-        notPresentDataElement.setValueType( ValueType.TEXT );
-        notPresentDataElement.setUid( "de_not_present_in_progam_stage" );
+        DataValue notPresentDataValue = dataValue();
+        notPresentDataValue.setDataElement( "de_not_present_in_program_stage" );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( dataValue(), notPresentDataValue ) ).build();
 
-        programStage.setProgramStageDataElements( Sets.newHashSet( mandatoryStageDataElement ) );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( getDataValue(), notPresentDataValue ) );
-        when( event.getProgramStage() ).thenReturn( "PROGRAM_STAGE" );
-        when( event.getStatus() ).thenReturn( EventStatus.ACTIVE );
-        when( validationContext.getProgramStage( "PROGRAM_STAGE" ) ).thenReturn( programStage );
-        when( validationContext.getDataElement( "de_not_present_in_progam_stage" ) )
-            .thenReturn( notPresentDataElement );
+        hook.validateEvent( reporter, event );
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1305, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void failValidationWhenDataElementValueTypeIsNull()
+    void succeedsWhenDataElementIsPartOfProgramStageAndIdSchemeIsSetToCode()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = TrackerIdSchemeParams.builder()
+            .idScheme( TrackerIdSchemeParam.CODE )
+            .programIdScheme( TrackerIdSchemeParam.UID )
+            .programStageIdScheme( TrackerIdSchemeParam.UID )
+            .dataElementIdScheme( TrackerIdSchemeParam.CODE )
+            .build();
+        when( preheat.getIdSchemes() ).thenReturn( params );
 
-        DataElement invalidDataElement = new DataElement();
-        invalidDataElement.setUid( dataElementUid );
-        invalidDataElement.setValueType( null );
+        DataElement dataElement = dataElement();
+        dataElement.setCode( "DE_424050" );
+        when( preheat.get( DataElement.class, dataElement.getCode() ) ).thenReturn( dataElement );
 
-        when( validationContext.getDataElement( dataElementUid ) ).thenReturn( invalidDataElement );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
-        // Then
+        DataValue dataValue = dataValue();
+        dataValue.setDataElement( "DE_424050" );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( dataValue ) ).build();
+
+        hook.validateEvent( reporter, event );
+
+        assertFalse( reporter.hasErrors() );
+    }
+
+    @Test
+    void failValidationWhenDataElementValueTypeIsNull()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement dataElement = dataElement();
+        DataElement invalidDataElement = dataElement( null );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( invalidDataElement );
+
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( dataValue() ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
+
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1302, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void failValidationWhenFileResourceIsNull()
+    void failValidationWhenFileResourceIsNull()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
-        validDataValue.setValue( "QX4LpiTZmUH" );
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.FILE_RESOURCE );
+        DataElement validDataElement = dataElement( ValueType.FILE_RESOURCE );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
 
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getFileResource( validDataValue.getDataElement() ) ).thenReturn( null );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        DataValue validDataValue = dataValue( "QX4LpiTZmUH" );
+        when( preheat.get( FileResource.class, validDataValue.getValue() ) ).thenReturn( null );
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        ProgramStage programStage = programStage( validDataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        // Then
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
+
+        when( bundle.getStrategy( event ) ).thenReturn( TrackerImportStrategy.CREATE );
+
+        hook.validateEvent( reporter, event );
+
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1084, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void successValidationWhenFileResourceValueIsNullAndDataElementIsNotCompulsory()
+    void successValidationWhenFileResourceValueIsNullAndDataElementIsNotCompulsory()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement( ValueType.FILE_RESOURCE );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, false );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.FILE_RESOURCE );
+        hook.validateEvent( reporter, event );
 
-        ProgramStage programStage = getProgramStage( validDataElement, programStageUid, false );
-        when( validationContext.getProgramStage( event.getProgramStage() ) ).thenReturn( programStage );
-
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( event.getStatus() ).thenReturn( EventStatus.COMPLETED );
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void failValidationWhenFileResourceValueIsNullAndDataElementIsCompulsory()
+    void failValidationWhenFileResourceValueIsNullAndDataElementIsCompulsory()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement( ValueType.FILE_RESOURCE );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, true );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.FILE_RESOURCE );
+        hook.validateEvent( reporter, event );
 
-        String programStageUid = "programStageUid";
-
-        ProgramStage programStage = getProgramStage( validDataElement, programStageUid, true );
-
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( event.getProgramStage() ).thenReturn( programStageUid );
-
-        when( event.getStatus() ).thenReturn( EventStatus.COMPLETED );
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getProgramStage( event.getProgramStage() ) ).thenReturn( programStage );
-
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1076, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void validationWhenDataElementValueIsNullAndValidationStrategyOnUpdate()
+    void failsOnActiveEventWithDataElementValueNullAndValidationStrategyOnUpdate()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
-        validDataValue.setValue( null );
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.TEXT );
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
 
-        String programStageUid = "programStageUid";
-
-        ProgramStage programStage = getProgramStage( validDataElement, programStageUid, true );
-
+        ProgramStage programStage = programStage( validDataElement, true );
         programStage.setValidationStrategy( ValidationStrategy.ON_UPDATE_AND_INSERT );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( event.getProgramStage() ).thenReturn( programStageUid );
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getProgramStage( event.getProgramStage() ) ).thenReturn( programStage );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        when( event.getStatus() ).thenReturn( EventStatus.ACTIVE );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        DataValue validDataValue = dataValue();
+        validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 1 ) );
-        assertEquals( TrackerErrorCode.E1076, reporter.getReportList().get( 0 ).getErrorCode() );
+        hook.validateEvent( reporter, event );
 
-        when( event.getStatus() ).thenReturn( EventStatus.COMPLETED );
-
-        // When
-        reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1076, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void validationWhenDataElementValueIsNullAndValidationStrategyOnComplete()
+    void failsOnCompletedEventWithDataElementValueNullAndValidationStrategyOnUpdate()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, true );
+        programStage.setValidationStrategy( ValidationStrategy.ON_UPDATE_AND_INSERT );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.TEXT );
+        hook.validateEvent( reporter, event );
 
-        String programStageUid = "programStageUid";
+        assertThat( reporter.getReportList(), hasSize( 1 ) );
+        assertEquals( TrackerErrorCode.E1076, reporter.getReportList().get( 0 ).getErrorCode() );
+    }
 
-        ProgramStage programStage = getProgramStage( validDataElement, programStageUid, true );
+    @Test
+    void succeedsOnActiveEventWithDataElementValueIsNullAndValidationStrategyOnComplete()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, true );
         programStage.setValidationStrategy( ValidationStrategy.ON_COMPLETE );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( event.getProgramStage() ).thenReturn( programStageUid );
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getProgramStage( event.getProgramStage() ) ).thenReturn( programStage );
-        when( event.getStatus() ).thenReturn( EventStatus.ACTIVE );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        DataValue validDataValue = dataValue();
+        validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
+        hook.validateEvent( reporter, event );
 
-        when( event.getStatus() ).thenReturn( EventStatus.COMPLETED );
+        assertFalse( reporter.hasErrors() );
+    }
 
-        // When
-        reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+    @Test
+    void failsOnCompletedEventWithDataElementValueIsNullAndValidationStrategyOnComplete()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        // Then
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, true );
+        programStage.setValidationStrategy( ValidationStrategy.ON_COMPLETE );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
+        validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
+
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1076, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
     @Test
-    public void validationWhenDataElementValueIsNullAndEventStatusSkippedOrScheduled()
+    void succeedsOnScheduledEventWithDataElementValueIsNullAndEventStatusSkippedOrScheduled()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, true );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SCHEDULE )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.TEXT );
+        hook.validateEvent( reporter, event );
 
-        String programStageUid = "programStageUid";
-
-        ProgramStage programStage = getProgramStage( validDataElement, programStageUid, true );
-
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( event.getProgramStage() ).thenReturn( programStageUid );
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getProgramStage( event.getProgramStage() ) ).thenReturn( programStage );
-        when( event.getStatus() ).thenReturn( EventStatus.SCHEDULE );
-
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
-
-        when( event.getStatus() ).thenReturn( EventStatus.SKIPPED );
-
-        // When
-        reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void successValidationWhenDataElementIsNullAndDataElementIsNotCompulsory()
+    void succeedsOnSkippedEventWithDataElementValueIsNullAndEventStatusSkippedOrScheduled()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, true );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.TEXT );
+        hook.validateEvent( reporter, event );
 
-        String programStageUid = "programStageUid";
-
-        ProgramStage programStage = getProgramStage( validDataElement, programStageUid, false );
-
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-        when( event.getProgramStage() ).thenReturn( programStageUid );
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getFileResource( validDataValue.getDataElement() ) ).thenReturn( null );
-        when( validationContext.getProgramStage( event.getProgramStage() ) ).thenReturn( programStage );
-        when( event.getStatus() ).thenReturn( EventStatus.COMPLETED );
-
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void failValidationWhenFileResourceIsAlreadyAssigned()
+    void successValidationWhenDataElementIsNullAndDataElementIsNotCompulsory()
     {
-        // Given
-        DataValue validDataValue = getDataValue();
-        validDataValue.setValue( "QX4LpiTZmUH" );
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        DataElement validDataElement = new DataElement();
-        validDataElement.setUid( validDataValue.getDataElement() );
-        validDataElement.setValueType( ValueType.FILE_RESOURCE );
+        DataElement validDataElement = dataElement();
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement, false );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
+        validDataValue.setValue( null );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.COMPLETED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
+
+        assertFalse( reporter.hasErrors() );
+    }
+
+    @Test
+    void failValidationWhenFileResourceIsAlreadyAssigned()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement( ValueType.FILE_RESOURCE );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        ProgramStage programStage = programStage( validDataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         FileResource fileResource = new FileResource();
         fileResource.setAssigned( true );
+        DataValue validDataValue = dataValue( "QX4LpiTZmUH" );
+        when( preheat.get( FileResource.class, validDataValue.getValue() ) ).thenReturn( fileResource );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        when( validationContext.getDataElement( validDataValue.getDataElement() ) ).thenReturn( validDataElement );
-        when( validationContext.getFileResource( validDataValue.getValue() ) ).thenReturn( fileResource );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        when( bundle.getStrategy( event ) ).thenReturn( TrackerImportStrategy.CREATE );
 
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        hook.validateEvent( reporter, event );
 
-        // Then
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1009, reporter.getReportList().get( 0 ).getErrorCode() );
+
+        when( bundle.getStrategy( event ) ).thenReturn( TrackerImportStrategy.UPDATE );
+
+        ValidationErrorReporter updateReporter = new ValidationErrorReporter( bundle );
+
+        hook.validateEvent( updateReporter, event );
+
+        assertThat( updateReporter.getReportList(), hasSize( 0 ) );
     }
 
     @Test
-    public void failValidationWhenDataElementValueTypeIsInvalid()
+    void failValidationWhenDataElementValueTypeIsInvalid()
     {
         runAndAssertValidationForDataValue( ValueType.NUMBER, "not_a_number" );
         runAndAssertValidationForDataValue( ValueType.UNIT_INTERVAL, "3" );
@@ -571,67 +736,76 @@ public class EventDataValuesValidationHookTest
         runAndAssertValidationForDataValue( ValueType.DATETIME, "wrong_date_time" );
         runAndAssertValidationForDataValue( ValueType.COORDINATE, "10" );
         runAndAssertValidationForDataValue( ValueType.URL, "not_valid_url" );
-        runAndAssertValidationForDataValue( ValueType.FILE_RESOURCE, "not_valid_uid" );
     }
 
     @Test
-    public void successValidationDataElementOptionValueIsValid()
+    void successValidationDataElementOptionValueIsValid()
     {
-        DataValue validDataValue = getDataValue();
-        validDataValue.setValue( "code" );
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        DataElement dataElement = new DataElement();
-        dataElement.setUid( dataElementUid );
-        dataElement.setValueType( ValueType.TEXT );
+        DataValue validDataValue = dataValue( "CODE" );
+        DataValue nullDataValue = dataValue( null );
 
         OptionSet optionSet = new OptionSet();
         Option option = new Option();
         option.setCode( "CODE" );
-
         Option option1 = new Option();
         option1.setCode( "CODE1" );
-
         optionSet.setOptions( Arrays.asList( option, option1 ) );
 
+        DataElement dataElement = dataElement();
         dataElement.setOptionSet( optionSet );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
 
-        when( validationContext.getDataElement( dataElementUid ) ).thenReturn( dataElement );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue, nullDataValue ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
 
         assertFalse( reporter.hasErrors() );
-        assertThat( reporter.getReportList(), hasSize( 0 ) );
     }
 
     @Test
-    public void failValidationDataElementOptionValueIsInValid()
+    void failValidationDataElementOptionValueIsInValid()
     {
-        DataValue validDataValue = getDataValue();
-        validDataValue.setDataElement( dataElementUid );
-        validDataValue.setValue( "value" );
+        TrackerIdSchemeParams params = setUpIdentifiers();
 
-        DataElement dataElement = new DataElement();
-        dataElement.setUid( dataElementUid );
-        dataElement.setValueType( ValueType.TEXT );
+        DataValue validDataValue = dataValue( "value" );
+        validDataValue.setDataElement( dataElementUid );
 
         OptionSet optionSet = new OptionSet();
         Option option = new Option();
         option.setCode( "CODE" );
-
         Option option1 = new Option();
         option1.setCode( "CODE1" );
-
         optionSet.setOptions( Arrays.asList( option, option1 ) );
 
+        DataElement dataElement = dataElement();
         dataElement.setOptionSet( optionSet );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( dataElement );
 
-        when( validationContext.getDataElement( dataElementUid ) ).thenReturn( dataElement );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
+        ProgramStage programStage = programStage( dataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
 
         assertTrue( reporter.hasErrors() );
         assertThat( reporter.getReportList(), hasSize( 1 ) );
@@ -639,30 +813,128 @@ public class EventDataValuesValidationHookTest
             .filter( e -> e.getErrorCode() == TrackerErrorCode.E1125 ).count() );
     }
 
+    @Test
+    void failValidationWhenOrgUnitValueIsInvalid()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement( ValueType.ORGANISATION_UNIT );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        DataValue invalidDataValue = dataValue( "invlaid_org_unit" );
+        when( preheat.get( OrganisationUnit.class, invalidDataValue.getValue() ) ).thenReturn( null );
+
+        ProgramStage programStage = programStage( validDataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( invalidDataValue ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
+
+        assertThat( reporter.getReportList(), hasSize( 1 ) );
+        assertEquals( TrackerErrorCode.E1007, reporter.getReportList().get( 0 ).getErrorCode() );
+    }
+
+    @Test
+    void succeedsValidationWhenOrgUnitValueIsValid()
+    {
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement validDataElement = dataElement( ValueType.ORGANISATION_UNIT );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( validDataElement );
+
+        OrganisationUnit validOrgUnit = organisationUnit();
+
+        DataValue validDataValue = dataValue( validOrgUnit.getUid() );
+        when( preheat.get( OrganisationUnit.class, validDataValue.getValue() ) ).thenReturn( validOrgUnit );
+
+        ProgramStage programStage = programStage( validDataElement );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.ACTIVE )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
+
+        hook.validateEvent( reporter, event );
+
+        assertFalse( reporter.hasErrors() );
+    }
+
     private void runAndAssertValidationForDataValue( ValueType valueType, String value )
     {
-        // Given
-        DataValue validDataValue = getDataValue();
+        TrackerIdSchemeParams params = setUpIdentifiers();
+
+        DataElement invalidDataElement = dataElement( valueType );
+        when( preheat.get( DataElement.class, dataElementUid ) ).thenReturn( invalidDataElement );
+
+        ProgramStage programStage = programStage( dataElement() );
+        when( preheat.getProgramStage( MetadataIdentifier.ofUid( programStageUid ) ) )
+            .thenReturn( programStage );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        DataValue validDataValue = dataValue();
         validDataValue.setDataElement( dataElementUid );
         validDataValue.setValue( value );
+        Event event = Event.builder()
+            .programStage( params.toMetadataIdentifier( programStage ) )
+            .status( EventStatus.SKIPPED )
+            .dataValues( Set.of( validDataValue ) )
+            .build();
 
-        DataElement invalidDataElement = new DataElement();
-        invalidDataElement.setUid( dataElementUid );
-        invalidDataElement.setValueType( valueType );
+        hook.validateEvent( reporter, event );
 
-        when( validationContext.getDataElement( dataElementUid ) ).thenReturn( invalidDataElement );
-        when( event.getDataValues() ).thenReturn( Sets.newHashSet( validDataValue ) );
-
-        // When
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
-        hookToTest.validateEvent( reporter, event );
-
-        // Then
         assertThat( reporter.getReportList(), hasSize( 1 ) );
         assertEquals( TrackerErrorCode.E1302, reporter.getReportList().get( 0 ).getErrorCode() );
     }
 
-    private DataValue getDataValue()
+    private TrackerIdSchemeParams setUpIdentifiers()
+    {
+        TrackerIdSchemeParams params = TrackerIdSchemeParams.builder()
+            .idScheme( TrackerIdSchemeParam.UID )
+            .programIdScheme( TrackerIdSchemeParam.UID )
+            .programStageIdScheme( TrackerIdSchemeParam.UID )
+            .dataElementIdScheme( TrackerIdSchemeParam.UID )
+            .build();
+        when( preheat.getIdSchemes() ).thenReturn( params );
+        return params;
+    }
+
+    private DataElement dataElement( ValueType type )
+    {
+        DataElement dataElement = dataElement();
+        dataElement.setValueType( type );
+        return dataElement;
+    }
+
+    private DataElement dataElement()
+    {
+        DataElement dataElement = new DataElement();
+        dataElement.setValueType( ValueType.TEXT );
+        dataElement.setUid( dataElementUid );
+        return dataElement;
+    }
+
+    private DataValue dataValue( String value )
+    {
+        DataValue dataValue = dataValue();
+        dataValue.setValue( value );
+        return dataValue;
+    }
+
+    private DataValue dataValue()
     {
         DataValue dataValue = new DataValue();
         dataValue.setCreatedAt( DateUtils.instantFromDateAsString( "2020-10-10" ) );
@@ -672,32 +944,34 @@ public class EventDataValuesValidationHookTest
         return dataValue;
     }
 
-    private ProgramStage getProgramStage( DataElement validDataElement, String programStageUid, boolean compulsory )
+    private ProgramStage programStage( DataElement dataElement )
+    {
+        return programStage( dataElement, false );
+    }
+
+    private ProgramStage programStage( DataElement dataElement, boolean compulsory )
     {
         ProgramStage programStage = new ProgramStage();
         programStage.setUid( programStageUid );
         programStage
-            .setProgramStageDataElements( getProgramStageDataElements( validDataElement, programStage, compulsory ) );
+            .setProgramStageDataElements( getProgramStageDataElements( dataElement, programStage, compulsory ) );
 
         return programStage;
     }
 
-    private HashSet<ProgramStageDataElement> getProgramStageDataElements( DataElement validDataElement,
+    private Set<ProgramStageDataElement> getProgramStageDataElements( DataElement dataElement,
         ProgramStage programStage, boolean compulsory )
     {
-        return new HashSet<ProgramStageDataElement>()
-        {
-            {
+        ProgramStageDataElement programStageDataElement = new ProgramStageDataElement( programStage, dataElement );
+        programStageDataElement.setCompulsory( compulsory );
+        return Set.of( programStageDataElement );
+    }
 
-                ProgramStageDataElement programStageDataElement = new ProgramStageDataElement();
-                programStageDataElement.setCompulsory( compulsory );
-                programStageDataElement.setDataElement( validDataElement );
-                programStageDataElement.setProgramStage( programStage );
-
-                add( programStageDataElement );
-
-            }
-        };
+    private OrganisationUnit organisationUnit()
+    {
+        OrganisationUnit organisationUnit = new OrganisationUnit();
+        organisationUnit.setUid( organisationUnitUid );
+        return organisationUnit;
     }
 
 }

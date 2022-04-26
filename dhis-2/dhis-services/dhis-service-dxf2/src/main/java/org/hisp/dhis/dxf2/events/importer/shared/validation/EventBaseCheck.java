@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,19 +37,19 @@ import static org.hisp.dhis.util.DateUtils.removeTimeStamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.hisp.dhis.dxf2.common.ImportOptions;
 import org.hisp.dhis.dxf2.events.importer.Checker;
 import org.hisp.dhis.dxf2.events.importer.context.WorkContext;
 import org.hisp.dhis.dxf2.events.importer.shared.ImmutableEvent;
-import org.hisp.dhis.dxf2.importsummary.ImportConflict;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
 import org.hisp.dhis.program.ProgramInstance;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Luciano Fiandesio
  */
+@Component
 public class EventBaseCheck implements Checker
 {
     @Override
@@ -62,8 +62,7 @@ public class EventBaseCheck implements Checker
         {
             importSummary.setStatus( ERROR );
             importSummary.setReference( event.getEvent() );
-            importSummary.getConflicts()
-                .addAll( errors.stream().map( s -> new ImportConflict( "Event", s ) ).collect( Collectors.toList() ) );
+            errors.forEach( error -> importSummary.addConflict( "Event", error ) );
             importSummary.incrementIgnored();
 
         }

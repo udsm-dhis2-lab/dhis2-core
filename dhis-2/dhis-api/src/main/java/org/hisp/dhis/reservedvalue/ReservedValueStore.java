@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,21 +38,21 @@ public interface ReservedValueStore
     extends GenericStore<ReservedValue>
 {
 
+    void bulkInsertReservedValues( List<ReservedValue> toAdd );
+
     void reserveValues( List<ReservedValue> toAdd );
 
-    List<ReservedValue> reserveValuesAndCheckUniqueness( ReservedValue reservedValue, List<String> values );
+    List<ReservedValue> getAvailableValues( ReservedValue reservedValue, List<String> values, String ownerObject );
 
     List<ReservedValue> reserveValuesJpa( ReservedValue reservedValue, List<String> values );
 
-    List<ReservedValue> getIfReservedValues( ReservedValue reservedValue, List<String> values );
-
     int getNumberOfUsedValues( ReservedValue reservedValue );
-
-    void removeExpiredReservations();
 
     boolean useReservedValue( String ownerUID, String value );
 
     void deleteReservedValueByUid( String uid );
 
     boolean isReserved( String ownerObject, String ownerUID, String value );
+
+    void removeUsedOrExpiredReservations();
 }

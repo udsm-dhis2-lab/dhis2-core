@@ -83,6 +83,8 @@
         "F_INDICATORGROUPSET_PRIVATE_ADD",
         "F_CATEGORY_PUBLIC_ADD",
         "F_VISUALIZATION_PUBLIC_ADD",
+        "F_EVENT_VISUALIZATION_PUBLIC_ADD",
+        "F_EVENT_VISUALIZATION_EXTERNAL",
         "F_CATEGORY_COMBO_PUBLIC_ADD",
         "F_VISUALIZATION_EXTERNAL",
         "F_METADATA_EXPORT",
@@ -359,6 +361,9 @@
         },
         "hidden": false
       },
+      "seriesKey": {
+        "hidden": true
+      },
       "axes": [
         {
           "index": 0,
@@ -571,6 +576,9 @@
         },
         "hidden": false
       },
+      "seriesKey": {
+        "hidden": true
+      },
       "axes": [
         {
           "index": 0,
@@ -740,6 +748,9 @@
         },
         "hidden": false
       },
+      "seriesKey": {
+        "hidden": true
+      },
       "axes": [
         {
           "index": 0,
@@ -863,29 +874,20 @@
   "users": [
     {
       "firstName": "admin",
-      "userCredentials": {
         "userRoles": [
           {
             "id": "yrB6vc5Ip3r"
           }
         ],
-        "id": "JNRA5Y0EPes",
         "selfRegistered": false,
-        "created": "2016-03-17T01:51:26.794+0000",
         "externalAuth": false,
         "invitation": false,
         "catDimensionConstraints": [ ],
-        "lastUpdated": "2016-03-17T01:51:26.892+0000",
         "cogsDimensionConstraints": [ ],
         "passwordLastUpdated": "2016-03-17T01:51:26.795+0000",
         "username": "admin",
-        "code": "admin",
         "disabled": false,
         "lastLogin": "2016-03-17T01:51:26.794+0000",
-        "userInfo": {
-          "id": "M5zQapPyTZI"
-        }
-      },
       "organisationUnits": [
         {
           "id": "uyHni0GvBpD"

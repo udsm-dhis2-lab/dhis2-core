@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,12 @@ import java.util.Map;
 import org.hisp.dhis.artemis.audit.Audit;
 import org.hisp.dhis.audit.AuditScope;
 import org.hisp.dhis.audit.AuditType;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 /**
  * @author Luciano Fiandesio
  */
 @Component
-@DependsOn( "dhisConfigurationProvider" )
 public class AuditMatrix
 {
     private Map<AuditScope, Map<AuditType, Boolean>> matrix;

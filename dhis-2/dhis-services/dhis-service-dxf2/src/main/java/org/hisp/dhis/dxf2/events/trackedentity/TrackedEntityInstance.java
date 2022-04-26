@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,8 @@ public class TrackedEntityInstance
     private Boolean inactive;
 
     private Boolean deleted = false;
+
+    private Boolean potentialDuplicate = false;
 
     private FeatureType featureType = FeatureType.NONE;
 
@@ -347,6 +349,18 @@ public class TrackedEntityInstance
     public void setLastUpdatedByUserInfo( UserInfoSnapshot lastUpdatedByUserInfo )
     {
         this.lastUpdatedByUserInfo = lastUpdatedByUserInfo;
+    }
+
+    @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public Boolean isPotentialDuplicate()
+    {
+        return potentialDuplicate;
+    }
+
+    public void setPotentialDuplicate( Boolean potentialDuplicate )
+    {
+        this.potentialDuplicate = potentialDuplicate;
     }
 
     @Override

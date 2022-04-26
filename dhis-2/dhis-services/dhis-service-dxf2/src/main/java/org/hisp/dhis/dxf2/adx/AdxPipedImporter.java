@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@ import org.hisp.dhis.commons.util.StreamUtils;
 import org.hisp.dhis.dbms.DbmsUtils;
 import org.hisp.dhis.dxf2.common.ImportOptions;
 import org.hisp.dhis.dxf2.datavalueset.DataValueSetService;
-import org.hisp.dhis.dxf2.importsummary.ImportStatus;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
 import org.hisp.dhis.scheduling.JobConfiguration;
 import org.springframework.security.core.Authentication;
@@ -80,19 +79,16 @@ public class AdxPipedImporter
     @Override
     public ImportSummary call()
     {
-        ImportSummary result = null;
         SecurityContextHolder.getContext().setAuthentication( authentication );
         DbmsUtils.bindSessionToThread( sessionFactory );
 
         try
         {
-            result = dataValueSetService.saveDataValueSet( pipeIn, importOptions, id );
+            return dataValueSetService.importDataValueSetXml( pipeIn, importOptions, id );
         }
         catch ( Exception ex )
         {
-            result = new ImportSummary();
-            result.setStatus( ImportStatus.ERROR );
-            result.setDescription( "Exception: " + ex.getMessage() );
+            return ImportSummary.error( "Exception: " + ex.getMessage() );
         }
         finally
         {
@@ -100,6 +96,5 @@ public class AdxPipedImporter
             DbmsUtils.unbindSessionFromThread( sessionFactory );
         }
 
-        return result;
     }
 }

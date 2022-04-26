@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,8 @@ import org.hisp.dhis.mock.MockCurrentUserService;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserAuthorityGroup;
-import org.hisp.dhis.user.UserCredentials;
-import org.junit.Test;
+import org.hisp.dhis.user.UserRole;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -56,8 +55,9 @@ import com.google.common.collect.Sets;
 /**
  * @author Luciano Fiandesio
  */
-public class TrackedEntityInstanceAttributesAggregateAclTest extends TrackerTest
+class TrackedEntityInstanceAttributesAggregateAclTest extends TrackerTest
 {
+
     @Autowired
     private TrackedEntityInstanceService trackedEntityInstanceService;
 
@@ -71,18 +71,15 @@ public class TrackedEntityInstanceAttributesAggregateAclTest extends TrackerTest
     protected void mockCurrentUserService()
     {
         User user = createUser( "testUser" );
-
         setUserAuthorityToNonSuper( user );
-
         currentUserService = new MockCurrentUserService( user );
-
         ReflectionTestUtils.setField( trackedEntityInstanceAggregate, "currentUserService", currentUserService );
         ReflectionTestUtils.setField( trackedEntityInstanceService, "currentUserService", currentUserService );
         ReflectionTestUtils.setField( teiService, "currentUserService", currentUserService );
     }
 
     @Test
-    public void verifyTeiCantBeAccessedNoPublicAccessOnTrackedEntityType()
+    void verifyTeiCantBeAccessedNoPublicAccessOnTrackedEntityType()
     {
         doInTransaction( () -> {
             this.persistTrackedEntityInstance();
@@ -90,31 +87,25 @@ public class TrackedEntityInstanceAttributesAggregateAclTest extends TrackerTest
             this.persistTrackedEntityInstance();
             this.persistTrackedEntityInstance();
         } );
-
         TrackedEntityInstanceQueryParams queryParams = new TrackedEntityInstanceQueryParams();
         queryParams.setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
         queryParams.setTrackedEntityType( trackedEntityTypeA );
         queryParams.setIncludeAllAttributes( true );
-
-        TrackedEntityInstanceParams params = new TrackedEntityInstanceParams();
-
+        TrackedEntityInstanceParams params = TrackedEntityInstanceParams.FALSE;
         final List<TrackedEntityInstance> trackedEntityInstances = trackedEntityInstanceService
             .getTrackedEntityInstances( queryParams, params, false, true );
-
         assertThat( trackedEntityInstances, hasSize( 0 ) );
     }
 
     @Test
-    public void verifyTeiCanBeAccessedWhenDATA_READPublicAccessOnTrackedEntityType()
+    void verifyTeiCanBeAccessedWhenDATA_READPublicAccessOnTrackedEntityType()
     {
         final String tetUid = CodeGenerator.generateUid();
         doInTransaction( () -> {
-
             TrackedEntityType trackedEntityTypeZ = createTrackedEntityType( 'Z' );
             trackedEntityTypeZ.setUid( tetUid );
             trackedEntityTypeZ.setName( "TrackedEntityTypeZ" + trackedEntityTypeZ.getUid() );
             trackedEntityTypeService.addTrackedEntityType( trackedEntityTypeZ );
-
             // When saving the trackedEntityType using addTrackedEntityType, the
             // public access value is ignored
             // therefore we need to update the previously saved TeiType
@@ -122,36 +113,28 @@ public class TrackedEntityInstanceAttributesAggregateAclTest extends TrackerTest
                 .getTrackedEntityType( trackedEntityTypeZ.getUid() );
             trackedEntityType.setPublicAccess( DATA_READ );
             trackedEntityTypeService.updateTrackedEntityType( trackedEntityType );
-
             this.persistTrackedEntityInstance( ImmutableMap.of( "trackedEntityType", trackedEntityType ) );
             this.persistTrackedEntityInstance( ImmutableMap.of( "trackedEntityType", trackedEntityType ) );
             this.persistTrackedEntityInstance();
             this.persistTrackedEntityInstance();
         } );
-
-        final TrackedEntityType trackedEntityType = trackedEntityTypeService
-            .getTrackedEntityType( tetUid );
+        final TrackedEntityType trackedEntityType = trackedEntityTypeService.getTrackedEntityType( tetUid );
         TrackedEntityInstanceQueryParams queryParams = new TrackedEntityInstanceQueryParams();
         queryParams.setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
         queryParams.setTrackedEntityType( trackedEntityType );
         queryParams.setIncludeAllAttributes( true );
-
-        TrackedEntityInstanceParams params = new TrackedEntityInstanceParams();
-
+        TrackedEntityInstanceParams params = TrackedEntityInstanceParams.FALSE;
         final List<TrackedEntityInstance> trackedEntityInstances = trackedEntityInstanceService
             .getTrackedEntityInstances( queryParams, params, false, true );
-
         assertThat( trackedEntityInstances, hasSize( 2 ) );
     }
 
     protected void setUserAuthorityToNonSuper( User user )
     {
-        UserCredentials userCredentials = new UserCredentials();
-        UserAuthorityGroup userAuthorityGroup = new UserAuthorityGroup();
-        userAuthorityGroup.setUid( CodeGenerator.generateUid() );
-        userAuthorityGroup
-            .setAuthorities( new HashSet<>( Collections.singletonList( "user" ) ) );
-        userCredentials.setUserAuthorityGroups( Sets.newHashSet( userAuthorityGroup ) );
-        user.setUserCredentials( userCredentials );
+        UserRole userRole = new UserRole();
+        userRole.setName( "UserRole_" + user.getUsername() );
+        userRole.setUid( CodeGenerator.generateUid() );
+        userRole.setAuthorities( new HashSet<>( Collections.singletonList( "user" ) ) );
+        user.setUserRoles( Sets.newHashSet( userRole ) );
     }
 }

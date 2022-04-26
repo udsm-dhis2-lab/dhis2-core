@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,34 +28,47 @@
 package org.hisp.dhis.dxf2.metadata.objectbundle.hooks;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hisp.dhis.DhisConvenienceTest.createProgram;
 import static org.hisp.dhis.DhisConvenienceTest.createProgramStage;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 
 import org.hibernate.SessionFactory;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorReport;
-import org.hisp.dhis.program.*;
+import org.hisp.dhis.program.Program;
+import org.hisp.dhis.program.ProgramInstance;
+import org.hisp.dhis.program.ProgramInstanceQueryParams;
+import org.hisp.dhis.program.ProgramInstanceService;
+import org.hisp.dhis.program.ProgramService;
+import org.hisp.dhis.program.ProgramStage;
+import org.hisp.dhis.program.ProgramStageService;
+import org.hisp.dhis.program.ProgramStatus;
+import org.hisp.dhis.program.ProgramType;
 import org.hisp.dhis.security.acl.AclService;
-import org.hisp.dhis.user.User;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.Lists;
 
 /**
  * @author Luciano Fiandesio
  */
-public class ProgramObjectBundleHookTest
+@ExtendWith( MockitoExtension.class )
+class ProgramObjectBundleHookTest
 {
     private ProgramObjectBundleHook subject;
 
@@ -74,15 +87,12 @@ public class ProgramObjectBundleHookTest
     @Mock
     private SessionFactory sessionFactory;
 
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
-
     private Program programA;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
-        this.subject = new ProgramObjectBundleHook( programInstanceService, programService, programStageService,
+        this.subject = new ProgramObjectBundleHook( programInstanceService, programStageService,
             aclService );
 
         programA = createProgram( 'A' );
@@ -90,7 +100,7 @@ public class ProgramObjectBundleHookTest
     }
 
     @Test
-    public void verifyNullObjectIsIgnored()
+    void verifyNullObjectIsIgnored()
     {
         subject.preCreate( null, null );
 
@@ -98,27 +108,15 @@ public class ProgramObjectBundleHookTest
     }
 
     @Test
-    public void verifyNoProgramInstanceIsIgnored()
+    void verifyMissingBundleIsIgnored()
     {
-        User user = new User();
-
-        subject.preCreate( user, null );
+        subject.preCreate( programA, null );
 
         verifyNoInteractions( programInstanceService );
     }
 
     @Test
-    public void verifyMissingBundleIsIgnored()
-    {
-        ProgramInstance programInstance = new ProgramInstance();
-
-        subject.preCreate( programInstance, null );
-
-        verifyNoInteractions( programInstanceService );
-    }
-
-    @Test
-    public void verifyProgramInstanceIsSavedForEventProgram()
+    void verifyProgramInstanceIsSavedForEventProgram()
     {
         ArgumentCaptor<ProgramInstance> argument = ArgumentCaptor.forClass( ProgramInstance.class );
 
@@ -135,7 +133,7 @@ public class ProgramObjectBundleHookTest
     }
 
     @Test
-    public void verifyProgramInstanceIsNotSavedForTrackerProgram()
+    void verifyProgramInstanceIsNotSavedForTrackerProgram()
     {
         ArgumentCaptor<ProgramInstance> argument = ArgumentCaptor.forClass( ProgramInstance.class );
 
@@ -146,13 +144,13 @@ public class ProgramObjectBundleHookTest
     }
 
     @Test
-    public void verifyProgramValidates()
+    void verifyProgramValidates()
     {
         assertEquals( 0, subject.validate( programA, null ).size() );
     }
 
     @Test
-    public void verifyProgramFailsValidation()
+    void verifyProgramFailsValidation()
     {
         ProgramInstanceQueryParams programInstanceQueryParams = new ProgramInstanceQueryParams();
         programInstanceQueryParams.setProgram( programA );
@@ -169,7 +167,7 @@ public class ProgramObjectBundleHookTest
     }
 
     @Test
-    public void verifyValidationIsSkippedWhenObjectIsTransient()
+    void verifyValidationIsSkippedWhenObjectIsTransient()
     {
         Program transientObj = createProgram( 'A' );
         subject.validate( transientObj, null );
@@ -178,28 +176,15 @@ public class ProgramObjectBundleHookTest
     }
 
     @Test
-    public void verifyUpdateProgramStage()
+    void verifyUpdateProgramStage()
     {
         ProgramStage programStage = createProgramStage( 'A', 1 );
         programA.getProgramStages().add( programStage );
 
-        ArgumentCaptor<Program> argument = ArgumentCaptor.forClass( Program.class );
-        ArgumentCaptor<ProgramStage> argPS = ArgumentCaptor.forClass( ProgramStage.class );
-
-        programService.addProgram( programA );
+        assertNull( programA.getProgramStages().iterator().next().getProgram() );
 
         subject.postCreate( programA, null );
 
-        verify( programService ).updateProgram( argument.capture() );
-
-        verify( programStageService ).saveProgramStage( argPS.capture() );
-
-        assertThat( argPS.getValue().getName(), is( equalToIgnoringCase( "ProgramStageA" ) ) );
-        assertThat( argPS.getValue().getProgram(), is( programA ) );
-
-        assertThat( argument.getValue().getName(), is( equalToIgnoringCase( "ProgramA" ) ) );
-        assertThat( argument.getValue().getProgramStages().size(), is( 1 ) );
-        assertThat( argument.getValue().getProgramStages().iterator().next().getName(),
-            is( equalToIgnoringCase( "ProgramStageA" ) ) );
+        assertNotNull( programA.getProgramStages().iterator().next().getProgram() );
     }
 }

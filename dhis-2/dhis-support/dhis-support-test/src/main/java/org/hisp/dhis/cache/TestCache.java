@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,13 @@
  */
 package org.hisp.dhis.cache;
 
-import java.util.Collection;
+import static java.util.Collections.unmodifiableSet;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 /**
  * @author Luciano Fiandesio
@@ -60,15 +62,21 @@ public class TestCache<V> implements Cache<V>
     }
 
     @Override
-    public Optional<V> get( String key, Function<String, V> mappingFunction )
+    public V get( String key, Function<String, V> mappingFunction )
     {
-        return Optional.empty();
+        return null;
     }
 
     @Override
-    public Collection<V> getAll()
+    public Stream<V> getAll()
     {
-        return mapCache.values();
+        return mapCache.values().stream();
+    }
+
+    @Override
+    public Iterable<String> keys()
+    {
+        return unmodifiableSet( mapCache.keySet() );
     }
 
     @Override
@@ -82,6 +90,12 @@ public class TestCache<V> implements Cache<V>
     {
         // Ignoring ttl for this testing cache
         mapCache.put( key, value );
+    }
+
+    @Override
+    public boolean putIfAbsent( String key, V value )
+    {
+        return mapCache.putIfAbsent( key, value ) != value;
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.trackedentity;
 
 import java.util.List;
+import java.util.Set;
 
 import org.hisp.dhis.common.GenericStore;
 
@@ -67,4 +68,5 @@ public interface TrackedEntityProgramOwnerStore extends GenericStore<TrackedEnti
 
     List<TrackedEntityProgramOwnerIds> getTrackedEntityProgramOwnersUids( List<Long> teiIds, long programId );
 
+    List<TrackedEntityProgramOwnerOrgUnit> getTrackedEntityProgramOwnerOrgUnits( Set<Long> teiIds );
 }

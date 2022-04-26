@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.metadata.programs;
 
 import com.google.gson.JsonObject;
@@ -33,6 +32,7 @@ import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.actions.metadata.ProgramActions;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.file.FileReaderUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +52,8 @@ public class ProgramRemovalTest
     private RestApiActions relationshipTypeActions;
 
     private String programId;
+
+    private String programStageId;
 
     private String relationshipTypeId;
 
@@ -82,21 +84,21 @@ public class ProgramRemovalTest
         programId = programActions.createProgram( "WITH_REGISTRATION" ).extractUid();
         assertNotNull( programId, "Failed to create program" );
 
+        programStageId = programActions.createProgramStage( programId, "stage1" );
+        assertNotNull( programStageId, "Failed to create programStage" );
+
         JsonObject relationshipType = new FileReaderUtils()
             .read( new File( "src/test/resources/tracker/relationshipTypes.json" ) )
             .replacePropertyValuesWithIds( "id" )
             .get( JsonObject.class ).getAsJsonArray( "relationshipTypes" ).get( 0 )
             .getAsJsonObject();
 
-        JsonObject constraint = new JsonObject();
-
-        constraint.addProperty( "relationshipEntity", "PROGRAM_STAGE_INSTANCE" );
-
-        JsonObject program = new JsonObject();
-        program.addProperty( "id", programId );
-
-        constraint.add( "program", program );
-        relationshipType.add( "toConstraint", constraint );
+        new JsonObjectBuilder( relationshipType )
+            .addObject( "toConstraint", new JsonObjectBuilder()
+                .addProperty( "relationshipEntity", "PROGRAM_STAGE_INSTANCE" )
+                .addObject( "program", new JsonObjectBuilder().addProperty( "id", programId ) )
+                .addObject( "programStage", new JsonObjectBuilder().addProperty( "id", programStageId ) )
+            ).build();
 
         relationshipTypeId = relationshipTypeActions.create( relationshipType );
         assertNotNull( relationshipTypeId, "Failed to create relationshipType" );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,14 +28,13 @@
 package org.hisp.dhis.tracker.bundle.persister;
 
 import java.util.Collections;
-import java.util.Date;
 
 import javax.validation.constraints.NotNull;
 
 import org.hibernate.Session;
 import org.hisp.dhis.reservedvalue.ReservedValueService;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
-import org.hisp.dhis.tracker.TrackerIdScheme;
+import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueAuditService;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.converter.TrackerConverterService;
@@ -54,9 +53,10 @@ public class TrackedEntityPersister extends AbstractTrackerPersister<TrackedEnti
     private final TrackerConverterService<TrackedEntity, TrackedEntityInstance> teConverter;
 
     public TrackedEntityPersister( ReservedValueService reservedValueService,
-        TrackerConverterService<TrackedEntity, TrackedEntityInstance> teConverter )
+        TrackerConverterService<TrackedEntity, TrackedEntityInstance> teConverter,
+        TrackedEntityAttributeValueAuditService trackedEntityAttributeValueAuditService )
     {
-        super( reservedValueService );
+        super( reservedValueService, trackedEntityAttributeValueAuditService );
         this.teConverter = teConverter;
     }
 
@@ -83,17 +83,13 @@ public class TrackedEntityPersister extends AbstractTrackerPersister<TrackedEnti
     @Override
     protected void updatePreheat( TrackerPreheat preheat, TrackedEntityInstance dto )
     {
-        preheat.putTrackedEntities( TrackerIdScheme.UID, Collections.singletonList( dto ) );
+        preheat.putTrackedEntities( Collections.singletonList( dto ) );
     }
 
     @Override
     protected TrackedEntityInstance convert( TrackerBundle bundle, TrackedEntity trackerDto )
     {
-        Date now = new Date();
-        TrackedEntityInstance tei = teConverter.from( bundle.getPreheat(), trackerDto );
-        tei.setLastUpdated( now );
-        tei.setLastUpdatedBy( bundle.getUser() );
-        return tei;
+        return teConverter.from( bundle.getPreheat(), trackerDto );
     }
 
     @Override
@@ -105,7 +101,7 @@ public class TrackedEntityPersister extends AbstractTrackerPersister<TrackedEnti
     @Override
     protected boolean isNew( TrackerPreheat preheat, String uid )
     {
-        return preheat.getTrackedEntity( TrackerIdScheme.UID, uid ) == null;
+        return preheat.getTrackedEntity( uid ) == null;
     }
 
     @Override
@@ -119,5 +115,12 @@ public class TrackedEntityPersister extends AbstractTrackerPersister<TrackedEnti
     {
         // DO NOTHING, Tei alone does not have ownership records
 
+    }
+
+    @Override
+    protected String getUpdatedTrackedEntity( TrackedEntityInstance entity )
+    {
+        return null; // We don't need to keep track, Tei has already been
+                     // updated
     }
 }

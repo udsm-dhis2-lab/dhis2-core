@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions.tracker;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +25,16 @@ package org.hisp.dhis.actions.tracker;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions.tracker;
 
+import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import org.hisp.dhis.actions.MaintenanceActions;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.dto.ApiResponse;
 
-import java.util.List;
+import com.google.gson.JsonObject;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -74,8 +73,7 @@ public class EventActions
 
     public void softDelete( List<String> eventIds )
     {
-        for ( String id : eventIds
-        )
+        for ( String id : eventIds )
         {
             softDelete( id );
         }
@@ -91,6 +89,5 @@ public class EventActions
         event.addProperty( "eventDate", "2018-12-01T00:00:00.000" );
 
         return event;
-
     }
 }

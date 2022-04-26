@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,18 @@ package org.hisp.dhis.message;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hisp.dhis.commons.util.TextUtils.LN;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.commons.util.DebugUtils;
 import org.hisp.dhis.configuration.ConfigurationService;
 import org.hisp.dhis.dataset.CompleteDataSetRegistration;
@@ -47,7 +53,11 @@ import org.hisp.dhis.i18n.locale.LocaleManager;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
 import org.hisp.dhis.system.velocity.VelocityManager;
-import org.hisp.dhis.user.*;
+import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.User;
+import org.hisp.dhis.user.UserGroup;
+import org.hisp.dhis.user.UserSettingKey;
+import org.hisp.dhis.user.UserSettingService;
 import org.hisp.dhis.util.ObjectUtils;
 import org.joda.time.DateTime;
 import org.springframework.stereotype.Service;
@@ -215,7 +225,7 @@ public class DefaultMessageService
     @Transactional
     public long sendSystemErrorNotification( String subject, Throwable t )
     {
-        String title = (String) systemSettingManager.getSystemSetting( SettingKey.APPLICATION_TITLE );
+        String title = systemSettingManager.getStringSetting( SettingKey.APPLICATION_TITLE );
         String baseUrl = configurationProvider.getServerBaseUrl();
 
         String text = new StringBuilder()
@@ -398,6 +408,13 @@ public class DefaultMessageService
 
     @Override
     @Transactional( readOnly = true )
+    public List<MessageConversation> getMatchingExtId( String extMessageId )
+    {
+        return messageConversationStore.getMessagesConversationFromSenderMatchingExtMessageId( extMessageId );
+    }
+
+    @Override
+    @Transactional( readOnly = true )
     public List<MessageConversation> getMessageConversations( User user, Collection<String> uid )
     {
         List<MessageConversation> conversations = messageConversationStore
@@ -443,7 +460,9 @@ public class DefaultMessageService
     // Supportive methods
     // -------------------------------------------------------------------------
 
-    private Set<User> getFeedbackRecipients()
+    @Override
+    @Transactional( readOnly = true )
+    public Set<User> getFeedbackRecipients()
     {
         UserGroup feedbackRecipients = configurationService.getConfiguration().getFeedbackRecipients();
 
@@ -453,6 +472,20 @@ public class DefaultMessageService
         }
 
         return new HashSet<>();
+    }
+
+    @Override
+    @Transactional( readOnly = true )
+    public Set<User> getSystemUpdateNotificationRecipients()
+    {
+        UserGroup feedbackRecipients = configurationService.getConfiguration().getSystemUpdateNotificationRecipients();
+
+        if ( feedbackRecipients == null )
+        {
+            return Collections.emptySet();
+        }
+
+        return feedbackRecipients.getMembers();
     }
 
     private void invokeMessageSenders( String subject, String text, String footer, User sender, Set<User> users,

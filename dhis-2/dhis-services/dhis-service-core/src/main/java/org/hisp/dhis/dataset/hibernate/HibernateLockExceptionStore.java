@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,6 +148,16 @@ public class HibernateLockExceptionStore
         getQuery( hql )
             .setParameter( "dataSet", dataSet )
             .setParameter( "period", period )
+            .setParameter( "organisationUnit", organisationUnit )
+            .executeUpdate();
+    }
+
+    @Override
+    public void delete( OrganisationUnit organisationUnit )
+    {
+        final String hql = "delete from LockException where organisationUnit=:organisationUnit";
+
+        getQuery( hql )
             .setParameter( "organisationUnit", organisationUnit )
             .executeUpdate();
     }

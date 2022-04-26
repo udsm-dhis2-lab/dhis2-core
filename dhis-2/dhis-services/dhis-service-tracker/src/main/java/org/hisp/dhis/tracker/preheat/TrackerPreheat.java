@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,13 @@ import static org.hisp.dhis.tracker.preheat.RelationshipPreheatKeySupport.getRel
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.EnumMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -47,30 +48,41 @@ import lombok.Setter;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.hisp.dhis.category.CategoryCombo;
+import org.hisp.dhis.category.CategoryOption;
+import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.common.IdentifiableObject;
+import org.hisp.dhis.commons.util.TextUtils;
+import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.hibernate.HibernateProxyUtils;
+import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodType;
+import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramInstance;
+import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.program.ProgramStageInstance;
 import org.hisp.dhis.relationship.Relationship;
 import org.hisp.dhis.relationship.RelationshipKey;
 import org.hisp.dhis.relationship.RelationshipType;
+import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
-import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
+import org.hisp.dhis.trackedentity.TrackedEntityProgramOwnerOrgUnit;
+import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.trackedentitycomment.TrackedEntityComment;
 import org.hisp.dhis.tracker.TrackerIdScheme;
-import org.hisp.dhis.tracker.TrackerIdentifier;
-import org.hisp.dhis.tracker.TrackerIdentifierParams;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
 
-import com.google.api.client.util.Lists;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.scalified.tree.TreeNode;
 import com.scalified.tree.multinode.ArrayMultiTreeNode;
 
@@ -91,15 +103,14 @@ public class TrackerPreheat
      * value of each id can be either the metadata object's uid, code, name or
      * attribute value
      */
-    @Getter
-    private Map<Class<? extends IdentifiableObject>, Map<String, IdentifiableObject>> map = new HashMap<>();
+    private final Map<Class<? extends IdentifiableObject>, Map<String, IdentifiableObject>> map = new HashMap<>();
 
     /**
      * List of all payload references by tracker type which are not present in
-     * thedatabase. This will be used to create the reference tree that
+     * the database. This will be used to create the reference tree that
      * represents the hierarchical structure of the references.
      */
-    private ArrayListMultimap<TrackerType, ReferenceTrackerEntity> referenceTrackerEntities = ArrayListMultimap
+    private final ArrayListMultimap<TrackerType, ReferenceTrackerEntity> referenceTrackerEntities = ArrayListMultimap
         .create();
 
     /**
@@ -108,7 +119,7 @@ public class TrackerPreheat
      * root objects (TEI, PS, PSI) which are present in the payload but not
      * stored in the pre-heat object (since they do not exist in the db yet).
      */
-    private TreeNode<String> referenceTree = new ArrayMultiTreeNode<>( "ROOT" );
+    private final TreeNode<String> referenceTree = new ArrayMultiTreeNode<>( "ROOT" );
 
     /**
      * Internal map of all default object (like category option combo, etc).
@@ -121,58 +132,173 @@ public class TrackerPreheat
      * All periods available.
      */
     @Getter
-    private Map<String, Period> periodMap = new HashMap<>();
+    private final Map<String, Period> periodMap = new HashMap<>();
 
     /**
      * All periodTypes available.
      */
     @Getter
-    private Map<String, PeriodType> periodTypeMap = new HashMap<>();
+    private final Map<String, PeriodType> periodTypeMap = new HashMap<>();
+
+    /**
+     * Internal map of category combo + category options (key) to category
+     * option combo (value).
+     *
+     * Category option combo value will be in the idScheme defined by the user
+     * on import.
+     */
+    private final Map<Pair<String, Set<String>>, String> cosToCOC = new HashMap<>();
+
+    /**
+     * Store mapping of category combo + category options identifiers(key) to
+     * category option combo identifiers (value).
+     *
+     * Category options, category option combo identifiers will be in the
+     * idScheme defined by the user on import. Note: different idSchemes for
+     * category combos are not supported.
+     */
+    public void putCategoryOptionCombo( CategoryCombo categoryCombo, Set<CategoryOption> categoryOptions,
+        CategoryOptionCombo categoryOptionCombo )
+    {
+        if ( categoryOptionCombo != null )
+        {
+            TrackerIdSchemeParam optionComboIdScheme = this.getIdSchemes().getCategoryOptionComboIdScheme();
+            this.cosToCOC.put( categoryOptionComboCacheKey( categoryCombo, categoryOptions ),
+                optionComboIdScheme.getIdentifier( categoryOptionCombo ) );
+            this.put( categoryOptionCombo );
+        }
+        else
+        {
+            this.cosToCOC.put( categoryOptionComboCacheKey( categoryCombo, categoryOptions ), null );
+        }
+    }
+
+    private Pair<String, Set<String>> categoryOptionComboCacheKey( CategoryCombo categoryCombo,
+        Set<CategoryOption> categoryOptions )
+    {
+        Set<String> coIds = categoryOptions.stream()
+            .map( this.getIdSchemes().getCategoryOptionIdScheme()::getIdentifier )
+            .collect( Collectors.toSet() );
+        return Pair.of( categoryCombo.getUid(), coIds );
+    }
+
+    /**
+     * Check if a category option combo for given category combo and category
+     * options has been stored using {@link #putCategoryOptionCombo}. Returns
+     * true if null and a non-null category option combo have been stored.
+     *
+     * @param categoryCombo category combo
+     * @param categoryOptions category options
+     * @return true if category option combo has been stored given both
+     *         arguments
+     */
+    public boolean containsCategoryOptionCombo( CategoryCombo categoryCombo, Set<CategoryOption> categoryOptions )
+    {
+        return this.cosToCOC.containsKey( categoryOptionComboCacheKey( categoryCombo, categoryOptions ) );
+    }
+
+    /**
+     * Get the category option combo for given category combo and category
+     * options. For the category option combo to exist it has to be stored
+     * before using {@link #putCategoryOptionCombo}.
+     *
+     * @param categoryCombo category combo
+     * @param categoryOptions category options
+     * @return category option combo identifier
+     */
+    public CategoryOptionCombo getCategoryOptionCombo( CategoryCombo categoryCombo,
+        Set<CategoryOption> categoryOptions )
+    {
+        return this.getCategoryOptionCombo(
+            cosToCOC.get( categoryOptionComboCacheKey( categoryCombo, categoryOptions ) ) );
+    }
+
+    /**
+     * Get the identifier of a category option combo for given category combo
+     * and semicolon separated list of category options. For the category option
+     * combo to exist it has to be stored before using
+     * {@link #putCategoryOptionCombo}.
+     *
+     * Category option identifiers needs to match the idScheme used when storing
+     * the category option combo using {@link #putCategoryOptionCombo}. Category
+     * option combo identifiers will be in the idScheme defined by the user on
+     * import.
+     *
+     * @param categoryCombo category combo
+     * @param categoryOptions semicolon separated list of category options
+     * @return category option combo identifier
+     */
+    public String getCategoryOptionComboIdentifier( CategoryCombo categoryCombo, String categoryOptions )
+    {
+        CategoryOptionCombo categoryOptionCombo = this.getCategoryOptionCombo(
+            this.cosToCOC.get( categoryOptionComboCacheKey( categoryCombo, categoryOptions ) ) );
+        if ( categoryOptionCombo == null )
+        {
+            return null;
+        }
+        return idSchemes.getCategoryOptionComboIdScheme().getIdentifier( categoryOptionCombo );
+    }
+
+    private Pair<String, Set<String>> categoryOptionComboCacheKey( CategoryCombo categoryCombo,
+        String categoryOptions )
+    {
+        return Pair.of( categoryCombo.getUid(), parseCategoryOptions( categoryOptions ) );
+    }
+
+    private Set<String> parseCategoryOptions( String categoryOptions )
+    {
+        String cos = StringUtils.strip( categoryOptions );
+        if ( StringUtils.isBlank( cos ) )
+        {
+            return Collections.emptySet();
+        }
+
+        return TextUtils.splitToSet( cos, TextUtils.SEMICOLON );
+    }
 
     /**
      * Internal map of all preheated tracked entities, mainly used for
      * confirming existence for updates, and used for object merging.
      */
     @Getter
-    @Setter
-    private Map<TrackerIdScheme, Map<String, TrackedEntityInstance>> trackedEntities = new HashMap<>();
-
-    /**
-     * Internal map of all preheated tracked entity attributes, mainly used for
-     * confirming existence for updates, and used for object merging.
-     */
-    @Getter
-    @Setter
-    private Map<TrackerIdScheme, Map<String, TrackedEntityAttributeValue>> trackedEntityAttributes = new HashMap<>();
+    private final Map<String, TrackedEntityInstance> trackedEntities = new HashMap<>();
 
     /**
      * Internal map of all preheated enrollments, mainly used for confirming
      * existence for updates, and used for object merging.
      */
     @Getter
-    @Setter
-    private Map<TrackerIdScheme, Map<String, ProgramInstance>> enrollments = new HashMap<>();
+    private final Map<String, ProgramInstance> enrollments = new HashMap<>();
 
     /**
      * Internal map of all preheated events, mainly used for confirming
      * existence for updates, and used for object merging.
      */
     @Getter
-    @Setter
-    private Map<TrackerIdScheme, Map<String, ProgramStageInstance>> events = new HashMap<>();
+    private final Map<String, ProgramStageInstance> events = new HashMap<>();
 
     /**
      * Internal map of all preheated relationships, mainly used for confirming
      * existence for updates, and used for object merging.
      */
     @Getter
-    @Setter
-    private Map<TrackerIdScheme, Map<String, Relationship>> relationships = new EnumMap<>( TrackerIdScheme.class );
+    private final Map<String, Relationship> relationships = new HashMap<>();
 
     /**
      * Internal map of all preheated notes (events and enrollments)
      */
-    private Map<TrackerIdScheme, Map<String, TrackedEntityComment>> notes = new EnumMap<>( TrackerIdScheme.class );
+    private final Map<String, TrackedEntityComment> notes = new HashMap<>();
+
+    /**
+     * Internal map of all existing TrackedEntityProgramOwner. Used for
+     * ownership validations and updating. The root key of this map is the
+     * trackedEntityInstance UID. The value of the root map is another map which
+     * holds a key-value combination where the key is the program UID and the
+     * value is an object of {@link TrackedEntityProgramOwnerOrgUnit} holding
+     * the ownership OrganisationUnit
+     */
+    @Getter
+    private final Map<String, Map<String, TrackedEntityProgramOwnerOrgUnit>> programOwner = new HashMap<>();
 
     /**
      * A Map of trackedEntity uid connected to Program Instances
@@ -184,17 +310,16 @@ public class TrackerPreheat
     /**
      * A Map of program uid and without registration {@see ProgramInstance}.
      */
-    private Map<String, ProgramInstance> programInstancesWithoutRegistration = new HashMap<>();
+    private final Map<String, ProgramInstance> programInstancesWithoutRegistration = new HashMap<>();
 
     /**
-     * A list of valid usernames that are present in the payload. A username not
-     * available in this cache means, payload's username is invalid. These users
-     * are primarily used to represent the ValueType.USERNAME of tracked entity
-     * attributes, used in validation and persisting TEIs.
+     * A map of valid users by username that are present in the payload. A user
+     * not available in this cache means, payload's username or uid is invalid.
+     * These users are primarily used to represent the ValueType.USERNAME of
+     * tracked entity attributes and assignedUser fields in events used in
+     * validation and persistence.
      */
-    @Getter
-    @Setter
-    private List<String> usernames = Lists.newArrayList();
+    private final Map<String, User> users = Maps.newHashMap();
 
     /**
      * A list of all unique attribute values that are both present in the
@@ -216,16 +341,14 @@ public class TrackerPreheat
     /**
      * A list of Program Stage UID having 1 or more Events
      */
-    @Getter
-    @Setter
     private List<Pair<String, String>> programStageWithEvents = Lists.newArrayList();
 
     /**
-     * Identifier map
+     * idScheme map
      */
     @Getter
     @Setter
-    private TrackerIdentifierParams identifiers = new TrackerIdentifierParams();
+    private TrackerIdSchemeParams idSchemes = new TrackerIdSchemeParams();
 
     /**
      * Map of Program ID (primary key) and List of Org Unit ID associated to
@@ -234,7 +357,7 @@ public class TrackerPreheat
      */
     @Getter
     @Setter
-    private Map<Long, List<Long>> programWithOrgUnitsMap;
+    private Map<String, List<String>> programWithOrgUnitsMap;
 
     public TrackerPreheat()
     {
@@ -246,7 +369,7 @@ public class TrackerPreheat
     }
 
     /**
-     * Get a default value from the Preheat
+     * Get a default value from the preheat
      *
      * @param defaultClass The type of object to retrieve
      * @return The default object of the class provided
@@ -262,6 +385,28 @@ public class TrackerPreheat
      * object and the cached identifier.
      *
      * @param klass The metadata class to fetch
+     * @param id metadata identifier
+     * @return A metadata object or null
+     */
+    @SuppressWarnings( "unchecked" )
+    public <T extends IdentifiableObject> T get( Class<? extends IdentifiableObject> klass, MetadataIdentifier id )
+    {
+        if ( id == null )
+        {
+            return null;
+        }
+        if ( id.getIdScheme() == TrackerIdScheme.ATTRIBUTE )
+        {
+            return this.get( klass, id.getAttributeValue() );
+        }
+        return this.get( klass, id.getIdentifier() );
+    }
+
+    /**
+     * Fetch a metadata object from the pre-heat, based on the type of the
+     * object and the cached identifier.
+     *
+     * @param klass The metadata class to fetch
      * @param key The key used during the pre-heat creation
      * @return A metadata object or null
      */
@@ -270,6 +415,16 @@ public class TrackerPreheat
         String key )
     {
         return (T) map.getOrDefault( klass, new HashMap<>() ).get( key );
+    }
+
+    public CategoryOption getCategoryOption( String id )
+    {
+        return get( CategoryOption.class, id );
+    }
+
+    public CategoryOptionCombo getCategoryOptionCombo( String id )
+    {
+        return get( CategoryOptionCombo.class, id );
     }
 
     /**
@@ -290,7 +445,7 @@ public class TrackerPreheat
     }
 
     @SuppressWarnings( "unchecked" )
-    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdentifier identifier, T object )
+    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdSchemeParam idSchemeParam, T object )
     {
         if ( object == null )
         {
@@ -299,58 +454,66 @@ public class TrackerPreheat
 
         Class<? extends IdentifiableObject> klass = HibernateProxyUtils.getRealClass( object );
 
-        if ( !map.containsKey( klass ) )
-        {
-            map.put( klass, new HashMap<>() );
-        }
+        map.computeIfAbsent( klass, k -> new HashMap<>() );
 
         if ( User.class.isAssignableFrom( klass ) )
         {
-            if ( !map.containsKey( UserCredentials.class ) )
+            User userObject = (User) object;
+
+            Map<String, IdentifiableObject> identifierMap = map.get( User.class );
+
+            if ( !StringUtils.isEmpty( idSchemeParam.getIdentifier( userObject ) ) &&
+                !identifierMap.containsKey( idSchemeParam.getIdentifier( userObject ) ) )
             {
-                map.put( UserCredentials.class, new HashMap<>() );
-            }
-
-            User user = (User) object;
-
-            Map<String, IdentifiableObject> identifierMap = map.get( UserCredentials.class );
-
-            if ( !StringUtils.isEmpty( identifier.getIdentifier( user ) ) &&
-                !identifierMap.containsKey( identifier.getIdentifier( user ) ) )
-            {
-                identifierMap.put( identifier.getIdentifier( user ), user.getUserCredentials() );
+                identifierMap.put( idSchemeParam.getIdentifier( userObject ), userObject );
             }
         }
 
-        PreheatUtils.resolveKey( identifier, object ).ifPresent( k -> map.get( klass ).put( k, object ) );
+        Optional.ofNullable( idSchemeParam.getIdentifier( object ) )
+            .ifPresent( k -> map.get( klass ).put( k, object ) );
 
         return this;
     }
 
-    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdentifier identifier, Collection<T> objects )
+    public <T extends IdentifiableObject> TrackerPreheat put( TrackerIdSchemeParam idSchemeParam,
+        Collection<T> objects )
     {
         for ( T object : objects )
         {
-            put( identifier, object );
+            put( idSchemeParam, object );
         }
 
         return this;
     }
 
-    public TrackedEntityInstance getTrackedEntity( TrackerIdScheme identifier, String trackedEntity )
+    public TrackerPreheat put( DataElement dataElement )
     {
-        if ( !trackedEntities.containsKey( identifier ) )
-        {
-            return null;
-        }
-
-        return trackedEntities.get( identifier ).get( trackedEntity );
+        return this.put( idSchemes.getDataElementIdScheme(), dataElement );
     }
 
-    public void putTrackedEntities( TrackerIdScheme identifier, List<TrackedEntityInstance> trackedEntityInstances,
-        List<String> allEntities )
+    public TrackerPreheat put( Program program )
     {
-        putTrackedEntities( identifier, trackedEntityInstances );
+        return this.put( idSchemes.getProgramIdScheme(), program );
+    }
+
+    public TrackerPreheat put( ProgramStage programStage )
+    {
+        return this.put( idSchemes.getProgramStageIdScheme(), programStage );
+    }
+
+    public TrackerPreheat put( CategoryOptionCombo categoryOptionCombo )
+    {
+        return this.put( idSchemes.getCategoryOptionComboIdScheme(), categoryOptionCombo );
+    }
+
+    public TrackedEntityInstance getTrackedEntity( String uid )
+    {
+        return trackedEntities.get( uid );
+    }
+
+    public void putTrackedEntities( List<TrackedEntityInstance> trackedEntityInstances, List<String> allEntities )
+    {
+        putTrackedEntities( trackedEntityInstances );
 
         List<String> uidOnDB = trackedEntityInstances.stream()
             .map( BaseIdentifiableObject::getUid )
@@ -363,37 +526,25 @@ public class TrackerPreheat
             .forEach( u -> this.addReference( TrackerType.TRACKED_ENTITY, u ) );
     }
 
-    public void putTrackedEntities( TrackerIdScheme identifier, List<TrackedEntityInstance> trackedEntityInstances )
+    public void putTrackedEntities( List<TrackedEntityInstance> trackedEntityInstances )
     {
 
-        trackedEntityInstances.forEach( te -> putTrackedEntity( identifier, te.getUid(), te ) );
+        trackedEntityInstances.forEach( te -> putTrackedEntity( te.getUid(), te ) );
     }
 
-    private void putTrackedEntity( TrackerIdScheme identifier, String trackedEntity,
-        TrackedEntityInstance trackedEntityInstance )
+    private void putTrackedEntity( String uid, TrackedEntityInstance trackedEntityInstance )
     {
-        if ( !trackedEntities.containsKey( identifier ) )
-        {
-            trackedEntities.put( identifier, new HashMap<>() );
-        }
-
-        trackedEntities.get( identifier ).put( trackedEntity, trackedEntityInstance );
+        trackedEntities.put( uid, trackedEntityInstance );
     }
 
-    public ProgramInstance getEnrollment( TrackerIdScheme identifier, String enrollment )
+    public ProgramInstance getEnrollment( String uid )
     {
-        if ( !enrollments.containsKey( identifier ) )
-        {
-            return null;
-        }
-
-        return enrollments.get( identifier ).get( enrollment );
+        return enrollments.get( uid );
     }
 
-    public void putEnrollments( TrackerIdScheme identifier, List<ProgramInstance> programInstances,
-        List<Enrollment> allEntities )
+    public void putEnrollments( List<ProgramInstance> programInstances, List<Enrollment> allEntities )
     {
-        putEnrollments( identifier, programInstances );
+        putEnrollments( programInstances );
         List<String> uidOnDB = programInstances.stream().map( BaseIdentifiableObject::getUid )
             .collect( Collectors.toList() );
 
@@ -404,35 +555,24 @@ public class TrackerPreheat
             .forEach( pi -> this.addReference( TrackerType.ENROLLMENT, pi ) );
     }
 
-    public void putEnrollments( TrackerIdScheme identifier, List<ProgramInstance> programInstances )
+    public void putEnrollments( List<ProgramInstance> programInstances )
     {
-        programInstances.forEach( pi -> putEnrollment( identifier, pi.getUid(), pi ) );
+        programInstances.forEach( pi -> putEnrollment( pi.getUid(), pi ) );
     }
 
-    public void putEnrollment( TrackerIdScheme identifier, String enrollment, ProgramInstance programInstance )
+    public void putEnrollment( String uid, ProgramInstance programInstance )
     {
-        if ( !enrollments.containsKey( identifier ) )
-        {
-            enrollments.put( identifier, new HashMap<>() );
-        }
-
-        enrollments.get( identifier ).put( enrollment, programInstance );
+        enrollments.put( uid, programInstance );
     }
 
-    public ProgramStageInstance getEvent( TrackerIdScheme identifier, String event )
+    public ProgramStageInstance getEvent( String uid )
     {
-        if ( !events.containsKey( identifier ) )
-        {
-            return null;
-        }
-
-        return events.get( identifier ).get( event );
+        return events.get( uid );
     }
 
-    public void putEvents( TrackerIdScheme identifier, List<ProgramStageInstance> programStageInstances,
-        List<Event> allEntities )
+    public void putEvents( List<ProgramStageInstance> programStageInstances, List<Event> allEntities )
     {
-        putEvents( identifier, programStageInstances );
+        putEvents( programStageInstances );
 
         List<String> uidOnDB = programStageInstances.stream().map( BaseIdentifiableObject::getUid )
             .collect( Collectors.toList() );
@@ -444,41 +584,33 @@ public class TrackerPreheat
             .forEach( psi -> this.addReference( TrackerType.EVENT, psi ) );
     }
 
-    public void putEvents( TrackerIdScheme identifier, List<ProgramStageInstance> programStageInstances )
+    public void putEvents( List<ProgramStageInstance> programStageInstances )
     {
-        programStageInstances.forEach( psi -> putEvent( identifier, psi.getUid(), psi ) );
+        programStageInstances.forEach( psi -> putEvent( psi.getUid(), psi ) );
     }
 
-    public void putEvent( TrackerIdScheme identifier, String event, ProgramStageInstance programStageInstance )
+    public void putEvent( String uid, ProgramStageInstance programStageInstance )
     {
-        if ( !events.containsKey( identifier ) )
-        {
-            events.put( identifier, new HashMap<>() );
-        }
-
-        events.get( identifier ).put( event, programStageInstance );
+        events.put( uid, programStageInstance );
     }
 
     public void putNotes( List<TrackedEntityComment> trackedEntityComments )
     {
-        // Notes are always using UID scheme
-        notes.put( TrackerIdScheme.UID, trackedEntityComments.stream().collect(
-            Collectors.toMap( TrackedEntityComment::getUid, Function.identity() ) ) );
+        trackedEntityComments.forEach( c -> putNote( c.getUid(), c ) );
+    }
+
+    public void putNote( String uid, TrackedEntityComment comment )
+    {
+        notes.put( uid, comment );
     }
 
     public Optional<TrackedEntityComment> getNote( String uid )
     {
-        return Optional.ofNullable( notes.getOrDefault( TrackerIdScheme.UID, new HashMap<>() ).get( uid ) );
+        return Optional.ofNullable( notes.get( uid ) );
     }
 
-    public Relationship getRelationship( TrackerIdScheme identifier,
-        org.hisp.dhis.tracker.domain.Relationship relationship )
+    public Relationship getRelationship( org.hisp.dhis.tracker.domain.Relationship relationship )
     {
-        if ( !relationships.containsKey( identifier ) )
-        {
-            return null;
-        }
-
         RelationshipType relationshipType = get( RelationshipType.class, relationship.getRelationshipType() );
 
         if ( Objects.nonNull( relationshipType ) )
@@ -493,7 +625,7 @@ public class TrackerPreheat
             }
             return Stream.of( relationshipKey, inverseKey )
                 .filter( Objects::nonNull )
-                .map( key -> relationships.get( identifier ).get( key.asString() ) )
+                .map( key -> relationships.get( key.asString() ) )
                 .filter( Objects::nonNull )
                 .findFirst()
                 .orElse( null );
@@ -501,27 +633,23 @@ public class TrackerPreheat
         return null;
     }
 
-    public void putRelationships( TrackerIdScheme identifier, List<Relationship> relationships )
+    public void putRelationships( List<Relationship> relationships )
     {
-        relationships.forEach( r -> putRelationship( identifier, r ) );
+        relationships.forEach( this::putRelationship );
     }
 
-    public void putRelationship( TrackerIdScheme identifier, Relationship relationship )
+    public void putRelationship( Relationship relationship )
     {
-        if ( !relationships.containsKey( identifier ) )
-        {
-            relationships.put( identifier, new HashMap<>() );
-        }
         if ( Objects.nonNull( relationship ) )
         {
             RelationshipKey relationshipKey = getRelationshipKey( relationship );
 
             if ( relationship.getRelationshipType().isBidirectional() )
             {
-                relationships.get( identifier ).put( relationshipKey.inverseKey().asString(), relationship );
+                relationships.put( relationshipKey.inverseKey().asString(), relationship );
             }
 
-            relationships.get( identifier ).put( relationshipKey.asString(), relationship );
+            relationships.put( relationshipKey.asString(), relationship );
         }
     }
 
@@ -574,6 +702,106 @@ public class TrackerPreheat
             return Optional.of( new ReferenceTrackerEntity( uid, node.parent().data() ) );
         }
         return Optional.empty();
+    }
+
+    public void addProgramOwners( List<TrackedEntityProgramOwnerOrgUnit> tepos )
+    {
+        tepos.forEach( tepo -> addProgramOwner( tepo.getTrackedEntityInstanceId(), tepo.getProgramId(), tepo ) );
+
+    }
+
+    private void addProgramOwner( String teiUid, String programUid,
+        TrackedEntityProgramOwnerOrgUnit tepo )
+    {
+        programOwner
+            .computeIfAbsent( teiUid, k -> new HashMap<>() )
+            .put( programUid, tepo );
+    }
+
+    public void addProgramOwner( String teiUid, String programUid,
+        OrganisationUnit orgUnit )
+    {
+        programOwner.computeIfAbsent( teiUid, k -> new HashMap<>() );
+        if ( !programOwner.get( teiUid ).containsKey( programUid ) )
+        {
+            TrackedEntityProgramOwnerOrgUnit tepo = new TrackedEntityProgramOwnerOrgUnit( teiUid, programUid,
+                orgUnit );
+            programOwner.get( teiUid ).put( programUid, tepo );
+        }
+    }
+
+    public void addUsers( Set<User> users )
+    {
+        Map<String, User> userMap = users.stream()
+            .filter( Objects::nonNull )
+            .collect( Collectors.toMap( User::getUsername, Function.identity() ) );
+        this.users.putAll( userMap );
+    }
+
+    public Optional<User> getUserByUsername( String username )
+    {
+        return Optional.ofNullable( this.users.get( username ) );
+    }
+
+    public Optional<User> getUserByUid( String uid )
+    {
+        return this.users.values()
+            .stream()
+            .filter( u -> Objects.equals( uid, u.getUid() ) )
+            .findAny();
+    }
+
+    public OrganisationUnit getOrganisationUnit( MetadataIdentifier id )
+    {
+        return get( OrganisationUnit.class, id );
+    }
+
+    public OrganisationUnit getOrganisationUnit( String id )
+    {
+        return get( OrganisationUnit.class, id );
+    }
+
+    public ProgramStage getProgramStage( MetadataIdentifier id )
+    {
+        return get( ProgramStage.class, id );
+    }
+
+    public ProgramStage getProgramStage( String id )
+    {
+        return get( ProgramStage.class, id );
+    }
+
+    public Program getProgram( MetadataIdentifier id )
+    {
+        return get( Program.class, id );
+    }
+
+    public Program getProgram( String id )
+    {
+        return get( Program.class, id );
+    }
+
+    public TrackedEntityType getTrackedEntityType( String id )
+    {
+        return get( TrackedEntityType.class, id );
+    }
+
+    public TrackedEntityAttribute getTrackedEntityAttribute( String id )
+    {
+        return get( TrackedEntityAttribute.class, id );
+    }
+
+    public TrackerPreheat addProgramStageWithEvents( String programStageUid, String enrollmentUid )
+    {
+        this.programStageWithEvents.add( Pair.of( programStageUid, enrollmentUid ) );
+        return this;
+    }
+
+    public boolean hasProgramStageWithEvents( MetadataIdentifier programStage, String enrollmentUid )
+    {
+        ProgramStage ps = this.getProgramStage( programStage );
+        ProgramInstance pi = this.getEnrollment( enrollmentUid );
+        return this.programStageWithEvents.contains( Pair.of( ps.getUid(), pi.getUid() ) );
     }
 
     @Override

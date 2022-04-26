@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.compress.utils.IOUtils;
-import org.hisp.dhis.commons.config.JacksonObjectMapperConfig;
+import org.apache.commons.io.IOUtils;
+import org.hisp.dhis.commons.jackson.config.JacksonObjectMapperConfig;
 import org.hisp.dhis.dxf2.dataset.CompleteDataSetRegistration;
 import org.hisp.dhis.dxf2.dataset.CompleteDataSetRegistrations;
 

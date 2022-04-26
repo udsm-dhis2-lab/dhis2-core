@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,22 +28,27 @@
 package org.hisp.dhis.webapi.controller.event;
 
 import static org.hisp.dhis.common.DimensionalObjectUtils.getDimensions;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
+import static org.hisp.dhis.eventvisualization.EventVisualizationType.LINE_LIST;
+import static org.hisp.dhis.eventvisualization.EventVisualizationType.PIVOT_TABLE;
+import static org.hisp.dhis.feedback.ErrorCode.E7231;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.hisp.dhis.chart.ChartService;
 import org.hisp.dhis.common.DimensionService;
+import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.common.cache.CacheStrategy;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.eventchart.EventChart;
 import org.hisp.dhis.eventchart.EventChartService;
+import org.hisp.dhis.feedback.ErrorMessage;
 import org.hisp.dhis.i18n.I18nFormat;
 import org.hisp.dhis.i18n.I18nManager;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
@@ -52,6 +57,8 @@ import org.hisp.dhis.period.Period;
 import org.hisp.dhis.schema.descriptors.EventChartSchemaDescriptor;
 import org.hisp.dhis.system.util.CodecUtils;
 import org.hisp.dhis.user.User;
+import org.hisp.dhis.visualization.ChartService;
+import org.hisp.dhis.visualization.PlotData;
 import org.hisp.dhis.webapi.controller.AbstractCrudController;
 import org.hisp.dhis.webapi.utils.ContextUtils;
 import org.hisp.dhis.webapi.webdomain.WebOptions;
@@ -59,14 +66,20 @@ import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
+ * @deprecated THIS IS BEING DEPRECATED IN FAVOUR OF THE EventVisualization
+ *             MODEL. WE SHOULD AVOID CHANGES ON THIS CLASS AS MUCH AS POSSIBLE.
+ *             NEW FEATURES SHOULD BE ADDED ON TOP OF
+ *             EventVisualizationController.
+ *
  * @author Jan Henrik Overland
  */
+@Deprecated
 @Controller
 @RequestMapping( value = EventChartSchemaDescriptor.API_ENDPOINT )
 public class EventChartController
@@ -94,12 +107,28 @@ public class EventChartController
     // CRUD
     // --------------------------------------------------------------------------
 
+    // TODO: Block querying LINE_LIST and PIVOT_TABLE type.
+
     @Override
-    protected EventChart deserializeJsonEntity( HttpServletRequest request, HttpServletResponse response )
+    protected EventChart deserializeJsonEntity( HttpServletRequest request )
         throws IOException
     {
-        EventChart eventChart = super.deserializeJsonEntity( request, response );
+        EventChart eventChart = super.deserializeJsonEntity( request );
         mergeEventChart( eventChart );
+
+        applyCompatibilityConversions( eventChart );
+
+        return eventChart;
+    }
+
+    @Override
+    protected EventChart deserializeXmlEntity( HttpServletRequest request )
+        throws IOException
+    {
+        EventChart eventChart = super.deserializeXmlEntity( request );
+        mergeEventChart( eventChart );
+
+        applyCompatibilityConversions( eventChart );
 
         return eventChart;
     }
@@ -108,7 +137,7 @@ public class EventChartController
     // Get data
     // --------------------------------------------------------------------------
 
-    @RequestMapping( value = { "/{uid}/data", "/{uid}/data.png" }, method = RequestMethod.GET )
+    @GetMapping( value = { "/{uid}/data", "/{uid}/data.png" } )
     public void getChart(
         @PathVariable( "uid" ) String uid,
         @RequestParam( value = "date", required = false ) Date date,
@@ -125,12 +154,13 @@ public class EventChartController
 
         if ( chart == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "Event chart does not exist: " + uid ) );
+            throw new WebMessageException( notFound( "Event chart does not exist: " + uid ) );
         }
 
         OrganisationUnit unit = ou != null ? organisationUnitService.getOrganisationUnit( ou ) : null;
 
-        JFreeChart jFreeChart = chartService.getJFreeChart( chart, date, unit, i18nManager.getI18nFormat() );
+        JFreeChart jFreeChart = chartService.getJFreeChart( new PlotData( chart ), date, unit,
+            i18nManager.getI18nFormat() );
 
         String filename = CodecUtils.filenameEncode( chart.getName() ) + ".png";
 
@@ -143,6 +173,37 @@ public class EventChartController
     // --------------------------------------------------------------------------
     // Hooks
     // --------------------------------------------------------------------------
+
+    /**
+     * @deprecated This is a temporary workaround to keep EventChart backward
+     *             compatible with the new EventVisualization entity. Only
+     *             legacy and chart related types can be returned by this
+     *             endpoint.
+     *
+     * @param filters
+     */
+    @Deprecated
+    @Override
+    protected void forceFiltering( final WebOptions webOptions, final List<String> filters )
+    {
+        filters.add( "type:!eq:PIVOT_TABLE" );
+        filters.add( "type:!eq:LINE_LIST" );
+        filters.add( "legacy:eq:true" );
+    }
+
+    @Override
+    protected void preUpdateEntity( final EventChart eventChart, final EventChart newEventChart )
+    {
+        /**
+         * If the EventChart was already marked as non-legacy, it cannot be
+         * updated through the legacy endpoints. It can be only updated through
+         * EventVisualization endpoints.
+         */
+        if ( eventChart != null && !eventChart.isLegacy() )
+        {
+            throw new IllegalQueryException( new ErrorMessage( E7231, "chart" ) );
+        }
+    }
 
     @Override
     protected void postProcessResponseEntity( EventChart eventChart, WebOptions options,
@@ -190,5 +251,22 @@ public class EventChartController
         chart.getColumnDimensions().addAll( getDimensions( chart.getColumns() ) );
         chart.getRowDimensions().addAll( getDimensions( chart.getRows() ) );
         chart.getFilterDimensions().addAll( getDimensions( chart.getFilters() ) );
+    }
+
+    /**
+     * This method encapsulated the necessary conversions to keep this object
+     * compatible with EventVisualization. This is need to enable backward
+     * compatibility during the deprecation process of the EventChart.
+     *
+     * @param eventChart
+     */
+    private void applyCompatibilityConversions( EventChart eventChart )
+        throws IOException
+    {
+        // Block persisting of LINE_LIST and PIVOT_TABLE types.
+        if ( eventChart.getType() == LINE_LIST || eventChart.getType() == PIVOT_TABLE )
+        {
+            throw new IOException( "Cannot convert type: " + eventChart.getType() );
+        }
     }
 }

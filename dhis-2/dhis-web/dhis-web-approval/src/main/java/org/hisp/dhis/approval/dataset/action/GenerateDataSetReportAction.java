@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package org.hisp.dhis.approval.dataset.action;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -251,13 +253,13 @@ public class GenerateDataSetReportAction
 
         if ( formType.isCustom() && type == null )
         {
-            customDataEntryFormCode = dataSetReportService.getCustomDataSetReport( selectedDataSet, selectedPeriod,
-                selectedOrgunit, dimension, selectedUnitOnly );
+            customDataEntryFormCode = dataSetReportService.getCustomDataSetReport( selectedDataSet,
+                newArrayList( selectedPeriod ), selectedOrgunit, dimension, selectedUnitOnly );
         }
         else
         {
-            grids = dataSetReportService.getDataSetReportAsGrid( selectedDataSet, selectedPeriod, selectedOrgunit,
-                dimension, selectedUnitOnly );
+            grids = dataSetReportService.getDataSetReportAsGrid( selectedDataSet,
+                newArrayList( selectedPeriod ), selectedOrgunit, dimension, selectedUnitOnly );
         }
 
         return type != null ? type : formType.toString();

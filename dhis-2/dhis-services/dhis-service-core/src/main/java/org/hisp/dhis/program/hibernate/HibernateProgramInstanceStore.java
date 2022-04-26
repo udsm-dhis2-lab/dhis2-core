@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,8 @@ import javax.persistence.criteria.Root;
 import lombok.Builder;
 import lombok.Getter;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -129,6 +129,15 @@ public class HibernateProgramInstanceStore
         {
             query.setFirstResult( params.getOffset() );
             query.setMaxResults( params.getPageSizeWithDefault() );
+        }
+
+        // When the clients choose to not show the total of pages.
+        if ( !params.isTotalPages() )
+        {
+            // Get pageSize + 1, so we are able to know if there is another
+            // page available. It adds one additional element into the list,
+            // as consequence. The caller needs to remove the last element.
+            query.setMaxResults( params.getPageSizeWithDefault() + 1 );
         }
 
         return query.list();
@@ -379,9 +388,18 @@ public class HibernateProgramInstanceStore
     }
 
     @Override
+    public List<ProgramInstance> getByPrograms( List<Program> programs )
+    {
+        CriteriaBuilder builder = getCriteriaBuilder();
+
+        return getList( builder,
+            newJpaParameters().addPredicate( root -> builder.in( root.get( "program" ) ).value( programs ) ) );
+    }
+
+    @Override
     public List<ProgramInstance> getByType( ProgramType type )
     {
-        String hql = "from ProgramInstance pi where pi.program.programType = :type";
+        String hql = "select pi from ProgramInstance pi join fetch pi.program p where p.programType = :type";
 
         Query<ProgramInstance> query = getQuery( hql );
         query.setParameter( "type", type );

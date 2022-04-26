@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,14 @@ package org.hisp.dhis.relationship;
 import java.io.Serializable;
 
 import org.hisp.dhis.audit.AuditAttribute;
+import org.hisp.dhis.audit.AuditScope;
+import org.hisp.dhis.audit.Auditable;
 import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.common.BaseNameableObject;
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.common.ObjectStyle;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
@@ -45,6 +48,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
  * @author Stian Sandvold
  */
 @JacksonXmlRootElement( localName = "relationship", namespace = DxfNamespaces.DXF_2_0 )
+@Auditable( scope = AuditScope.TRACKER )
 public class Relationship
     extends BaseNameableObject
     implements Serializable
@@ -54,11 +58,13 @@ public class Relationship
      */
     private static final long serialVersionUID = 3818815755138507997L;
 
+    @AuditAttribute
     private RelationshipType relationshipType;
 
     @AuditAttribute
     private RelationshipItem from;
 
+    @AuditAttribute
     private RelationshipItem to;
 
     private ObjectStyle style;
@@ -66,6 +72,19 @@ public class Relationship
     private String formName;
 
     private String description;
+
+    /**
+     * The key is an aggregated representation of the relationship and its sides
+     * based on uids. The format is type_from_to
+     */
+    private String key;
+
+    /**
+     * The inverted key is a key, but with the sides switched. This will make it
+     * possible to match a key when it is bidirectional. the format is
+     * type_to_from
+     */
+    private String invertedKey;
 
     // -------------------------------------------------------------------------
     // Constructors
@@ -156,6 +175,28 @@ public class Relationship
     public void setTo( RelationshipItem to )
     {
         this.to = to;
+    }
+
+    @JsonIgnore
+    public String getKey()
+    {
+        return key;
+    }
+
+    public void setKey( String key )
+    {
+        this.key = key;
+    }
+
+    @JsonIgnore
+    public String getInvertedKey()
+    {
+        return invertedKey;
+    }
+
+    public void setInvertedKey( String invertedKey )
+    {
+        this.invertedKey = invertedKey;
     }
 
     @Override

@@ -7,11 +7,9 @@ FROM maven:3.8.1-jdk-11-slim as build
 ARG IDENTIFIER=unknown
 LABEL identifier=${IDENTIFIER}
 
+# needed to clone DHIS2 apps
 RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install --no-install-recommends -y \
-        git && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install --no-install-recommends -y git
 
 WORKDIR /src
 
@@ -19,8 +17,8 @@ WORKDIR /src
 COPY . .
 
 # TODO: We should be able to achieve much faster incremental builds and cached dependencies using
-RUN mvn clean install -Pdev -Pjdk11 -f dhis-2/pom.xml -DskipTests -pl -dhis-web-embedded-jetty
-RUN mvn clean install -Pdev -Pjdk11 -U -f dhis-2/dhis-web/pom.xml -DskipTests
+RUN mvn clean install --batch-mode --no-transfer-progress -Pdev -f dhis-2/pom.xml -DskipTests -pl -dhis-web-embedded-jetty
+RUN mvn clean install --batch-mode --no-transfer-progress -Pdev -U -f dhis-2/dhis-web/pom.xml -DskipTests
 
 RUN cp dhis-2/dhis-web/dhis-web-portal/target/dhis.war /dhis.war && \
     cd / && \

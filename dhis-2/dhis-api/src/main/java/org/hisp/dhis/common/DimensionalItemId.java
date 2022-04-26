@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,12 +50,12 @@ public class DimensionalItemId
     /**
      * The type of DimensionalItemObject whose ids we have
      */
-    private DimensionItemType dimensionItemType;
+    private final DimensionItemType dimensionItemType;
 
     /**
      * The first id for the DimensionalItemObject
      */
-    private String id0;
+    private final String id0;
 
     /**
      * The second id (if any) for the DimensionalItemObject
@@ -68,9 +68,14 @@ public class DimensionalItemId
     private String id2;
 
     /**
-     * The period offset
+     * The item as parsed from the expression
      */
-    private Integer periodOffset = 0;
+    private String item;
+
+    /**
+     * The query modifiers
+     */
+    private QueryModifiers queryMods;
 
     // -------------------------------------------------------------------------
     // Constructors
@@ -82,11 +87,11 @@ public class DimensionalItemId
         this.id0 = id0;
     }
 
-    public DimensionalItemId( DimensionItemType dimensionItemType, String id0, Integer periodOffset )
+    public DimensionalItemId( DimensionItemType dimensionItemType, String id0, QueryModifiers queryMods )
     {
         this.dimensionItemType = dimensionItemType;
         this.id0 = id0;
-        this.periodOffset = periodOffset;
+        this.queryMods = queryMods;
     }
 
     public DimensionalItemId( DimensionItemType dimensionItemType, String id0, String id1 )
@@ -104,14 +109,24 @@ public class DimensionalItemId
         this.id2 = id2;
     }
 
-    public DimensionalItemId( DimensionItemType dimensionItemType, String id0, String id1, String id2,
-        int periodOffset )
+    public DimensionalItemId( DimensionItemType dimensionItemType, String id0, String id1, String id2, String item )
     {
         this.dimensionItemType = dimensionItemType;
         this.id0 = id0;
         this.id1 = id1;
         this.id2 = id2;
-        this.periodOffset = periodOffset;
+        this.item = item;
+    }
+
+    public DimensionalItemId( DimensionItemType dimensionItemType, String id0, String id1, String id2, String item,
+        QueryModifiers queryMods )
+    {
+        this.dimensionItemType = dimensionItemType;
+        this.id0 = id0;
+        this.id1 = id1;
+        this.id2 = id2;
+        this.item = item;
+        this.queryMods = queryMods;
     }
 
     // -------------------------------------------------------------------------
@@ -172,7 +187,7 @@ public class DimensionalItemId
             && Objects.equals( this.id0, that.id0 )
             && Objects.equals( this.id1, that.id1 )
             && Objects.equals( this.id2, that.id2 )
-            && this.periodOffset.equals( that.periodOffset );
+            && Objects.equals( this.queryMods, that.queryMods );
     }
 
     @Override
@@ -183,7 +198,7 @@ public class DimensionalItemId
         result = 31 * result + (id0 == null ? 0 : id0.hashCode());
         result = 31 * result + (id1 == null ? 0 : id1.hashCode());
         result = 31 * result + (id2 == null ? 0 : id2.hashCode());
-        result = 31 * result + periodOffset;
+        result = 31 * result + (queryMods == null ? 0 : queryMods.hashCode());
 
         return result;
     }
@@ -196,7 +211,7 @@ public class DimensionalItemId
             .add( "id0", id0 )
             .add( "id1", id1 )
             .add( "id2", id2 )
-            .add( "periodOffset", periodOffset )
+            .add( "queryMods", queryMods )
             .toString();
     }
 
@@ -224,8 +239,13 @@ public class DimensionalItemId
         return id2;
     }
 
-    public Integer getPeriodOffset()
+    public QueryModifiers getQueryMods()
     {
-        return periodOffset;
+        return queryMods;
+    }
+
+    public String getItem()
+    {
+        return item;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,11 +107,11 @@ public class DefaultUserSettingService
     @Transactional
     public void saveUserSetting( UserSettingKey key, Serializable value, String username )
     {
-        UserCredentials credentials = userService.getUserCredentialsByUsername( username );
+        User user = userService.getUserByUsername( username );
 
-        if ( credentials != null )
+        if ( user != null )
         {
-            saveUserSetting( key, value, credentials.getUserInfo() );
+            saveUserSetting( key, value, user );
         }
     }
 
@@ -240,8 +240,9 @@ public class DefaultUserSettingService
 
                 if ( useFallback && systemSettingKey.isPresent() )
                 {
+                    SettingKey setting = systemSettingKey.get();
                     result.put( userSettingKey.getName(),
-                        systemSettingManager.getSystemSetting( systemSettingKey.get() ) );
+                        systemSettingManager.getSystemSetting( setting, setting.getClazz() ) );
                 }
                 else
                 {
@@ -310,12 +311,13 @@ public class DefaultUserSettingService
         String cacheKey = getCacheKey( key.getName(), username );
 
         SerializableOptional result = userSettingCache
-            .get( cacheKey, c -> getUserSettingOptional( key, username ) ).get();
+            .get( cacheKey, c -> getUserSettingOptional( key, username ) );
 
         if ( !result.isPresent() && NAME_SETTING_KEY_MAP.containsKey( key.getName() ) )
         {
+            SettingKey settingKey = NAME_SETTING_KEY_MAP.get( key.getName() );
             return SerializableOptional.of(
-                systemSettingManager.getSystemSetting( NAME_SETTING_KEY_MAP.get( key.getName() ) ) );
+                systemSettingManager.getSystemSetting( settingKey, settingKey.getClazz() ) );
         }
         else
         {
@@ -336,14 +338,14 @@ public class DefaultUserSettingService
      */
     private SerializableOptional getUserSettingOptional( UserSettingKey key, String username )
     {
-        UserCredentials userCredentials = userService.getUserCredentialsByUsername( username );
+        User user = userService.getUserByUsername( username );
 
-        if ( userCredentials == null )
+        if ( user == null )
         {
             return SerializableOptional.empty();
         }
 
-        UserSetting setting = userSettingStore.getUserSettingTx( userCredentials.getUserInfo(), key.getName() );
+        UserSetting setting = userSettingStore.getUserSettingTx( user, key.getName() );
 
         Serializable value = setting != null && setting.hasValue() ? setting.getValue() : key.getDefaultValue();
 

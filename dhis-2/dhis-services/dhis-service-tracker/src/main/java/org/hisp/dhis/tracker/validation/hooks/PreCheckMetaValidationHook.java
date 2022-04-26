@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,14 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static org.hisp.dhis.tracker.report.TrackerErrorCode.*;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1005;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1010;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1011;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1013;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1068;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1069;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1070;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E4006;
 import static org.hisp.dhis.tracker.validation.hooks.ValidationUtils.trackedEntityInstanceExist;
 
 import org.hisp.dhis.organisationunit.OrganisationUnit;
@@ -40,9 +46,9 @@ import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.Event;
 import org.hisp.dhis.tracker.domain.Relationship;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
+import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.report.TrackerErrorCode;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -55,56 +61,56 @@ public class PreCheckMetaValidationHook
     @Override
     public void validateTrackedEntity( ValidationErrorReporter reporter, TrackedEntity tei )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
-        OrganisationUnit organisationUnit = context.getOrganisationUnit( tei.getOrgUnit() );
+        OrganisationUnit organisationUnit = reporter.getBundle().getPreheat().getOrganisationUnit( tei.getOrgUnit() );
         if ( organisationUnit == null )
         {
-            addError( reporter, TrackerErrorCode.E1049, tei.getOrgUnit() );
+            reporter.addError( tei, TrackerErrorCode.E1049, tei.getOrgUnit() );
         }
 
-        TrackedEntityType entityType = context.getTrackedEntityType( tei.getTrackedEntityType() );
+        TrackedEntityType entityType = reporter.getBundle().getPreheat()
+            .getTrackedEntityType( tei.getTrackedEntityType() );
         if ( entityType == null )
         {
-            addError( reporter, E1005, tei.getTrackedEntityType() );
+            reporter.addError( tei, E1005, tei.getTrackedEntityType() );
         }
     }
 
     @Override
     public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
+        OrganisationUnit organisationUnit = reporter.getBundle().getPreheat()
+            .getOrganisationUnit( enrollment.getOrgUnit() );
+        reporter.addErrorIfNull( organisationUnit, enrollment, E1070, enrollment.getOrgUnit() );
 
-        OrganisationUnit organisationUnit = context.getOrganisationUnit( enrollment.getOrgUnit() );
-        addErrorIfNull( organisationUnit, reporter, E1070, enrollment.getOrgUnit() );
+        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgram() );
+        reporter.addErrorIfNull( program, enrollment, E1069, enrollment.getProgram().getIdentifierOrAttributeValue() );
 
-        Program program = context.getProgram( enrollment.getProgram() );
-        addErrorIfNull( program, reporter, E1069, enrollment.getProgram() );
-
-        addErrorIf( () -> !trackedEntityInstanceExist( context, enrollment.getTrackedEntity() ),
-            reporter, E1068, enrollment.getTrackedEntity() );
+        reporter.addErrorIf( () -> !trackedEntityInstanceExist( reporter.getBundle(), enrollment.getTrackedEntity() ),
+            enrollment,
+            E1068, enrollment.getTrackedEntity() );
     }
 
     @Override
     public void validateEvent( ValidationErrorReporter reporter, Event event )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
+        OrganisationUnit organisationUnit = reporter.getBundle().getPreheat().getOrganisationUnit( event.getOrgUnit() );
+        reporter.addErrorIfNull( organisationUnit, event, E1011, event.getOrgUnit() );
 
-        OrganisationUnit organisationUnit = context.getOrganisationUnit( event.getOrgUnit() );
-        addErrorIfNull( organisationUnit, reporter, E1011, event.getOrgUnit() );
+        Program program = reporter.getBundle().getPreheat().getProgram( event.getProgram() );
+        reporter.addErrorIfNull( program, event, E1010,
+            event.getProgram().getIdentifierOrAttributeValue() );
 
-        ProgramStage programStage = context.getProgramStage( event.getProgramStage() );
-        addErrorIfNull( programStage, reporter, E1013, event.getProgramStage() );
+        ProgramStage programStage = reporter.getBundle().getPreheat().getProgramStage( event.getProgramStage() );
+        reporter.addErrorIfNull( programStage, event, E1013, event.getProgramStage() );
     }
 
     @Override
     public void validateRelationship( ValidationErrorReporter reporter, Relationship relationship )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
+        TrackerPreheat preheat = reporter.getBundle().getPreheat();
+        RelationshipType relationshipType = preheat.get( RelationshipType.class, relationship.getRelationshipType() );
 
-        RelationshipType relationshipType = context.getRelationShipType( relationship.getRelationshipType() );
-
-        addErrorIfNull( relationshipType, reporter, E4006, relationship.getRelationshipType() );
+        reporter.addErrorIfNull( relationshipType, relationship, E4006, relationship.getRelationshipType() );
     }
 
     @Override

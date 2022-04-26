@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 package org.hisp.dhis.program.function;
 
-import static org.hisp.dhis.parser.expression.CommonExpressionVisitor.DEFAULT_BOOLEAN_VALUE;
+import static org.hisp.dhis.parser.expression.ParserUtils.DEFAULT_BOOLEAN_VALUE;
 import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ExprContext;
 
 import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
@@ -52,13 +52,13 @@ public class D2HasValue
     @Override
     public Object getSql( ExprContext ctx, CommonExpressionVisitor visitor )
     {
-        boolean savedReplaceNulls = visitor.getReplaceNulls();
+        boolean savedReplaceNulls = visitor.getState().isReplaceNulls();
 
-        visitor.setReplaceNulls( false );
+        visitor.getState().setReplaceNulls( false );
 
         String argSql = (String) getProgramArgType( ctx ).getSql( ctx, visitor );
 
-        visitor.setReplaceNulls( savedReplaceNulls );
+        visitor.getState().setReplaceNulls( savedReplaceNulls );
 
         return "(" + argSql + " is not null)";
     }

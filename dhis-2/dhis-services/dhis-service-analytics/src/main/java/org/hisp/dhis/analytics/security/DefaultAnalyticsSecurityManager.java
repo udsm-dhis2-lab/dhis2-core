@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,8 +121,7 @@ public class DefaultAnalyticsSecurityManager
     private void decideAccessDataViewOrganisationUnits( DataQueryParams params, User user )
         throws IllegalQueryException
     {
-        List<DimensionalItemObject> queryOrgUnits = params
-            .getDimensionOrFilterItems( DimensionalObject.ORGUNIT_DIM_ID );
+        List<OrganisationUnit> queryOrgUnits = params.getAllTypedOrganisationUnits();
 
         if ( queryOrgUnits.isEmpty() || user == null || !user.hasDataViewOrganisationUnit() )
         {
@@ -131,13 +130,18 @@ public class DefaultAnalyticsSecurityManager
 
         Set<OrganisationUnit> viewOrgUnits = user.getDataViewOrganisationUnits();
 
-        for ( DimensionalItemObject object : queryOrgUnits )
-        {
-            OrganisationUnit queryOrgUnit = (OrganisationUnit) object;
+        Integer maxOrgUnitLevel = user.getDataViewMaxOrganisationUnitLevel();
 
+        for ( OrganisationUnit queryOrgUnit : queryOrgUnits )
+        {
             boolean notDescendant = !queryOrgUnit.isDescendant( viewOrgUnits );
 
             if ( notDescendant )
+            {
+                throwIllegalQueryEx( ErrorCode.E7120, user.getUsername(), queryOrgUnit.getUid() );
+            }
+
+            if ( maxOrgUnitLevel != null && queryOrgUnit.getLevel() > maxOrgUnitLevel )
             {
                 throwIllegalQueryEx( ErrorCode.E7120, user.getUsername(), queryOrgUnit.getUid() );
             }
@@ -223,9 +227,7 @@ public class DefaultAnalyticsSecurityManager
 
         boolean hideUnapprovedData = systemSettingManager.hideUnapprovedDataInAnalytics();
 
-        boolean canViewUnapprovedData = user != null
-            ? user.getUserCredentials().isAuthorized( DataApproval.AUTH_VIEW_UNAPPROVED_DATA )
-            : true;
+        boolean canViewUnapprovedData = user == null || user.isAuthorized( DataApproval.AUTH_VIEW_UNAPPROVED_DATA );
 
         if ( hideUnapprovedData && user != null )
         {
@@ -344,13 +346,12 @@ public class DefaultAnalyticsSecurityManager
         // Check if current user has dimension constraints
         // ---------------------------------------------------------------------
 
-        if ( params == null || user == null || user.getUserCredentials() == null
-            || !user.getUserCredentials().hasDimensionConstraints() )
+        if ( params == null || user == null || !user.hasDimensionConstraints() )
         {
             return;
         }
 
-        Set<DimensionalObject> dimensionConstraints = user.getUserCredentials().getDimensionConstraints();
+        Set<DimensionalObject> dimensionConstraints = user.getDimensionConstraints();
 
         for ( DimensionalObject dimension : dimensionConstraints )
         {

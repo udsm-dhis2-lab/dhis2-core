@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.resourcetable;
 
+import static java.time.LocalDate.now;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +39,10 @@ import org.hisp.dhis.common.CodeGenerator;
  */
 public abstract class ResourceTable<T>
 {
+    public static final int OLDEST_YEAR_PERIOD_SUPPORTED = 1975;
+
+    public static final int NEWEST_YEAR_PERIOD_SUPPORTED = now().plusYears( 2 ).getYear();
+
     protected static final String TEMP_TABLE_SUFFIX = "_temp";
 
     protected List<T> objects;

@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +25,15 @@ package org.hisp.dhis.actions;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.dto.schemas.Schema;
 import org.hisp.dhis.dto.schemas.SchemaProperty;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -71,10 +70,13 @@ public class SchemasActions
         return findSchemaPropertyByKnownProperty( property, "klass", klass );
     }
 
-    public String findSchemaPropertyByKnownProperty( String propertyToFind, String knownPropertyName, String knownPropertyValue )
+    public String findSchemaPropertyByKnownProperty( String propertyToFind, String knownPropertyName,
+        String knownPropertyValue )
     {
-        return get( "", new QueryParamsBuilder().add( String.format( "fields=%s,%s", propertyToFind, knownPropertyName ) ) )
-            .extractString(
-                String.format( "schemas.find{it.%s == '%s'}.%s", knownPropertyName, knownPropertyValue, propertyToFind ) );
+        return get( "",
+            new QueryParamsBuilder().add( String.format( "fields=%s,%s", propertyToFind, knownPropertyName ) ) )
+                .extractString(
+                    String.format( "schemas.find{it.%s == '%s'}.%s", knownPropertyName, knownPropertyValue,
+                        propertyToFind ) );
     }
 }

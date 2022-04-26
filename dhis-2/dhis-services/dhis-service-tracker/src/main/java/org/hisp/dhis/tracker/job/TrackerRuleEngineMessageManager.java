@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,10 +34,10 @@ import javax.jms.TextMessage;
 
 import org.hisp.dhis.artemis.MessageManager;
 import org.hisp.dhis.artemis.Topics;
+import org.hisp.dhis.common.AsyncTaskExecutor;
 import org.hisp.dhis.render.RenderService;
 import org.hisp.dhis.scheduling.JobConfiguration;
 import org.hisp.dhis.scheduling.JobType;
-import org.hisp.dhis.scheduling.SchedulingManager;
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
@@ -54,11 +54,11 @@ public class TrackerRuleEngineMessageManager extends BaseMessageManager
 
     public TrackerRuleEngineMessageManager(
         MessageManager messageManager,
-        SchedulingManager schedulingManager,
+        AsyncTaskExecutor taskExecutor,
         RenderService renderService,
         ObjectFactory<TrackerRuleEngineThread> trackerRuleEngineThreadObjectFactory )
     {
-        super( messageManager, schedulingManager, renderService );
+        super( messageManager, taskExecutor, renderService );
         this.trackerRuleEngineThreadObjectFactory = trackerRuleEngineThreadObjectFactory;
     }
 

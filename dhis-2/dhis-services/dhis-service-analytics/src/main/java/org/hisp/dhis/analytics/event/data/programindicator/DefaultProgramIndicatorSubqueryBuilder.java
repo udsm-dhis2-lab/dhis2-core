@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.analytics.event.data.programindicator;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.util.Date;
 
@@ -112,12 +113,14 @@ public class DefaultProgramIndicatorSubqueryBuilder
         aggregateSql += getFrom( programIndicator );
 
         // Determine JOIN
-        aggregateSql += getWhere( outerSqlEntity, programIndicator, relationshipType );
+        String where = getWhere( outerSqlEntity, programIndicator, relationshipType );
+
+        aggregateSql += where;
 
         // Get WHERE condition from Program indicator filter
         if ( !Strings.isNullOrEmpty( programIndicator.getFilter() ) )
         {
-            aggregateSql += " AND "
+            aggregateSql += (where.isBlank() ? " WHERE " : " AND ")
                 + getPrgIndSql( programIndicator.getFilter(), programIndicator, earliestStartDate, latestDate );
         }
 
@@ -171,7 +174,7 @@ public class DefaultProgramIndicatorSubqueryBuilder
             }
         }
 
-        return " WHERE " + condition;
+        return isNotBlank( condition ) ? " WHERE " + condition : condition;
     }
 
     private boolean isEnrollment( AnalyticsType outerSqlEntity )

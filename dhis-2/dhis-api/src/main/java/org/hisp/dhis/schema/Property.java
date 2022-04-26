@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,11 @@
  */
 package org.hisp.dhis.schema;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.hisp.dhis.common.DxfNamespaces;
@@ -131,7 +134,7 @@ public class Property implements Ordered, Klass
     /**
      * This property is true if the type pointed to does not export any
      * properties itself, it is then assumed to be a primitive type. If
-     * collection is true, this this check is done on the generic type of the
+     * collection is true, then this check is done on the generic type of the
      * collection, e.g. List<String> would set simple to be true, but
      * List<DataElement> would set it to false.
      */
@@ -287,7 +290,18 @@ public class Property implements Ordered, Klass
 
     private String translationKey;
 
+    /**
+     * The translation key use for retrieving I18n translation of this
+     * property's name. The key follows snake_case naming convention.
+     */
+    private String i18nTranslationKey;
+
     private GistPreferences gistPreferences = GistPreferences.DEFAULT;
+
+    /**
+     * All annotations present on this property (either through field or method)
+     */
+    private Map<Class<? extends Annotation>, Annotation> annotations = new HashMap<>();
 
     public Property()
     {
@@ -750,6 +764,18 @@ public class Property implements Ordered, Klass
     }
 
     @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public String getI18nTranslationKey()
+    {
+        return i18nTranslationKey;
+    }
+
+    public void setI18nTranslationKey( String i18nTranslationKey )
+    {
+        this.i18nTranslationKey = i18nTranslationKey;
+    }
+
+    @JsonProperty
     @JacksonXmlElementWrapper( localName = "constants", namespace = DxfNamespaces.DXF_2_0 )
     @JacksonXmlProperty( localName = "constant", namespace = DxfNamespaces.DXF_2_0 )
     public List<String> getConstants()
@@ -858,6 +884,22 @@ public class Property implements Ordered, Klass
         this.gistPreferences = gistPreferences == null ? GistPreferences.DEFAULT : gistPreferences;
     }
 
+    public Map<Class<? extends Annotation>, Annotation> getAnnotations()
+    {
+        return annotations;
+    }
+
+    public void setAnnotations( Map<Class<? extends Annotation>, Annotation> annotations )
+    {
+        this.annotations = annotations;
+    }
+
+    @SuppressWarnings( "unchecked" )
+    public <A extends Annotation> A getAnnotation( Class<? extends Annotation> annotationType )
+    {
+        return (A) annotations.get( annotationType );
+    }
+
     public String key()
     {
         return isCollection() ? collectionName : name;
@@ -865,7 +907,12 @@ public class Property implements Ordered, Klass
 
     public boolean is( PropertyType propertyType )
     {
-        return propertyType != null && propertyType.equals( this.propertyType );
+        return propertyType == this.propertyType;
+    }
+
+    public boolean itemIs( PropertyType propertyType )
+    {
+        return propertyType == this.itemPropertyType;
     }
 
     public boolean is( PropertyType... anyOf )
@@ -873,6 +920,18 @@ public class Property implements Ordered, Klass
         for ( PropertyType type : anyOf )
         {
             if ( is( type ) )
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean itemIs( PropertyType... anyOf )
+    {
+        for ( PropertyType type : anyOf )
+        {
+            if ( itemIs( type ) )
             {
                 return true;
             }
@@ -891,10 +950,9 @@ public class Property implements Ordered, Klass
     {
         return Objects.hash( klass, propertyType, itemKlass, itemPropertyType, getterMethod, setterMethod, name,
             fieldName, persisted, collectionName,
-            collectionWrapping, description, namespace, attribute, simple, collection, owner, identifiableObject,
-            nameableObject, readable, writable,
-            unique, required, length, max, min, cascade, manyToMany, oneToOne, manyToOne, owningRole, inverseRole,
-            constants, defaultValue );
+            collectionWrapping, description, namespace, attribute, simple, collection, owner,
+            identifiableObject, nameableObject, readable, writable, unique, required, length, max, min, cascade,
+            manyToMany, oneToOne, manyToOne, owningRole, inverseRole, constants, defaultValue );
     }
 
     @Override

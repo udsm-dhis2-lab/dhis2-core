@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,8 +55,8 @@ public interface ObjectValidationCheck extends ValidationCheck
 {
 
     @Override
-    default TypeReport check( ObjectBundle bundle, Class<? extends IdentifiableObject> klass,
-        List<IdentifiableObject> persistedObjects, List<IdentifiableObject> nonPersistedObjects,
+    default <T extends IdentifiableObject> TypeReport check( ObjectBundle bundle, Class<T> klass,
+        List<T> persistedObjects, List<T> nonPersistedObjects,
         ImportStrategy importStrategy, ValidationContext context )
     {
         // NB. The box is there so we only create an instance of TypeReport
@@ -89,7 +89,7 @@ public interface ObjectValidationCheck extends ValidationCheck
      *        errors and should be ignored. The passed {@link ObjectReport} is
      *        added to the outer {@link TypeReport}.
      */
-    void check( ObjectBundle bundle, Class<? extends IdentifiableObject> klass,
-        List<IdentifiableObject> persistedObjects, List<IdentifiableObject> nonPersistedObjects,
+    <T extends IdentifiableObject> void check( ObjectBundle bundle, Class<T> klass,
+        List<T> persistedObjects, List<T> nonPersistedObjects,
         ImportStrategy importStrategy, ValidationContext context, Consumer<ObjectReport> addReports );
 }

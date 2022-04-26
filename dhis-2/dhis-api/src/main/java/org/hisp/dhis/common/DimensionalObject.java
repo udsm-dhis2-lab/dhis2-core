@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,11 @@ import org.hisp.dhis.category.Category;
 import org.hisp.dhis.category.CategoryOption;
 import org.hisp.dhis.category.CategoryOptionGroup;
 import org.hisp.dhis.category.CategoryOptionGroupSet;
-import org.hisp.dhis.dataelement.*;
+import org.hisp.dhis.dataelement.DataElementGroup;
+import org.hisp.dhis.dataelement.DataElementGroupSet;
+import org.hisp.dhis.eventvisualization.EventRepetition;
 import org.hisp.dhis.legend.LegendSet;
+import org.hisp.dhis.option.OptionSet;
 import org.hisp.dhis.organisationunit.OrganisationUnitGroup;
 import org.hisp.dhis.organisationunit.OrganisationUnitGroupSet;
 import org.hisp.dhis.program.ProgramStage;
@@ -50,7 +53,7 @@ import com.google.common.collect.ImmutableSet;
  * @author Lars Helge Overland
  */
 public interface DimensionalObject
-    extends NameableObject
+    extends NameableObject, GroupableItem
 {
     String DATA_X_DIM_ID = "dx"; // in, de, ds, do
 
@@ -76,11 +79,21 @@ public interface DimensionalObject
 
     String DIMENSION_NAME_SEP = ":";
 
+    String PERIOD_FREE_RANGE_SEPARATOR = "_";
+
+    String QUERY_MODS_ID_SEPARATOR = "_";
+
     String OPTION_SEP = ";";
+
+    String MULTI_CHOICES_OPTION_SEP = ",";
 
     String ITEM_SEP = "-";
 
     String PROGRAMSTAGE_SEP = ".";
+
+    String VALUE_COLUMN_NAME = "value";
+
+    String TEXTVALUE_COLUMN_NAME = "textvalue";
 
     List<String> STATIC_DIMS = ImmutableList.<String> builder().add(
         LONGITUDE_DIM_ID, LATITUDE_DIM_ID ).build();
@@ -134,6 +147,19 @@ public interface DimensionalObject
     String getDimensionDisplayName();
 
     /**
+     * Returns the value type of the dimension.
+     *
+     * NOTE: not all dimensional objects have a ValueType, hence this method
+     * will return null in such cases.
+     */
+    ValueType getValueType();
+
+    /**
+     * Returns the option set of the dimension, if any.
+     */
+    OptionSet getOptionSet();
+
+    /**
      * Dimension items.
      */
     List<DimensionalItemObject> getItems();
@@ -179,6 +205,11 @@ public interface DimensionalObject
     String getFilter();
 
     /**
+     * Gets the events repetition. Only applicable for events.
+     */
+    EventRepetition getEventRepetition();
+
+    /**
      * Indicates the analytics type of this dimensional object.
      */
     AnalyticsType getAnalyticsType();
@@ -201,7 +232,7 @@ public interface DimensionalObject
     String getKey();
 
     /**
-     * Returns dimensional keywords for this dimension.
+     * Returns dimension item keywords for this dimension.
      */
-    DimensionalKeywords getDimensionalKeywords();
+    DimensionItemKeywords getDimensionItemKeywords();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,13 @@ import org.hisp.dhis.dxf2.events.importer.context.WorkContext;
 import org.hisp.dhis.dxf2.events.importer.shared.ImmutableEvent;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
 import org.hisp.dhis.program.ProgramStageInstance;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.User;
+import org.springframework.stereotype.Component;
 
 /**
  * @author maikel arabori
  */
+@Component
 public class ProgramStageInstanceAuthCheck implements Checker
 {
     @Override
@@ -50,9 +52,9 @@ public class ProgramStageInstanceAuthCheck implements Checker
 
         if ( event.getStatus() != programStageInstance.getStatus() && programStageInstance.getStatus() == COMPLETED )
         {
-            final UserCredentials userCredentials = ctx.getImportOptions().getUser().getUserCredentials();
+            final User user = ctx.getImportOptions().getUser();
 
-            if ( !userCredentials.isSuper() && !userCredentials.isAuthorized( "F_UNCOMPLETE_EVENT" ) )
+            if ( !user.isSuper() && !user.isAuthorized( "F_UNCOMPLETE_EVENT" ) )
             {
                 return error( "User is not authorized to uncomplete events" );
             }

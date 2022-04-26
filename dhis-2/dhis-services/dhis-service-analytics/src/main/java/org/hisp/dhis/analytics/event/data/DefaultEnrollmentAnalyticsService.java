@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@ import static org.hisp.dhis.common.ValueType.NUMBER;
 import static org.hisp.dhis.common.ValueType.TEXT;
 
 import org.hisp.dhis.analytics.AnalyticsSecurityManager;
+import org.hisp.dhis.analytics.data.handler.SchemaIdResponseMapper;
 import org.hisp.dhis.analytics.event.EnrollmentAnalyticsManager;
 import org.hisp.dhis.analytics.event.EnrollmentAnalyticsService;
 import org.hisp.dhis.analytics.event.EventQueryParams;
@@ -64,6 +65,14 @@ public class DefaultEnrollmentAnalyticsService
 
     private static final String NAME_INCIDENT_DATE = "Incident date";
 
+    private static final String NAME_STORED_BY = "Stored by";
+
+    private static final String NAME_CREATED_BY_DISPLAY_NAME = "Created by (display name)";
+
+    private static final String NAME_LAST_UPDATED_BY_DISPLAY_NAME = "Last updated by (display name)";
+
+    private static final String NAME_LAST_UPDATED = "Last Updated";
+
     private static final String NAME_LONGITUDE = "Longitude";
 
     private static final String NAME_LATITUDE = "Latitude";
@@ -72,20 +81,27 @@ public class DefaultEnrollmentAnalyticsService
 
     private static final String NAME_ORG_UNIT_CODE = "Organisation unit code";
 
+    private static final String NAME_PROGRAM_STATUS = "Program status";
+
     private final EnrollmentAnalyticsManager enrollmentAnalyticsManager;
 
     private final EventQueryPlanner queryPlanner;
 
+    private final SchemaIdResponseMapper schemaIdResponseMapper;
+
     public DefaultEnrollmentAnalyticsService( EnrollmentAnalyticsManager enrollmentAnalyticsManager,
-        AnalyticsSecurityManager securityManager, EventQueryPlanner queryPlanner, EventQueryValidator queryValidator )
+        AnalyticsSecurityManager securityManager, EventQueryPlanner queryPlanner, EventQueryValidator queryValidator,
+        SchemaIdResponseMapper schemaIdResponseMapper )
     {
-        super( securityManager, queryValidator );
+        super( securityManager, queryValidator, schemaIdResponseMapper );
 
         checkNotNull( enrollmentAnalyticsManager );
         checkNotNull( queryPlanner );
+        checkNotNull( schemaIdResponseMapper );
 
         this.enrollmentAnalyticsManager = enrollmentAnalyticsManager;
         this.queryPlanner = queryPlanner;
+        this.schemaIdResponseMapper = schemaIdResponseMapper;
     }
 
     // -------------------------------------------------------------------------
@@ -111,6 +127,14 @@ public class DefaultEnrollmentAnalyticsService
             .addHeader( new GridHeader(
                 ITEM_INCIDENT_DATE, NAME_INCIDENT_DATE, DATE, false, true ) )
             .addHeader( new GridHeader(
+                ITEM_STORED_BY, NAME_STORED_BY, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_CREATED_BY_DISPLAY_NAME, NAME_CREATED_BY_DISPLAY_NAME, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_LAST_UPDATED_BY_DISPLAY_NAME, NAME_LAST_UPDATED_BY_DISPLAY_NAME, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_LAST_UPDATED, NAME_LAST_UPDATED, DATE, false, true ) )
+            .addHeader( new GridHeader(
                 ITEM_GEOMETRY, NAME_GEOMETRY, TEXT, false, true ) )
             .addHeader( new GridHeader(
                 ITEM_LONGITUDE, NAME_LONGITUDE, NUMBER, false, true ) )
@@ -119,7 +143,9 @@ public class DefaultEnrollmentAnalyticsService
             .addHeader( new GridHeader(
                 ITEM_ORG_UNIT_NAME, NAME_ORG_UNIT_NAME, TEXT, false, true ) )
             .addHeader( new GridHeader(
-                ITEM_ORG_UNIT_CODE, NAME_ORG_UNIT_CODE, TEXT, false, true ) );
+                ITEM_ORG_UNIT_CODE, NAME_ORG_UNIT_CODE, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_PROGRAM_STATUS, NAME_PROGRAM_STATUS, TEXT, false, true ) );
     }
 
     @Override
@@ -133,7 +159,7 @@ public class DefaultEnrollmentAnalyticsService
 
         long count = 0;
 
-        if ( params.isPaging() )
+        if ( params.isTotalPages() )
         {
             count += enrollmentAnalyticsManager.getEnrollmentCount( params );
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 
 /**
  * @author Torgeir Lorange Ostby
- * @version $Id: DataElementHistory.java 4438 2008-01-26 16:35:24Z abyot $
  */
 public class DataElementHistory
 {

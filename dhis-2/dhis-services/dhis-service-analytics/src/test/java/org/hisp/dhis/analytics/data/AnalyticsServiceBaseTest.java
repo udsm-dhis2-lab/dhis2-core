@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@ import org.hisp.dhis.analytics.DataQueryService;
 import org.hisp.dhis.analytics.QueryPlanner;
 import org.hisp.dhis.analytics.QueryPlannerParams;
 import org.hisp.dhis.analytics.RawAnalyticsManager;
+import org.hisp.dhis.analytics.analyze.ExecutionPlanStore;
 import org.hisp.dhis.analytics.cache.AnalyticsCache;
 import org.hisp.dhis.analytics.cache.AnalyticsCacheSettings;
 import org.hisp.dhis.analytics.data.handler.DataAggregator;
@@ -47,24 +48,26 @@ import org.hisp.dhis.analytics.data.handler.HeaderHandler;
 import org.hisp.dhis.analytics.data.handler.MetadataHandler;
 import org.hisp.dhis.analytics.data.handler.SchemaIdResponseMapper;
 import org.hisp.dhis.analytics.event.EventAnalyticsService;
-import org.hisp.dhis.analytics.resolver.ExpressionResolver;
-import org.hisp.dhis.constant.ConstantService;
+import org.hisp.dhis.analytics.resolver.ExpressionResolvers;
 import org.hisp.dhis.expression.ExpressionService;
 import org.hisp.dhis.external.conf.DhisConfigurationProvider;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
-import org.junit.Before;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 /**
  * @author Luciano Fiandesio
  */
-@RunWith( MockitoJUnitRunner.Silent.class )
-public abstract class AnalyticsServiceBaseTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( { MockitoExtension.class } )
+abstract class AnalyticsServiceBaseTest
 {
 
     @Mock
@@ -81,9 +84,6 @@ public abstract class AnalyticsServiceBaseTest
 
     @Mock
     private ExpressionService expressionService;
-
-    @Mock
-    private ConstantService constantService;
 
     @Mock
     private OrganisationUnitService organisationUnitService;
@@ -110,28 +110,32 @@ public abstract class AnalyticsServiceBaseTest
     private AnalyticsCacheSettings analyticsCacheSettings;
 
     @Mock
-    private ExpressionResolver resolver;
+    private ExpressionResolvers resolvers;
 
     @Mock
     private NestedIndicatorCyclicDependencyInspector nestedIndicatorCyclicDependencyInspector;
 
+    @Mock
+    private ExecutionPlanStore executionPlanStore;
+
     DataAggregator target;
 
-    @Before
+    @BeforeEach
     public void baseSetUp()
     {
         DefaultQueryValidator queryValidator = new DefaultQueryValidator( systemSettingManager );
 
         HeaderHandler headerHandler = new HeaderHandler();
         MetadataHandler metadataHandler = new MetadataHandler( dataQueryService, schemaIdResponseMapper );
-        DataHandler dataHandler = new DataHandler( eventAnalyticsService, rawAnalyticsManager, constantService,
-            resolver, expressionService, queryPlanner, queryValidator, systemSettingManager, analyticsManager,
-            organisationUnitService );
+        DataHandler dataHandler = new DataHandler( eventAnalyticsService, rawAnalyticsManager,
+            resolvers, expressionService, queryPlanner, queryValidator, systemSettingManager, analyticsManager,
+            organisationUnitService, executionPlanStore );
 
         target = new DataAggregator( headerHandler, metadataHandler, dataHandler );
         target.feedHandlers();
 
-        when( systemSettingManager.getSystemSetting( SettingKey.ANALYTICS_MAINTENANCE_MODE ) ).thenReturn( false );
+        when( systemSettingManager.getBooleanSetting( SettingKey.ANALYTICS_MAINTENANCE_MODE ) )
+            .thenReturn( false );
         when( analyticsCacheSettings.fixedExpirationTimeOrDefault() ).thenReturn( 0L );
     }
 

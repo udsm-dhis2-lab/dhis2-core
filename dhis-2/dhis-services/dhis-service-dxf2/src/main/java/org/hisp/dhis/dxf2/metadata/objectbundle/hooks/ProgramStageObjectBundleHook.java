@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,21 +27,21 @@
  */
 package org.hisp.dhis.dxf2.metadata.objectbundle.hooks;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import lombok.AllArgsConstructor;
+
 import org.hibernate.Session;
 import org.hisp.dhis.common.BaseIdentifiableObject;
-import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundle;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorReport;
 import org.hisp.dhis.preheat.PreheatIdentifier;
+import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.program.ProgramStageSection;
 import org.hisp.dhis.program.ProgramStageSectionService;
@@ -52,31 +52,16 @@ import org.springframework.stereotype.Component;
  * @author Viet Nguyen <viet@dhis2.org>
  */
 @Component
-public class ProgramStageObjectBundleHook
-    extends AbstractObjectBundleHook
+@AllArgsConstructor
+public class ProgramStageObjectBundleHook extends AbstractObjectBundleHook<ProgramStage>
 {
     private final AclService aclService;
 
     private final ProgramStageSectionService programStageSectionService;
 
-    public ProgramStageObjectBundleHook( AclService aclService, ProgramStageSectionService programStageSectionService )
-    {
-        checkNotNull( aclService );
-        this.aclService = aclService;
-        this.programStageSectionService = programStageSectionService;
-    }
-
     @Override
-    public <T extends IdentifiableObject> void validate( T object, ObjectBundle bundle,
-        Consumer<ErrorReport> addReports )
+    public void validate( ProgramStage programStage, ObjectBundle bundle, Consumer<ErrorReport> addReports )
     {
-        if ( object == null || !object.getClass().isAssignableFrom( ProgramStage.class ) )
-        {
-            return;
-        }
-
-        ProgramStage programStage = (ProgramStage) object;
-
         if ( programStage.getNextScheduleDate() != null )
         {
             DataElement nextScheduleDate = bundle.getPreheat().get( bundle.getPreheatIdentifier(), DataElement.class,
@@ -91,30 +76,28 @@ public class ProgramStageObjectBundleHook
         }
 
         validateProgramStageDataElementsAcl( programStage, bundle, addReports );
+
+        if ( programStage.getProgram() == null && !checkProgramReference( programStage.getUid(), bundle ) )
+        {
+            addReports.accept( new ErrorReport( ProgramStage.class, ErrorCode.E4053, programStage.getUid() ) );
+        }
     }
 
     @Override
-    public <T extends IdentifiableObject> void postCreate( T object, ObjectBundle bundle )
+    public void postCreate( ProgramStage programStage, ObjectBundle bundle )
     {
-        if ( !(object instanceof ProgramStage) )
-        {
-            return;
-        }
-
-        ProgramStage programStage = (ProgramStage) object;
-
         Session session = sessionFactory.getCurrentSession();
 
         updateProgramStageSections( session, programStage );
     }
 
     @Override
-    public <T extends IdentifiableObject> void preUpdate( T object, T persistedObject, ObjectBundle bundle )
+    public void preUpdate( ProgramStage object, ProgramStage persistedObject, ObjectBundle bundle )
     {
         if ( object == null || !object.getClass().isAssignableFrom( ProgramStage.class ) )
             return;
 
-        deleteRemovedSection( (ProgramStage) persistedObject, (ProgramStage) object );
+        deleteRemovedSection( persistedObject, object );
     }
 
     private void deleteRemovedSection( ProgramStage persistedProgramStage, ProgramStage importProgramStage )
@@ -171,5 +154,22 @@ public class ProgramStageObjectBundleHook
                     identifier.getIdentifiersWithName( de ) ) );
             }
         } );
+    }
+
+    /**
+     * Check if current ProgramStage has reference from a Program in same
+     * payload.
+     */
+    private boolean checkProgramReference( String programStageId, ObjectBundle objectBundle )
+    {
+        for ( Program program : objectBundle.getObjects( Program.class ) )
+        {
+            if ( program.getProgramStages().stream().anyMatch( ps -> ps.getUid().equals( programStageId ) ) )
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

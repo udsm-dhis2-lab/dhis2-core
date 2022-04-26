@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 package org.hisp.dhis.tracker.job;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Value;
 
 import org.hisp.dhis.artemis.MessageType;
 import org.hisp.dhis.artemis.SerializableMessage;
@@ -44,13 +44,16 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
  *
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
-@Data
+@Value
 @Builder( builderClassName = "TrackerMessageBuilder" )
 @JsonDeserialize( builder = TrackerMessage.TrackerMessageBuilder.class )
 public class TrackerMessage implements SerializableMessage
 {
     @JsonProperty
     private final String uid;
+
+    @JsonProperty
+    private final String authentication;
 
     @JsonProperty
     private final TrackerImportParams trackerImportParams;

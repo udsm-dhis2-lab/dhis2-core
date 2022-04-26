@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,75 +27,79 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1118;
+import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1120;
+import static org.hisp.dhis.tracker.validation.hooks.AssertValidationErrorReporter.hasTrackerError;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.hisp.dhis.DhisConvenienceTest;
+import org.hisp.dhis.common.CodeGenerator;
 import org.hisp.dhis.program.ProgramStage;
-import org.hisp.dhis.tracker.TrackerIdentifier;
+import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
+import org.hisp.dhis.tracker.domain.User;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
-import org.hisp.dhis.tracker.report.TrackerErrorCode;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
-import org.hisp.dhis.user.User;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.google.common.collect.Sets;
 
 /**
  * @author Enrico Colasante
  */
-public class AssignedUserValidationHookTest
+@ExtendWith( MockitoExtension.class )
+class AssignedUserValidationHookTest extends DhisConvenienceTest
 {
-    private static final String USER_ID = "ABCDEF12345";
+
+    private static final String USER_NAME = "Username";
+
+    private static final String NOT_VALID_USERNAME = "not_valid_username";
 
     private static final String PROGRAM_STAGE = "ProgramStage";
 
     private AssignedUserValidationHook hookToTest;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
+    private TrackerBundle bundle;
 
-    @Mock
-    private TrackerImportValidationContext validationContext;
+    private ProgramStage programStage;
 
-    @Before
+    private static final User VALID_USER = User.builder().username( USER_NAME ).build();
+
+    private static final User INVALID_USER = User.builder().username( NOT_VALID_USERNAME ).build();
+
+    @BeforeEach
     public void setUp()
     {
         hookToTest = new AssignedUserValidationHook();
 
-        TrackerBundle bundle = TrackerBundle.builder().build();
+        bundle = TrackerBundle.builder().build();
         TrackerPreheat preheat = new TrackerPreheat();
-
-        User user = new User();
-        user.setUid( USER_ID );
-        preheat.put( TrackerIdentifier.UID, user );
-
+        org.hisp.dhis.user.User user = createUser( 'A' );
+        user.setUsername( USER_NAME );
+        preheat.addUsers( Sets.newHashSet( user ) );
         bundle.setPreheat( preheat );
 
-        when( validationContext.getBundle() ).thenReturn( bundle );
-
-        ProgramStage programStage = new ProgramStage();
+        programStage = new ProgramStage();
+        programStage.setUid( PROGRAM_STAGE );
         programStage.setEnableUserAssignment( true );
-        when( validationContext.getProgramStage( PROGRAM_STAGE ) ).thenReturn( programStage );
+        preheat.put( programStage );
     }
 
     @Test
-    public void testAssignedUserIsValid()
+    void testAssignedUserIsValid()
     {
         // given
         Event event = new Event();
-        event.setAssignedUser( USER_ID );
-        event.setProgramStage( PROGRAM_STAGE );
+        event.setAssignedUser( VALID_USER );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
@@ -105,88 +109,123 @@ public class AssignedUserValidationHookTest
     }
 
     @Test
-    public void testEventWithNotValidUserUid()
+    void testAssignedUserIsNull()
     {
         // given
         Event event = new Event();
-        event.setAssignedUser( "not_valid_uid" );
-        event.setProgramStage( PROGRAM_STAGE );
+        event.setAssignedUser( null );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1118 ) );
+        assertFalse( reporter.hasErrors() );
     }
 
     @Test
-    public void testEventWithUserNotPresentInPreheat()
+    void testAssignedUserIsEmpty()
     {
         // given
         Event event = new Event();
-        event.setAssignedUser( USER_ID );
-        event.setProgramStage( PROGRAM_STAGE );
+        event.setAssignedUser( User.builder().build() );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
-        TrackerBundle bundle = TrackerBundle.builder().build();
-        bundle.setPreheat( new TrackerPreheat() );
-        when( validationContext.getBundle() ).thenReturn( bundle );
+        this.hookToTest.validateEvent( reporter, event );
+
+        // then
+        assertFalse( reporter.hasErrors() );
+    }
+
+    @Test
+    void testEventWithNotValidUsername()
+    {
+        // given
+        Event event = new Event();
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setAssignedUser( INVALID_USER );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
+
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
+
+        // when
+        this.hookToTest.validateEvent( reporter, event );
+
+        // then
+        hasTrackerError( reporter, E1118, TrackerType.EVENT, event.getUid() );
+    }
+
+    @Test
+    void testEventWithUserNotPresentInPreheat()
+    {
+        // given
+        Event event = new Event();
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setAssignedUser( VALID_USER );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
+
+        // when
+        TrackerPreheat preheat = new TrackerPreheat();
+        preheat.put( programStage );
+        bundle = TrackerBundle.builder().preheat( preheat ).build();
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         this.hookToTest.validateEvent( reporter, event );
 
         // then
-        assertTrue( reporter.hasErrors() );
-        assertThat( reporter.getReportList().get( 0 ).getErrorCode(), is( TrackerErrorCode.E1118 ) );
+        hasTrackerError( reporter, E1118, TrackerType.EVENT, event.getUid() );
     }
 
     @Test
-    public void testEventWithNotEnabledUserAssignment()
+    void testEventWithNotEnabledUserAssignment()
     {
         // given
         Event event = new Event();
-        event.setAssignedUser( USER_ID );
-        event.setProgramStage( PROGRAM_STAGE );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setAssignedUser( VALID_USER );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
-        ProgramStage programStage = new ProgramStage();
         programStage.setEnableUserAssignment( false );
-        when( validationContext.getProgramStage( PROGRAM_STAGE ) ).thenReturn( programStage );
 
         this.hookToTest.validateEvent( reporter, event );
 
         // then
         assertFalse( reporter.hasErrors() );
         assertTrue( reporter.hasWarnings() );
-        assertThat( reporter.getWarningsReportList().get( 0 ).getWarningCode(), is( TrackerErrorCode.E1120 ) );
+        assertTrue( reporter.hasWarningReport( r -> E1120.equals( r.getWarningCode() ) &&
+            TrackerType.EVENT.equals( r.getTrackerType() ) &&
+            event.getUid().equals( r.getUid() ) ) );
     }
 
     @Test
-    public void testEventWithNullEnabledUserAssignment()
+    void testEventWithNullEnabledUserAssignment()
     {
         // given
         Event event = new Event();
-        event.setAssignedUser( USER_ID );
-        event.setProgramStage( PROGRAM_STAGE );
+        event.setEvent( CodeGenerator.generateUid() );
+        event.setAssignedUser( VALID_USER );
+        event.setProgramStage( MetadataIdentifier.ofUid( PROGRAM_STAGE ) );
 
-        ValidationErrorReporter reporter = new ValidationErrorReporter( validationContext, event );
+        ValidationErrorReporter reporter = new ValidationErrorReporter( bundle );
 
         // when
-        ProgramStage programStage = new ProgramStage();
         programStage.setEnableUserAssignment( null );
-        when( validationContext.getProgramStage( PROGRAM_STAGE ) ).thenReturn( programStage );
 
         this.hookToTest.validateEvent( reporter, event );
 
         // then
         assertFalse( reporter.hasErrors() );
         assertTrue( reporter.hasWarnings() );
-        assertThat( reporter.getWarningsReportList().get( 0 ).getWarningCode(), is( TrackerErrorCode.E1120 ) );
+        assertTrue( reporter.hasWarningReport( r -> E1120.equals( r.getWarningCode() ) &&
+            TrackerType.EVENT.equals( r.getTrackerType() ) &&
+            event.getUid().equals( r.getUid() ) ) );
     }
 }

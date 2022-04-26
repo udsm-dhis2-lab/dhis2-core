@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +28,16 @@
 package org.hisp.dhis.analytics.table;
 
 import static org.hisp.dhis.analytics.ColumnDataType.CHARACTER_11;
-import static org.hisp.dhis.analytics.ColumnDataType.CHARACTER_50;
 import static org.hisp.dhis.analytics.ColumnDataType.DOUBLE;
 import static org.hisp.dhis.analytics.ColumnDataType.GEOMETRY;
+import static org.hisp.dhis.analytics.ColumnDataType.INTEGER;
 import static org.hisp.dhis.analytics.ColumnDataType.TEXT;
 import static org.hisp.dhis.analytics.ColumnDataType.TIMESTAMP;
+import static org.hisp.dhis.analytics.ColumnDataType.VARCHAR_255;
+import static org.hisp.dhis.analytics.ColumnDataType.VARCHAR_50;
 import static org.hisp.dhis.analytics.ColumnNotNullConstraint.NOT_NULL;
 import static org.hisp.dhis.analytics.util.AnalyticsSqlUtils.quote;
+import static org.hisp.dhis.analytics.util.DisplayNameUtils.getDisplayName;
 import static org.hisp.dhis.util.DateUtils.getLongDateString;
 
 import java.util.ArrayList;
@@ -90,7 +93,25 @@ public class JdbcEnrollmentAnalyticsTableManager
         new AnalyticsTableColumn( quote( "incidentdate" ), TIMESTAMP, "pi.incidentdate" ),
         new AnalyticsTableColumn( quote( "completeddate" ), TIMESTAMP,
             "case pi.status when 'COMPLETED' then pi.enddate end" ),
-        new AnalyticsTableColumn( quote( "enrollmentstatus" ), CHARACTER_50, "pi.status" ),
+        new AnalyticsTableColumn( quote( "lastupdated" ), TIMESTAMP, "pi.lastupdated" ),
+        new AnalyticsTableColumn( quote( "storedby" ), VARCHAR_255, "pi.storedby" ),
+        new AnalyticsTableColumn( quote( "createdbyusername" ), VARCHAR_255,
+            "pi.createdbyuserinfo ->> 'username' as createdbyusername" ),
+        new AnalyticsTableColumn( quote( "createdbyname" ), VARCHAR_255,
+            "pi.createdbyuserinfo ->> 'firstName' as createdbyname" ),
+        new AnalyticsTableColumn( quote( "createdbylastname" ), VARCHAR_255,
+            "pi.createdbyuserinfo ->> 'surname' as createdbylastname" ),
+        new AnalyticsTableColumn( quote( "createdbydisplayname" ), VARCHAR_255,
+            getDisplayName( "createdbyuserinfo", "pi", "createdbydisplayname" ) ),
+        new AnalyticsTableColumn( quote( "lastupdatedbyusername" ), VARCHAR_255,
+            "pi.lastupdatedbyuserinfo ->> 'username' as lastupdatedbyusername" ),
+        new AnalyticsTableColumn( quote( "lastupdatedbyname" ), VARCHAR_255,
+            "pi.lastupdatedbyuserinfo ->> 'firstName' as lastupdatedbyname" ),
+        new AnalyticsTableColumn( quote( "lastupdatedbylastname" ), VARCHAR_255,
+            "pi.lastupdatedbyuserinfo ->> 'surname' as lastupdatedbylastname" ),
+        new AnalyticsTableColumn( quote( "lastupdatedbydisplayname" ), VARCHAR_255,
+            getDisplayName( "lastupdatedbyuserinfo", "pi", "lastupdatedbydisplayname" ) ),
+        new AnalyticsTableColumn( quote( "enrollmentstatus" ), VARCHAR_50, "pi.status" ),
         new AnalyticsTableColumn( quote( "longitude" ), DOUBLE,
             "CASE WHEN 'POINT' = GeometryType(pi.geometry) THEN ST_X(pi.geometry) ELSE null END" ),
         new AnalyticsTableColumn( quote( "latitude" ), DOUBLE,
@@ -98,6 +119,7 @@ public class JdbcEnrollmentAnalyticsTableManager
         new AnalyticsTableColumn( quote( "ou" ), CHARACTER_11, NOT_NULL, "ou.uid" ),
         new AnalyticsTableColumn( quote( "ouname" ), TEXT, NOT_NULL, "ou.name" ),
         new AnalyticsTableColumn( quote( "oucode" ), TEXT, "ou.code" ),
+        new AnalyticsTableColumn( quote( "oulevel" ), INTEGER, "ous.level" ),
         new AnalyticsTableColumn( quote( "pigeometry" ), GEOMETRY, "pi.geometry" )
             .withIndexType( IndexType.GIST ) );
 
@@ -141,6 +163,12 @@ public class JdbcEnrollmentAnalyticsTableManager
     protected List<String> getPartitionChecks( AnalyticsTablePartition partition )
     {
         return Lists.newArrayList();
+    }
+
+    @Override
+    protected String getPartitionColumn()
+    {
+        return null;
     }
 
     @Override

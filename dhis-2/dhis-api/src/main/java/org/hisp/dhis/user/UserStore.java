@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,11 @@
  */
 package org.hisp.dhis.user;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -80,12 +83,19 @@ public interface UserStore
     List<User> getExpiringUsers( UserQueryParams userQueryParams );
 
     /**
-     * Returns UserCredentials for given username.
-     *
-     * @param username username for which the UserCredentials will be returned
-     * @return UserCredentials for given username or null
+     * @param inDays number of days to include
+     * @return list of those users that are about to expire in the provided
+     *         number of days (or less) and which have an email configured
      */
-    UserCredentials getUserCredentialsByUsername( String username );
+    List<UserAccountExpiryInfo> getExpiringUserAccounts( int inDays );
+
+    /**
+     * Returns User for given username.
+     *
+     * @param username username for which the User will be returned
+     * @return User for given username or null
+     */
+    User getUserByUsername( String username );
 
     /**
      * Returns User with given userId.
@@ -105,9 +115,9 @@ public interface UserStore
     CurrentUserGroupInfo getCurrentUserGroupInfo( long userId );
 
     /**
-     * Sets {@link UserCredentials#setDisabled(boolean)} to {@code true} for all
-     * users where the {@link UserCredentials#getLastLogin()} is before or equal
-     * to the provided pivot {@link Date}.
+     * Sets {@link User#setDisabled(boolean)} to {@code true} for all users
+     * where the {@link User#getLastLogin()} is before or equal to the provided
+     * pivot {@link Date}.
      *
      * @param inactiveSince the most recent point in time that is considered
      *        inactive together with accounts only active further in the past.
@@ -115,5 +125,57 @@ public interface UserStore
      */
     int disableUsersInactiveSince( Date inactiveSince );
 
+    /**
+     * Selects all not disabled users where the {@link User#getLastLogin()} is
+     * within the given time-frame and which have an email address.
+     *
+     * @param from start of the selected time-frame (inclusive)
+     * @param to end of the selected time-frame (exclusive)
+     * @return user emails having a last login within the given time-frame.
+     */
+    Set<String> findNotifiableUsersWithLastLoginBetween( Date from, Date to );
+
     String getDisplayName( String userUid );
+
+    /**
+     * Retrieves a collection of User with the given usernames.
+     *
+     * @param usernames the usernames of the collection of Users to retrieve.
+     * @return the User.
+     */
+    List<User> getUserByUsernames( Collection<String> usernames );
+
+    /**
+     * Retrieves the User associated with the User with the given open ID.
+     *
+     * @param openId open ID.
+     * @return the User or null if there is no match.
+     */
+    User getUserByOpenId( String openId );
+
+    /**
+     * Retrieves the User associated with the User with the given LDAP ID.
+     *
+     * @param ldapId LDAP ID.
+     * @return the User.
+     */
+    User getUserByLdapId( String ldapId );
+
+    /**
+     * Retrieves the User associated with the User with the given id token.
+     *
+     * @param token the restore token of the User.
+     * @return the User.
+     */
+    User getUserByIdToken( String token );
+
+    /**
+     * Retrieves the User with the given UUID.
+     *
+     * @param uuid UUID.
+     * @return the User.
+     */
+    User getUserByUuid( UUID uuid );
+
+    List<User> getHasAuthority( String authority );
 }

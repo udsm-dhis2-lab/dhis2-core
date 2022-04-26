@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,8 +104,7 @@ public class DefaultProgramNotificationTemplateService implements ProgramNotific
     public boolean isProgramLinkedToWebHookNotification( Program program )
     {
         return programWebHookNotificationCache
-            .get( program.getUid(), uid -> store.isProgramLinkedToWebHookNotification( program.getId() ) )
-            .orElse( false );
+            .get( program.getUid(), uid -> store.isProgramLinkedToWebHookNotification( program.getId() ) );
     }
 
     @Override
@@ -114,8 +113,7 @@ public class DefaultProgramNotificationTemplateService implements ProgramNotific
     {
         return programStageWebHookNotificationCache
             .get( programStage.getUid(),
-                uid -> store.isProgramStageLinkedToWebHookNotification( programStage.getId() ) )
-            .orElse( false );
+                uid -> store.isProgramStageLinkedToWebHookNotification( programStage.getId() ) );
     }
 
     @Override
@@ -130,5 +128,20 @@ public class DefaultProgramNotificationTemplateService implements ProgramNotific
     public List<ProgramNotificationTemplate> getProgramStageLinkedToWebHookNotifications( ProgramStage programStage )
     {
         return store.getProgramStageLinkedToWebHookNotifications( programStage );
+    }
+
+    @Override
+    @Transactional( readOnly = true )
+    public int countProgramNotificationTemplates( ProgramNotificationTemplateParam param )
+    {
+        return store.countProgramNotificationTemplates( param );
+    }
+
+    @Override
+    @Transactional( readOnly = true )
+    public List<ProgramNotificationTemplate> getProgramNotificationTemplates(
+        ProgramNotificationTemplateParam programNotificationTemplateParam )
+    {
+        return store.getProgramNotificationTemplates( programNotificationTemplateParam );
     }
 }

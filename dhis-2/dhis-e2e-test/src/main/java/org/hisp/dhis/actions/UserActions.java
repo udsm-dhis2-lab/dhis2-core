@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,16 +25,17 @@ package org.hisp.dhis.actions;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions;
 
-import static org.hamcrest.Matchers.equalTo;
-
-import java.util.List;
-
+import com.google.gson.JsonObject;
+import org.hisp.dhis.Constants;
 import org.hisp.dhis.TestRunStorage;
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.helpers.JsonObjectBuilder;
 
-import com.google.gson.JsonObject;
+import java.util.List;
+
+import static org.hamcrest.Matchers.equalTo;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -51,20 +50,25 @@ public class UserActions
         super( "/users" );
     }
 
-    public String addUser( final String firstName, final String surname, final String username, final String password )
+    public String addUser( final String userName, final String password )
     {
+        return addUserFull( userName, "bravo", userName, password, "" );
+    }
+
+    public String addUserFull( final String firstName, final String surname, final String username, final String password,
+        String... auth )
+    {
+        String roleUid = new UserRoleActions().createWithAuthorities( auth );
+
         String id = idGenerator.generateUniqueId();
 
         JsonObject user = new JsonObjectBuilder()
-            .addProperty( "id", id)
+            .addProperty( "id", id )
             .addProperty( "firstName", firstName )
             .addProperty( "surname", surname )
-            .addObject( "userCredentials", new JsonObjectBuilder()
-                .addProperty( "username", username )
-                .addProperty( "password", password ))
-                .addObject( "userInfo", new JsonObjectBuilder().addProperty( "id", id ) )
-            .addObject( "userInfo", new JsonObjectBuilder()
-                .addProperty( "id", id ))
+            .addProperty( "username", username )
+            .addProperty( "password", password )
+            .addArray( "userRoles", new JsonObjectBuilder().addProperty( "id", roleUid ).build() )
             .build();
 
         ApiResponse response = this.post( user );
@@ -79,7 +83,7 @@ public class UserActions
     public void addRoleToUser( String userId, String userRoleId )
     {
         ApiResponse response = this.get( userId );
-        if ( response.extractList( "userCredentials.userRoles.id" ).contains( userRoleId ) )
+        if ( response.extractList( "userRoles.id" ).contains( userRoleId ) )
         {
             return;
         }
@@ -89,7 +93,7 @@ public class UserActions
         JsonObject userRole = new JsonObject();
         userRole.addProperty( "id", userRoleId );
 
-        object.get( "userCredentials" ).getAsJsonObject().get( "userRoles" ).getAsJsonArray().add( userRole );
+        object.get( "userRoles" ).getAsJsonArray().add( userRole );
 
         this.update( userId, object ).validate().statusCode( 200 );
     }
@@ -115,17 +119,69 @@ public class UserActions
 
     public void grantUserAccessToOrgUnit( String userId, String orgUnitId )
     {
-        JsonObject object = this.get( userId ).getBody();
-        JsonObject orgUnit = new JsonObject();
-        orgUnit.addProperty( "id", orgUnitId );
+        this.grantUserAccessToOrgUnits( userId, orgUnitId, orgUnitId, orgUnitId );
+    }
 
-        object.get( "organisationUnits" ).getAsJsonArray().add( orgUnit );
-        object.get( "dataViewOrganisationUnits" ).getAsJsonArray().add( orgUnit );
-        object.get( "teiSearchOrganisationUnits" ).getAsJsonArray().add( orgUnit );
+    public void grantUserAccessToOrgUnits( String userId, String captureOu, String searchOu, String dataReadOu )
+    {
+        JsonObject object = this.get( userId ).getBodyAsJsonBuilder()
+            .addOrAppendToArray( "organisationUnits", new JsonObjectBuilder().addProperty( "id", captureOu ).build() )
+            .addOrAppendToArray( "dataViewOrganisationUnits", new JsonObjectBuilder().addProperty( "id", dataReadOu ).build() )
+            .addOrAppendToArray( "teiSearchOrganisationUnits", new JsonObjectBuilder().addProperty( "id", searchOu ).build() )
+            .build();
 
         ApiResponse response = this.update( userId, object );
         response.validate().statusCode( 200 )
-            .body( "status", equalTo("OK" ));
+            .body( "status", equalTo( "OK" ) );
+    }
+
+    public void grantUserSearchAccessToOrgUnit( String userId, String orgUnitId )
+    {
+        JsonObject object = this.get( userId ).getBodyAsJsonBuilder()
+            .addOrAppendToArray( "teiSearchOrganisationUnits", new JsonObjectBuilder().addProperty( "id", orgUnitId ).build() )
+            .build();
+
+        ApiResponse response = this.update( userId, object );
+
+        response.validate().statusCode( 200 )
+            .body( "status", equalTo( "OK" ) );
+    }
+
+    public void grantUserDataViewAccessToOrgUnit( String userId, String orgUnitId )
+    {
+        JsonObject object = this.get( userId ).getBodyAsJsonBuilder()
+            .addOrAppendToArray( "dataViewOrganisationUnits", new JsonObjectBuilder().addProperty( "id", orgUnitId ).build() )
+            .build();
+
+        ApiResponse response = this.update( userId, object );
+
+        response.validate().statusCode( 200 )
+            .body( "status", equalTo( "OK" ) );
+    }
+
+    public void grantUserCaptureAccessToOrgUnit( String userId, String orgUnitId )
+    {
+        JsonObject object = this.get( userId ).getBodyAsJsonBuilder()
+            .addOrAppendToArray( "organisationUnits", new JsonObjectBuilder().addProperty( "id", orgUnitId ).build() )
+            .build();
+
+        ApiResponse response = this.update( userId, object );
+
+        response.validate().statusCode( 200 )
+            .body( "status", equalTo( "OK" ) );
+    }
+
+    /**
+     * Grants user access to all org units imported before the tests. /test/resources/setup/metadata.json
+     *
+     * @param userId
+     */
+    public void grantUserAccessToTAOrgUnits( String userId )
+    {
+        for ( String orgUnitId : Constants.ORG_UNIT_IDS )
+        {
+            grantUserAccessToOrgUnit( userId, orgUnitId );
+        }
     }
 
     public void grantCurrentUserAccessToOrgUnit( String orgUnitId )
@@ -135,17 +191,11 @@ public class UserActions
         grantUserAccessToOrgUnit( userId, orgUnitId );
     }
 
-    public String addUser( final String userName, final String password )
-    {
-        return addUser( "johnny", "bravo", userName, password );
-    }
-
     public void updateUserPassword( String userId, String password )
     {
         new LoginActions().loginAsSuperUser();
         JsonObject user = this.get( userId ).getBody();
-        user.getAsJsonObject( "userCredentials" )
-            .addProperty( "password", password );
+        user.addProperty( "password", password );
 
         this.update( userId, user );
     }

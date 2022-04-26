@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,10 @@ package org.hisp.dhis.webapi.controller.datastatistics;
 
 import static java.util.Calendar.DATE;
 import static java.util.Calendar.MILLISECOND;
+import static org.hisp.dhis.datastatistics.DataStatisticsEventType.EVENT_CHART_VIEW;
+import static org.hisp.dhis.datastatistics.DataStatisticsEventType.EVENT_REPORT_VIEW;
+import static org.hisp.dhis.datastatistics.DataStatisticsEventType.EVENT_VISUALIZATION_VIEW;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.conflict;
 import static org.hisp.dhis.webapi.utils.ContextUtils.setNoStore;
 
 import java.util.Date;
@@ -45,7 +49,7 @@ import org.hisp.dhis.datastatistics.DataStatisticsService;
 import org.hisp.dhis.datastatistics.EventInterval;
 import org.hisp.dhis.datastatistics.FavoriteStatistics;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
+import org.hisp.dhis.scheduling.NoopJobProgress;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.util.DateUtils;
 import org.hisp.dhis.util.ObjectUtils;
@@ -88,6 +92,30 @@ public class DataStatisticsController
 
         DataStatisticsEvent event = new DataStatisticsEvent( eventType, timestamp, username, favorite );
         dataStatisticsService.addEvent( event );
+
+        addStatisticsForEventChartOrReport( eventType, favorite, timestamp, username );
+    }
+
+    /**
+     * @deprecated Logic needed to assist the deprecation process of event chart
+     *             and event report.
+     *
+     * @param eventType
+     * @param favorite
+     * @param timestamp
+     * @param username
+     */
+    @Deprecated
+    private void addStatisticsForEventChartOrReport( final DataStatisticsEventType eventType, final String favorite,
+        final Date timestamp, final String username )
+    {
+        if ( eventType == EVENT_CHART_VIEW || eventType == EVENT_REPORT_VIEW )
+        {
+            // For each EVENT_CHART_VIEW or EVENT_REPORT_VIEW we also add a
+            // EVENT_VISUALIZATION_VIEW event.
+            dataStatisticsService
+                .addEvent( new DataStatisticsEvent( EVENT_VISUALIZATION_VIEW, timestamp, username, favorite ) );
+        }
     }
 
     @GetMapping
@@ -97,7 +125,7 @@ public class DataStatisticsController
     {
         if ( startDate.after( endDate ) )
         {
-            throw new WebMessageException( WebMessageUtils.conflict( "Start date is after end date" ) );
+            throw new WebMessageException( conflict( "Start date is after end date" ) );
         }
 
         // The endDate is arriving as: "2019-09-28". After the conversion below
@@ -133,6 +161,6 @@ public class DataStatisticsController
     @PostMapping( "/snapshot" )
     public void saveSnapshot()
     {
-        dataStatisticsService.saveDataStatisticsSnapshot();
+        dataStatisticsService.saveDataStatisticsSnapshot( NoopJobProgress.INSTANCE );
     }
 }

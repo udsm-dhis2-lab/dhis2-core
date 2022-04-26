@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,7 @@ import javax.annotation.Nonnull;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
-import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundle;
-import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorReport;
 import org.hisp.dhis.programrule.ProgramRuleAction;
 import org.hisp.dhis.programrule.ProgramRuleActionType;
@@ -45,7 +43,6 @@ import org.hisp.dhis.programrule.ProgramRuleActionValidationResult;
 import org.hisp.dhis.programrule.action.validation.ProgramRuleActionValidationContext;
 import org.hisp.dhis.programrule.action.validation.ProgramRuleActionValidationContextLoader;
 import org.hisp.dhis.programrule.action.validation.ProgramRuleActionValidator;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,34 +51,25 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component( "programRuleActionObjectBundle" )
-public class ProgramRuleActionObjectBundleHook extends AbstractObjectBundleHook
+public class ProgramRuleActionObjectBundleHook extends AbstractObjectBundleHook<ProgramRuleAction>
 {
     @NonNull
-    @Qualifier( "programRuleActionValidatorMap" )
-    private final Map<ProgramRuleActionType, Class<? extends ProgramRuleActionValidator>> validatorMap;
+    private final Map<ProgramRuleActionType, ProgramRuleActionValidator> programRuleActionValidatorMap;
 
     @Nonnull
     private final ProgramRuleActionValidationContextLoader contextLoader;
 
     public ProgramRuleActionObjectBundleHook(
-        @NonNull Map<ProgramRuleActionType, Class<? extends ProgramRuleActionValidator>> validatorMap,
+        @NonNull Map<ProgramRuleActionType, ProgramRuleActionValidator> programRuleActionValidatorMap,
         @Nonnull ProgramRuleActionValidationContextLoader contextLoader )
     {
-        this.validatorMap = validatorMap;
+        this.programRuleActionValidatorMap = programRuleActionValidatorMap;
         this.contextLoader = contextLoader;
     }
 
     @Override
-    public <T extends IdentifiableObject> void validate( T object, ObjectBundle bundle,
-        Consumer<ErrorReport> addReports )
+    public void validate( ProgramRuleAction programRuleAction, ObjectBundle bundle, Consumer<ErrorReport> addReports )
     {
-        if ( !(object instanceof ProgramRuleAction) )
-        {
-            return;
-        }
-
-        ProgramRuleAction programRuleAction = (ProgramRuleAction) object;
-
         ProgramRuleActionValidationResult validationResult = validateProgramRuleAction( programRuleAction, bundle );
 
         if ( !validationResult.isValid() )
@@ -98,24 +86,12 @@ public class ProgramRuleActionObjectBundleHook extends AbstractObjectBundleHook
         ProgramRuleActionValidationContext validationContext = contextLoader
             .load( bundle.getPreheat(), bundle.getPreheatIdentifier(), ruleAction );
 
-        try
-        {
-            ProgramRuleActionValidator validator = validatorMap.get( ruleAction.getProgramRuleActionType() )
-                .newInstance();
+        ProgramRuleActionValidator validator = programRuleActionValidatorMap
+            .get( ruleAction.getProgramRuleActionType() );
 
-            validationResult = validator.validate( ruleAction, validationContext );
+        validationResult = validator.validate( ruleAction, validationContext );
 
-            return validationResult;
-        }
-        catch ( InstantiationException | IllegalAccessException e )
-        {
-            log.error( "An error occurred during program rule action validation", e );
-        }
+        return validationResult;
 
-        return ProgramRuleActionValidationResult.builder().valid( false )
-            .errorReport(
-                new ErrorReport( ProgramRuleAction.class, ErrorCode.E4033, ruleAction.getProgramRuleActionType().name(),
-                    validationContext.getProgramRule().getName() ) )
-            .build();
     }
 }

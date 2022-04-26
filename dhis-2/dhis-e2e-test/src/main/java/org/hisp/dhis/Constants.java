@@ -1,7 +1,5 @@
-package org.hisp.dhis;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +25,26 @@ package org.hisp.dhis;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis;
+
+import org.hisp.dhis.dto.Program;
+
+import java.util.Arrays;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
  */
 public class Constants
 {
+    public static final String USER_PASSWORD = "Test1212?";
+
+    public static final String TRACKED_ENTITY_TYPE = "Q9GufDoplCL";
+
     public static String ORG_UNIT_GROUP_ID = "n9bh3KM5wmu";
 
     public static String SUPER_USER_ID = "PQD6wXJ2r5j";
+
+    public static String ADMIN_ID = "PQD6wXJ2r5k";
 
     public static String USER_GROUP_ID = "OPVIvvXzNTw";
 
@@ -45,7 +54,11 @@ public class Constants
 
     public static String EVENT_PROGRAM_STAGE_ID = "jKLB23QZS4I";
 
-    public static String TRACKER_PROGRAM_ID = "f1AyMswryyQ";
+    public static Program TRACKER_PROGRAM = new Program()
+        .setUid( "f1AyMswryyQ" )
+        .setProgramStages( Arrays.asList( "PaOOjwLVW23", "nlXNK4b7LVr" ) );
+
+    public static String TRACKER_PROGRAM_ID = "f1AyMswryyQ"; // todo: remove and use TRACKER_PROGRAM with associated program stages to avoid GET /programs/id/programStages calls
 
     public static String ANOTHER_TRACKER_PROGRAM_ID = "f1AyMswryyX";
 
@@ -55,5 +68,4 @@ public class Constants
         "O6uvpzGd5pu",
         "YuQRtpLP10I"
     };
-
 }

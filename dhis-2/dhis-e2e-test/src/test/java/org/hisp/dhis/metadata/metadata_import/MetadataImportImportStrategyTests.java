@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.metadata.metadata_import;
 
-import com.google.gson.JsonObject;
+import static org.hamcrest.Matchers.equalTo;
+
+import java.io.File;
+import java.io.IOException;
+
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.metadata.MetadataActions;
@@ -41,10 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.File;
-import java.io.IOException;
-
-import static org.hamcrest.Matchers.equalTo;
+import com.google.gson.JsonObject;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -64,7 +64,8 @@ public class MetadataImportImportStrategyTests
 
     @ValueSource( strings = {
         "CODE",
-        "UID"
+        "UID",
+        "NAME"
     } )
     @ParameterizedTest
     public void shouldUpdateMetadataByIdentifier( String identifier )
@@ -83,7 +84,8 @@ public class MetadataImportImportStrategyTests
     @Test
     public void shouldCreateMetadataWithCodeIdentifier()
     {
-        JsonObject object = JsonObjectBuilder.jsonObject( DataGenerator.generateObjectForEndpoint( "/dataElementGroup" ) )
+        JsonObject object = JsonObjectBuilder
+            .jsonObject( DataGenerator.generateObjectForEndpoint( "/dataElementGroup" ) )
             .addProperty( "code", "TA_CODE_DATAELEMENT_GROUP" )
             .addArray( "userGroupAccesses",
                 new JsonObjectBuilder().addProperty( "access", "rw------" )
@@ -94,12 +96,12 @@ public class MetadataImportImportStrategyTests
 
         response
             .validate().statusCode( 200 )
-            .body( "stats.created", equalTo( 1 ) );
+            .body( "response.stats.created", equalTo( 1 ) );
 
         response = metadataActions.importMetadata( object, "identifier=CODE" );
 
         response
             .validate().statusCode( 200 )
-            .body( "stats.updated", equalTo( 1 ) );
+            .body( "response.stats.updated", equalTo( 1 ) );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,20 +184,6 @@ public class RuleActionScheduleMessageImplementer extends NotificationRuleAction
 
         notificationLoggingService.save( entry );
 
-    }
-
-    @Override
-    @Transactional
-    public void implementEnrollmentAction( RuleEffect ruleEffect, String programInstance )
-    {
-        implement( ruleEffect, programInstanceService.getProgramInstance( programInstance ) );
-    }
-
-    @Override
-    @Transactional
-    public void implementEventAction( RuleEffect ruleEffect, String programStageInstance )
-    {
-        implement( ruleEffect, programStageInstanceService.getProgramStageInstance( programStageInstance ) );
     }
 
     // -------------------------------------------------------------------------

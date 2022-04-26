@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,12 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.ObjectUtils;
 import org.hisp.dhis.cache.Cache;
 import org.hisp.dhis.cache.CacheProvider;
+import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.SortProperty;
 import org.hisp.dhis.commons.collection.ListUtils;
 import org.hisp.dhis.commons.filter.FilterUtils;
 import org.hisp.dhis.configuration.ConfigurationService;
 import org.hisp.dhis.dataset.DataSet;
-import org.hisp.dhis.dataset.DataSetService;
 import org.hisp.dhis.expression.ExpressionService;
 import org.hisp.dhis.hierarchy.HierarchyViolationException;
 import org.hisp.dhis.organisationunit.comparator.OrganisationUnitLevelComparator;
@@ -59,6 +59,7 @@ import org.hisp.dhis.system.filter.OrganisationUnitPolygonCoveringCoordinateFilt
 import org.hisp.dhis.system.util.GeoUtils;
 import org.hisp.dhis.system.util.ValidationUtils;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserSettingKey;
 import org.hisp.dhis.user.UserSettingService;
@@ -72,8 +73,7 @@ import com.google.common.collect.Sets;
  */
 @Service( "org.hisp.dhis.organisationunit.OrganisationUnitService" )
 public class DefaultOrganisationUnitService
-    implements
-    OrganisationUnitService
+    implements OrganisationUnitService, CurrentUserServiceTarget
 {
     private static final String LEVEL_PREFIX = "Level ";
 
@@ -91,7 +91,7 @@ public class DefaultOrganisationUnitService
 
     private final OrganisationUnitStore organisationUnitStore;
 
-    private final DataSetService dataSetService;
+    private final IdentifiableObjectManager idObjectManager;
 
     private final OrganisationUnitLevelStore organisationUnitLevelStore;
 
@@ -102,12 +102,12 @@ public class DefaultOrganisationUnitService
     private final UserSettingService userSettingService;
 
     public DefaultOrganisationUnitService( OrganisationUnitStore organisationUnitStore,
-        DataSetService dataSetService, OrganisationUnitLevelStore organisationUnitLevelStore,
+        IdentifiableObjectManager idObjectManager, OrganisationUnitLevelStore organisationUnitLevelStore,
         CurrentUserService currentUserService, ConfigurationService configurationService,
         UserSettingService userSettingService, CacheProvider cacheProvider )
     {
         checkNotNull( organisationUnitStore );
-        checkNotNull( dataSetService );
+        checkNotNull( idObjectManager );
         checkNotNull( organisationUnitLevelStore );
         checkNotNull( currentUserService );
         checkNotNull( configurationService );
@@ -115,7 +115,7 @@ public class DefaultOrganisationUnitService
         checkNotNull( cacheProvider );
 
         this.organisationUnitStore = organisationUnitStore;
-        this.dataSetService = dataSetService;
+        this.idObjectManager = idObjectManager;
         this.organisationUnitLevelStore = organisationUnitLevelStore;
         this.currentUserService = currentUserService;
         this.configurationService = configurationService;
@@ -126,10 +126,7 @@ public class DefaultOrganisationUnitService
         this.inUserOrgUnitViewHierarchyCache = cacheProvider.createInUserViewOrgUnitHierarchyCache();
     }
 
-    /**
-     * Used only by test harness. Remove after test refactoring
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -439,7 +436,7 @@ public class DefaultOrganisationUnitService
         User user = currentUserService.getCurrentUser();
 
         Set<OrganisationUnit> organisationUnits = user != null ? user.getOrganisationUnits() : null;
-        List<DataSet> dataSets = (user != null && user.isSuper()) ? null : dataSetService.getUserDataWrite( user );
+        List<DataSet> dataSets = idObjectManager.getDataWriteAll( DataSet.class );
 
         Map<String, Set<String>> associationSet = organisationUnitStore
             .getOrganisationUnitDataSetAssocationMap( organisationUnits, dataSets );
@@ -483,8 +480,7 @@ public class DefaultOrganisationUnitService
     {
         String cacheKey = joinHyphen( user.getUsername(), organisationUnit.getUid() );
 
-        return inUserOrgUnitHierarchyCache.get( cacheKey, ou -> isInUserHierarchy( user, organisationUnit ) )
-            .orElse( false );
+        return inUserOrgUnitHierarchyCache.get( cacheKey, ou -> isInUserHierarchy( user, organisationUnit ) );
     }
 
     @Override
@@ -517,7 +513,8 @@ public class DefaultOrganisationUnitService
     @Transactional( readOnly = true )
     public boolean isInUserDataViewHierarchy( User user, OrganisationUnit organisationUnit )
     {
-        if ( user == null || user.getOrganisationUnits() == null || user.getOrganisationUnits().isEmpty() )
+        if ( user == null || user.getDataViewOrganisationUnitsWithFallback() == null
+            || user.getDataViewOrganisationUnitsWithFallback().isEmpty() )
         {
             return false;
         }
@@ -532,8 +529,7 @@ public class DefaultOrganisationUnitService
         String cacheKey = joinHyphen( user.getUsername(), organisationUnit.getUid() );
 
         return inUserOrgUnitViewHierarchyCache
-            .get( cacheKey, ou -> isInUserDataViewHierarchy( user, organisationUnit ) )
-            .orElse( false );
+            .get( cacheKey, ou -> isInUserDataViewHierarchy( user, organisationUnit ) );
     }
 
     @Override
@@ -557,7 +553,7 @@ public class DefaultOrganisationUnitService
         String cacheKey = joinHyphen( user.getUsername(), organisationUnit.getUid() );
 
         return inUserOrgUnitSearchHierarchyCache
-            .get( cacheKey, ou -> isInUserSearchHierarchy( user, organisationUnit ) ).orElse( false );
+            .get( cacheKey, ou -> isInUserSearchHierarchy( user, organisationUnit ) );
     }
 
     @Override
@@ -612,8 +608,7 @@ public class DefaultOrganisationUnitService
             params.setParents( user.getOrganisationUnits() );
             params.setFetchChildren( true );
             return organisationUnitStore.isOrgUnitCountAboveThreshold( params, threshold );
-        } )
-            .orElse( false );
+        } );
     }
 
     // -------------------------------------------------------------------------

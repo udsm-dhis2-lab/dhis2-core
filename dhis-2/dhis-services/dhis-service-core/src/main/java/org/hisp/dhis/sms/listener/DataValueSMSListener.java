@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,9 @@ public class DataValueSMSListener
     extends
     CommandSMSListener
 {
-    private static final String DATASET_LOCKED = "Dataset: %s is locked for period: %s";
+    private static final String DATASET_LOCKED = "Dataset: [%]s is locked for period: [%s]";
+
+    private static final String OU_NOT_IN_DATASET = "Organisation unit [%s] is not assigned to dataSet [%s]";
 
     // -------------------------------------------------------------------------
     // Dependencies
@@ -127,8 +129,17 @@ public class DataValueSMSListener
         Period period = getPeriod( smsCommand, date );
         DataSet dataSet = smsCommand.getDataset();
 
-        if ( dataSetService.isLocked( null, dataSet, period, orgUnit,
-            dataElementCategoryService.getDefaultCategoryOptionCombo(), null ) )
+        if ( orgUnit != null && !dataSet.hasOrganisationUnit( orgUnit ) )
+        {
+            sendFeedback( String.format( OU_NOT_IN_DATASET, orgUnit.getUid(), dataSet.getUid() ), sms.getOriginator(),
+                ERROR );
+
+            update( sms, SmsMessageStatus.FAILED, false );
+            return;
+        }
+
+        if ( !dataSetService.getLockStatus( null, dataSet, period, orgUnit,
+            dataElementCategoryService.getDefaultCategoryOptionCombo(), null ).isOpen() )
         {
             sendFeedback( String.format( DATASET_LOCKED, dataSet.getUid(), period.getName() ), sms.getOriginator(),
                 ERROR );
@@ -149,7 +160,7 @@ public class DataValueSMSListener
 
         if ( parsedMessage.isEmpty() )
         {
-            sendFeedback( org.apache.commons.lang.StringUtils.defaultIfEmpty( smsCommand.getDefaultMessage(),
+            sendFeedback( org.apache.commons.lang3.StringUtils.defaultIfEmpty( smsCommand.getDefaultMessage(),
                 "No values reported for command '" + smsCommand.getName() + "'" ), sms.getOriginator(), ERROR );
 
             update( sms, SmsMessageStatus.FAILED, false );
@@ -157,7 +168,7 @@ public class DataValueSMSListener
         }
         else if ( !valueStored )
         {
-            sendFeedback( org.apache.commons.lang.StringUtils.defaultIfEmpty( smsCommand.getWrongFormatMessage(),
+            sendFeedback( org.apache.commons.lang3.StringUtils.defaultIfEmpty( smsCommand.getWrongFormatMessage(),
                 SMSCommand.WRONG_FORMAT_MESSAGE ), sms.getOriginator(), ERROR );
 
             update( sms, SmsMessageStatus.FAILED, false );
@@ -223,7 +234,8 @@ public class DataValueSMSListener
             storedBy = "[unknown] from [" + sender + "]";
         }
 
-        CategoryOptionCombo optionCombo = dataElementCategoryService.getCategoryOptionCombo( code.getOptionId() );
+        CategoryOptionCombo optionCombo = dataElementCategoryService
+            .getCategoryOptionCombo( code.getOptionId().getId() );
 
         Period period = getPeriod( command, date );
 
@@ -375,7 +387,8 @@ public class DataValueSMSListener
         for ( SMSCode code : command.getCodes() )
         {
 
-            CategoryOptionCombo optionCombo = dataElementCategoryService.getCategoryOptionCombo( code.getOptionId() );
+            CategoryOptionCombo optionCombo = dataElementCategoryService
+                .getCategoryOptionCombo( code.getOptionId().getId() );
 
             period = getPeriod( command, date );
 
@@ -437,7 +450,8 @@ public class DataValueSMSListener
         for ( SMSCode code : command.getCodes() )
         {
 
-            CategoryOptionCombo optionCombo = dataElementCategoryService.getCategoryOptionCombo( code.getOptionId() );
+            CategoryOptionCombo optionCombo = dataElementCategoryService
+                .getCategoryOptionCombo( code.getOptionId().getId() );
 
             period = getPeriod( command, date );
 

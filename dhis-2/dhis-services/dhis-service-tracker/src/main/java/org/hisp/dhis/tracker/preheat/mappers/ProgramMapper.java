@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,9 @@ package org.hisp.dhis.tracker.preheat.mappers;
 
 import java.util.Set;
 
+import org.hisp.dhis.attribute.AttributeValue;
 import org.hisp.dhis.program.Program;
+import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.user.UserAccess;
 import org.hisp.dhis.user.UserGroupAccess;
 import org.mapstruct.BeanMapping;
@@ -38,7 +40,9 @@ import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
 @Mapper( uses = { DebugMapper.class, OrganisationUnitMapper.class, UserGroupAccessMapper.class,
-    UserAccessMapper.class, TrackedEntityTypeMapper.class } )
+    UserAccessMapper.class, CategoryComboMapper.class, TrackedEntityTypeMapper.class, ProgramStageMapper.class,
+    AttributeValueMapper.class
+} )
 public interface ProgramMapper extends PreheatMapper<Program>
 {
     ProgramMapper INSTANCE = Mappers.getMapper( ProgramMapper.class );
@@ -48,6 +52,7 @@ public interface ProgramMapper extends PreheatMapper<Program>
     @Mapping( target = "uid" )
     @Mapping( target = "code" )
     @Mapping( target = "name" )
+    @Mapping( target = "attributeValues" )
     @Mapping( target = "trackedEntityType" )
     @Mapping( target = "publicAccess" )
     @Mapping( target = "externalAccess" )
@@ -55,6 +60,7 @@ public interface ProgramMapper extends PreheatMapper<Program>
     @Mapping( target = "userAccesses" )
     @Mapping( target = "programType" )
     @Mapping( target = "programAttributes" )
+    @Mapping( target = "programStages" )
     @Mapping( target = "onlyEnrollOnce" )
     @Mapping( target = "featureType" )
     @Mapping( target = "categoryCombo" )
@@ -65,9 +71,15 @@ public interface ProgramMapper extends PreheatMapper<Program>
     @Mapping( target = "expiryDays" )
     @Mapping( target = "expiryPeriodType" )
     @Mapping( target = "completeEventsExpiryDays" )
+    @Mapping( target = "sharing" )
+    @Mapping( target = "accessLevel" )
     Program map( Program program );
 
     Set<UserGroupAccess> userGroupAccessesProgram( Set<UserGroupAccess> userGroupAccesses );
 
     Set<UserAccess> mapUserAccessProgramInstanceProgram( Set<UserAccess> userAccesses );
+
+    Set<ProgramStage> mapProgramStages( Set<ProgramStage> programStages );
+
+    Set<AttributeValue> mapAttributeValues( Set<AttributeValue> attributeValues );
 }

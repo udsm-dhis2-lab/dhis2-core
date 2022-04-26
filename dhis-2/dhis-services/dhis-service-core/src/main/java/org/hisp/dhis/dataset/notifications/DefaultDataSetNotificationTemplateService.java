@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,9 @@
  */
 package org.hisp.dhis.dataset.notifications;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.List;
+
+import lombok.AllArgsConstructor;
 
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.program.notification.NotificationTrigger;
@@ -38,18 +38,11 @@ import org.springframework.stereotype.Service;
 /**
  * Created by zubair@dhis2.org on 20.07.17.
  */
-@Service( "org.hisp.dhis.dataset.notifications.DataSetNotificationTemplateService" )
-public class DefaultDataSetNotificationTemplateService
-    implements DataSetNotificationTemplateService
+@Service
+@AllArgsConstructor
+public class DefaultDataSetNotificationTemplateService implements DataSetNotificationTemplateService
 {
     private final DataSetNotificationTemplateStore store;
-
-    public DefaultDataSetNotificationTemplateService( DataSetNotificationTemplateStore store )
-    {
-        checkNotNull( store );
-
-        this.store = store;
-    }
 
     @Override
     public DataSetNotificationTemplate get( long id )

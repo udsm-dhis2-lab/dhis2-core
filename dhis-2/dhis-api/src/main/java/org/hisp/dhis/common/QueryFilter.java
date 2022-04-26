@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,29 @@
  */
 package org.hisp.dhis.common;
 
+import static org.hisp.dhis.analytics.QueryKey.NV;
+import static org.hisp.dhis.common.QueryOperator.EQ;
+import static org.hisp.dhis.common.QueryOperator.EW;
+import static org.hisp.dhis.common.QueryOperator.GE;
+import static org.hisp.dhis.common.QueryOperator.GT;
+import static org.hisp.dhis.common.QueryOperator.IEQ;
+import static org.hisp.dhis.common.QueryOperator.ILIKE;
+import static org.hisp.dhis.common.QueryOperator.IN;
+import static org.hisp.dhis.common.QueryOperator.LE;
+import static org.hisp.dhis.common.QueryOperator.LIKE;
+import static org.hisp.dhis.common.QueryOperator.LT;
+import static org.hisp.dhis.common.QueryOperator.NE;
+import static org.hisp.dhis.common.QueryOperator.NEQ;
+import static org.hisp.dhis.common.QueryOperator.NIEQ;
+import static org.hisp.dhis.common.QueryOperator.NILIKE;
+import static org.hisp.dhis.common.QueryOperator.NLIKE;
+import static org.hisp.dhis.common.QueryOperator.SW;
+
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -39,16 +61,24 @@ public class QueryFilter
 {
     public static final String OPTION_SEP = ";";
 
-    public static final ImmutableMap<QueryOperator, String> OPERATOR_MAP = ImmutableMap
-        .<QueryOperator, String> builder()
-        .put( QueryOperator.EQ, "=" )
-        .put( QueryOperator.GT, ">" )
-        .put( QueryOperator.GE, ">=" )
-        .put( QueryOperator.LT, "<" )
-        .put( QueryOperator.LE, "<=" )
-        .put( QueryOperator.NE, "!=" )
-        .put( QueryOperator.LIKE, "like" )
-        .put( QueryOperator.IN, "in" ).build();
+    public static final ImmutableMap<QueryOperator, Function<Boolean, String>> OPERATOR_MAP = ImmutableMap
+        .<QueryOperator, Function<Boolean, String>> builder()
+        .put( EQ, isValueNull -> isValueNull ? "is" : "=" )
+        .put( NE, isValueNull -> isValueNull ? "is not" : "!=" )
+        .put( NEQ, isValueNull -> isValueNull ? "is not" : "!=" )
+        .put( IEQ, isValueNull -> isValueNull ? "is" : "=" )
+        .put( NIEQ, isValueNull -> isValueNull ? "is not" : "!=" )
+        .put( GT, unused -> ">" )
+        .put( GE, unused -> ">=" )
+        .put( LT, unused -> "<" )
+        .put( LE, unused -> "<=" )
+        .put( ILIKE, unused -> "ilike" )
+        .put( NILIKE, unused -> "not ilike" )
+        .put( LIKE, unused -> "like" )
+        .put( SW, unused -> "like" )
+        .put( EW, unused -> "like" )
+        .put( NLIKE, unused -> "not like" )
+        .put( IN, unused -> "in" ).build();
 
     protected QueryOperator operator;
 
@@ -89,50 +119,88 @@ public class QueryFilter
             return null;
         }
 
-        return OPERATOR_MAP.get( operator );
+        return safelyGetOperator();
     }
 
-    public String getJavaOperator()
+    private String safelyGetOperator()
     {
-        if ( operator == null || operator == QueryOperator.LIKE || operator == QueryOperator.IN )
-        {
-            return null;
-        }
-
-        if ( operator == QueryOperator.EQ ) // TODO why special case?
-        {
-            return "==";
-        }
-
-        return OPERATOR_MAP.get( operator );
+        return OPERATOR_MAP.get( operator ).apply( StringUtils.trimToEmpty( filter ).contains( NV ) );
     }
 
-    public String getSqlFilter( String encodedFilter )
+    public String getSqlFilter( final String encodedFilter )
     {
         if ( operator == null || encodedFilter == null )
         {
             return null;
         }
 
-        if ( QueryOperator.LIKE.equals( operator ) )
+        if ( LIKE == operator || NLIKE == operator || ILIKE == operator || NILIKE == operator )
         {
             return "'%" + encodedFilter + "%'";
         }
-        else if ( QueryOperator.IN.equals( operator ) )
+        else if ( EQ == operator || NE == operator || NEQ == operator || IEQ == operator || NIEQ == operator )
         {
-            List<String> filterItems = getFilterItems( encodedFilter );
-
-            final StringBuffer buffer = new StringBuffer( "(" );
-
-            for ( String filterItem : filterItems )
+            if ( encodedFilter.equals( NV ) )
             {
-                buffer.append( "'" ).append( filterItem ).append( "'," );
+                return "null";
             }
-
-            return buffer.deleteCharAt( buffer.length() - 1 ).append( ")" ).toString();
+        }
+        else if ( IN == operator )
+        {
+            return getFilterItems( encodedFilter ).stream()
+                .map( this::quote )
+                .collect( Collectors.joining( ",", "(", ")" ) );
+        }
+        else if ( SW == operator )
+        {
+            return "'" + encodedFilter + "%'";
+        }
+        else if ( EW == operator )
+        {
+            return "'%" + encodedFilter + "'";
         }
 
         return "'" + encodedFilter + "'";
+    }
+
+    public String getSqlFilter( final String encodedFilter, final ValueType valueType )
+    {
+        final String sqlFilter = getSqlFilter( encodedFilter );
+
+        // Force lowercase so we can compare ignoring case.
+        if ( IEQ == operator || NIEQ == operator )
+        {
+            return valueType.isText() ? sqlFilter.toLowerCase() : sqlFilter;
+        }
+
+        return sqlFilter;
+    }
+
+    public String getSqlFilterColumn( final String column, final ValueType valueType )
+    {
+        // Force lowercase so we can compare ignoring case.
+        if ( IEQ == operator || NIEQ == operator )
+        {
+            return valueType.isText() ? wrapLower( column ) : column;
+        }
+
+        return column;
+    }
+
+    /**
+     * Wraps the provided column name in Postgres 'lower' directive
+     *
+     * @param column a column name
+     * @return a String
+     */
+    private String wrapLower( String column )
+    {
+        return "lower(" + column + ")";
+    }
+
+    protected String quote( String filterItem )
+    {
+        return "'" + filterItem + "'";
     }
 
     /**
@@ -207,17 +275,10 @@ public class QueryFilter
 
         if ( operator == null )
         {
-            if ( other.operator != null )
-            {
-                return false;
-            }
+            return other.operator == null;
         }
-        else if ( !operator.equals( other.operator ) )
-        {
-            return false;
-        }
-
-        return true;
+        else
+            return operator.equals( other.operator );
     }
 
     // -------------------------------------------------------------------------

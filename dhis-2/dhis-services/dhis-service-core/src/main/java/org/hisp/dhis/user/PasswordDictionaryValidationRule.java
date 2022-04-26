@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 package org.hisp.dhis.user;
 
 import static java.util.Arrays.asList;
-import static org.apache.commons.lang.StringUtils.containsIgnoreCase;
+import static org.apache.commons.lang3.StringUtils.containsIgnoreCase;
 import static org.hisp.dhis.user.PasswordValidationError.PASSWORD_CONTAINS_RESERVED_WORD;
 
 import java.util.List;

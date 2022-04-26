@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import org.hisp.dhis.tracker.TrackerType;
 import org.locationtech.jts.geom.Geometry;
@@ -67,7 +70,7 @@ public class Enrollment
     private String trackedEntity;
 
     @JsonProperty
-    private String program;
+    private MetadataIdentifier program;
 
     @JsonProperty
     private EnrollmentStatus status;
@@ -100,10 +103,10 @@ public class Enrollment
     private String storedBy;
 
     @JsonProperty
-    private String createdBy;
+    private User createdBy;
 
     @JsonProperty
-    private String updatedBy;
+    private User updatedBy;
 
     @JsonProperty
     private Geometry geometry;

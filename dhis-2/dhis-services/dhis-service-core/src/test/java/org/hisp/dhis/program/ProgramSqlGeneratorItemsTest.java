@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,10 @@ package org.hisp.dhis.program;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hisp.dhis.antlr.AntlrParserUtils.castString;
-import static org.hisp.dhis.parser.expression.ParserUtils.DEFAULT_SAMPLE_PERIODS;
-import static org.hisp.dhis.parser.expression.ParserUtils.ITEM_GET_DESCRIPTIONS;
-import static org.hisp.dhis.parser.expression.ParserUtils.ITEM_GET_SQL;
+import static org.hisp.dhis.parser.expression.ExpressionItem.ITEM_GET_DESCRIPTIONS;
+import static org.hisp.dhis.parser.expression.ExpressionItem.ITEM_GET_SQL;
 import static org.hisp.dhis.program.DefaultProgramIndicatorService.PROGRAM_INDICATOR_ITEMS;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import java.util.Date;
@@ -47,35 +46,37 @@ import org.hisp.dhis.DhisConvenienceTest;
 import org.hisp.dhis.antlr.AntlrExprLiteral;
 import org.hisp.dhis.antlr.Parser;
 import org.hisp.dhis.antlr.literal.DefaultLiteral;
+import org.hisp.dhis.common.DimensionService;
+import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.constant.Constant;
-import org.hisp.dhis.constant.ConstantService;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementDomain;
-import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.i18n.I18n;
 import org.hisp.dhis.jdbc.StatementBuilder;
 import org.hisp.dhis.jdbc.statementbuilder.PostgreSQLStatementBuilder;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
 import org.hisp.dhis.parser.expression.ExpressionItemMethod;
+import org.hisp.dhis.parser.expression.ProgramExpressionParams;
 import org.hisp.dhis.parser.expression.literal.SqlLiteral;
-import org.hisp.dhis.relationship.RelationshipTypeService;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
-import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import com.google.common.collect.ImmutableMap;
 
 /**
  * @author Jim Grace
  */
-public class ProgramSqlGeneratorItemsTest
-    extends DhisConvenienceTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class ProgramSqlGeneratorItemsTest extends DhisConvenienceTest
 {
     private ProgramIndicator programIndicator;
 
@@ -95,30 +96,21 @@ public class ProgramSqlGeneratorItemsTest
 
     private Date endDate = getDate( 2020, 12, 31 );
 
-    @org.junit.Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
     @Mock
     private ProgramIndicatorService programIndicatorService;
-
-    @Mock
-    private ConstantService constantService;
 
     @Mock
     private ProgramStageService programStageService;
 
     @Mock
-    private DataElementService dataElementService;
+    private IdentifiableObjectManager idObjectManager;
 
     @Mock
-    private TrackedEntityAttributeService attributeService;
-
-    @Mock
-    private RelationshipTypeService relationshipTypeService;
+    private DimensionService dimensionService;
 
     private StatementBuilder statementBuilder;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         dataElementA = createDataElement( 'A' );
@@ -152,9 +144,9 @@ public class ProgramSqlGeneratorItemsTest
     }
 
     @Test
-    public void testDataElement()
+    void testDataElement()
     {
-        when( dataElementService.getDataElement( dataElementA.getUid() ) ).thenReturn( dataElementA );
+        when( idObjectManager.get( DataElement.class, dataElementA.getUid() ) ).thenReturn( dataElementA );
         when( programStageService.getProgramStage( programStageA.getUid() ) ).thenReturn( programStageA );
 
         String sql = test( "#{ProgrmStagA.DataElmentA}" );
@@ -162,9 +154,9 @@ public class ProgramSqlGeneratorItemsTest
     }
 
     @Test
-    public void testDataElementAllowingNulls()
+    void testDataElementAllowingNulls()
     {
-        when( dataElementService.getDataElement( dataElementA.getUid() ) ).thenReturn( dataElementA );
+        when( idObjectManager.get( DataElement.class, dataElementA.getUid() ) ).thenReturn( dataElementA );
         when( programStageService.getProgramStage( programStageA.getUid() ) ).thenReturn( programStageA );
 
         String sql = test( "d2:oizp(#{ProgrmStagA.DataElmentA})" );
@@ -172,54 +164,53 @@ public class ProgramSqlGeneratorItemsTest
     }
 
     @Test
-    public void testDataElementNotFound()
+    void testDataElementNotFound()
     {
-        when( attributeService.getTrackedEntityAttribute( attributeA.getUid() ) ).thenReturn( attributeA );
-        when( constantService.getConstant( constantA.getUid() ) ).thenReturn( constantA );
+        when( idObjectManager.get( TrackedEntityAttribute.class, attributeA.getUid() ) ).thenReturn( attributeA );
         when( programStageService.getProgramStage( programStageA.getUid() ) ).thenReturn( programStageA );
 
         assertThrows( org.hisp.dhis.antlr.ParserException.class, () -> test( "#{ProgrmStagA.NotElementA}" ) );
     }
 
     @Test
-    public void testAttribute()
+    void testAttribute()
     {
-        when( attributeService.getTrackedEntityAttribute( attributeA.getUid() ) ).thenReturn( attributeA );
+        when( idObjectManager.get( TrackedEntityAttribute.class, attributeA.getUid() ) ).thenReturn( attributeA );
 
         String sql = test( "A{Attribute0A}" );
         assertThat( sql, is( "coalesce(\"Attribute0A\"::numeric,0)" ) );
     }
 
     @Test
-    public void testAttributeAllowingNulls()
+    void testAttributeAllowingNulls()
     {
-        when( attributeService.getTrackedEntityAttribute( attributeA.getUid() ) ).thenReturn( attributeA );
+        when( idObjectManager.get( TrackedEntityAttribute.class, attributeA.getUid() ) ).thenReturn( attributeA );
 
         String sql = test( "d2:oizp(A{Attribute0A})" );
         assertThat( sql, is( "coalesce(case when \"Attribute0A\" >= 0 then 1 else 0 end, 0)" ) );
     }
 
     @Test
-    public void testAttributeNotFound()
+    void testAttributeNotFound()
     {
         assertThrows( org.hisp.dhis.antlr.ParserException.class, () -> test( "A{NoAttribute}" ) );
     }
 
     @Test
-    public void testConstant()
+    void testConstant()
     {
         String sql = test( "C{constant00A}" );
         assertThat( sql, is( "123.456" ) );
     }
 
     @Test
-    public void testConstantNotFound()
+    void testConstantNotFound()
     {
         assertThrows( org.hisp.dhis.antlr.ParserException.class, () -> test( "C{notConstant}" ) );
     }
 
     @Test
-    public void testInvalidItemType()
+    void testInvalidItemType()
     {
         assertThrows( org.hisp.dhis.antlr.ParserException.class, () -> test( "I{notValidItm}" ) );
     }
@@ -243,25 +234,27 @@ public class ProgramSqlGeneratorItemsTest
         dataElementsAndAttributesIdentifiers.add( BASE_UID + "b" );
         dataElementsAndAttributesIdentifiers.add( BASE_UID + "c" );
 
-        CommonExpressionVisitor visitor = CommonExpressionVisitor.newBuilder()
-            .withItemMap( PROGRAM_INDICATOR_ITEMS )
-            .withItemMethod( itemMethod )
-            .withConstantMap( constantMap )
-            .withProgramIndicatorService( programIndicatorService )
-            .withProgramStageService( programStageService )
-            .withDataElementService( dataElementService )
-            .withAttributeService( attributeService )
-            .withRelationshipTypeService( relationshipTypeService )
-            .withStatementBuilder( statementBuilder )
-            .withI18n( new I18n( null, null ) )
-            .withSamplePeriods( DEFAULT_SAMPLE_PERIODS )
-            .buildForProgramIndicatorExpressions();
+        ProgramExpressionParams params = ProgramExpressionParams.builder()
+            .programIndicator( programIndicator )
+            .reportingStartDate( startDate )
+            .reportingEndDate( endDate )
+            .dataElementAndAttributeIdentifiers( dataElementsAndAttributesIdentifiers )
+            .build();
+
+        CommonExpressionVisitor visitor = CommonExpressionVisitor.builder()
+            .idObjectManager( idObjectManager )
+            .dimensionService( dimensionService )
+            .programIndicatorService( programIndicatorService )
+            .programStageService( programStageService )
+            .statementBuilder( statementBuilder )
+            .i18n( new I18n( null, null ) )
+            .constantMap( constantMap )
+            .itemMap( PROGRAM_INDICATOR_ITEMS )
+            .itemMethod( itemMethod )
+            .progParams( params )
+            .build();
 
         visitor.setExpressionLiteral( exprLiteral );
-        visitor.setProgramIndicator( programIndicator );
-        visitor.setReportingStartDate( startDate );
-        visitor.setReportingEndDate( endDate );
-        visitor.setDataElementAndAttributeIdentifiers( dataElementsAndAttributesIdentifiers );
 
         return Parser.visit( expression, visitor );
     }

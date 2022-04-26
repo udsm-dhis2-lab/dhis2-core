@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.tracker.events;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -70,7 +69,7 @@ public class UserAssignmentFilterTests
 
     private UserActions userActions;
 
-    private String userPassword = "Test1212?";
+    private String userPassword = Constants.USER_PASSWORD;
 
     private String userUsername;
 
@@ -91,7 +90,7 @@ public class UserAssignmentFilterTests
         metadataActions = new MetadataActions();
         userActions = new UserActions();
 
-        userUsername = "EventFiltersUser" + DataGenerator.randomString();
+        userUsername = ("EventFiltersUser" + DataGenerator.randomString()).toLowerCase();
 
         loginActions.loginAsSuperUser();
         metadataActions.importAndValidateMetadata( new File( "src/test/resources/tracker/eventProgram.json" ) );
@@ -99,7 +98,7 @@ public class UserAssignmentFilterTests
         userId = userActions.addUser( userUsername, userPassword );
         userActions.grantUserAccessToOrgUnit( userId, orgUnit );
         userActions.addUserToUserGroup( userId, Constants.USER_GROUP_ID );
-        userActions.addRoleToUser( userId, Constants.USER_ROLE_ID);
+        userActions.addRoleToUser( userId, Constants.USER_ROLE_ID );
 
         eventsBody = getEventsBody( programId, "l8oDIfJJhtg", userId );
     }
@@ -116,7 +115,7 @@ public class UserAssignmentFilterTests
         throws Exception
     {
         loginActions.loginAsSuperUser();
-        ApiResponse response = eventActions.get( "?program=" + programId + "&assignedUser=" + userId );
+        ApiResponse response = eventActions.get( "?program=" + programId + "&assignedUser=" + userId + "&ouMode=ACCESSIBLE");
 
         response.validate().statusCode( 200 )
             .body( "events", hasSize( 4 ) )
@@ -179,8 +178,10 @@ public class UserAssignmentFilterTests
         changeEventStatus( eventId, status );
 
         // act
-        ApiResponse filteredEvents = eventActions.get( "?orgUnit=" + orgUnit + "&assignedUserMode=CURRENT&status=" + status );
-        ApiResponse activeEvents = eventActions.get( "?orgUnit=" + orgUnit + "&assignedUserMode=CURRENT&status=ACTIVE" );
+        ApiResponse filteredEvents = eventActions
+            .get( "?orgUnit=" + orgUnit + "&assignedUserMode=CURRENT&status=" + status );
+        ApiResponse activeEvents = eventActions
+            .get( "?orgUnit=" + orgUnit + "&assignedUserMode=CURRENT&status=ACTIVE" );
 
         // assert
         filteredEvents.validate().statusCode( 200 )
@@ -197,7 +198,7 @@ public class UserAssignmentFilterTests
     private ApiResponse createEvents( Object body )
         throws Exception
     {
-        ApiResponse eventResponse = eventActions.post( body, new QueryParamsBuilder().add(  "skipCache=true" ) );
+        ApiResponse eventResponse = eventActions.post( body, new QueryParamsBuilder().add( "skipCache=true" ) );
 
         eventResponse.validate().statusCode( 200 );
 

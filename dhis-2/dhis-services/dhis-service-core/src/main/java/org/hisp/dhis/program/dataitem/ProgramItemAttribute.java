@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,8 @@ public class ProgramItemAttribute
     {
         String attributeId = getProgramAttributeId( ctx );
 
-        TrackedEntityAttribute attribute = visitor.getAttributeService().getTrackedEntityAttribute( attributeId );
+        TrackedEntityAttribute attribute = visitor.getIdObjectManager()
+            .get( TrackedEntityAttribute.class, attributeId );
 
         if ( attribute == null )
         {
@@ -57,7 +58,7 @@ public class ProgramItemAttribute
 
         visitor.getItemDescriptions().put( ctx.getText(), attribute.getDisplayName() );
 
-        return ValidationUtils.getSubstitutionValue( attribute.getValueType() );
+        return ValidationUtils.getNullReplacementValue( attribute.getValueType() );
     }
 
     @Override
@@ -67,9 +68,10 @@ public class ProgramItemAttribute
 
         String column = visitor.getStatementBuilder().columnQuote( attributeId );
 
-        if ( visitor.getReplaceNulls() )
+        if ( visitor.getState().isReplaceNulls() )
         {
-            TrackedEntityAttribute attribute = visitor.getAttributeService().getTrackedEntityAttribute( attributeId );
+            TrackedEntityAttribute attribute = visitor.getIdObjectManager()
+                .get( TrackedEntityAttribute.class, attributeId );
 
             if ( attribute == null )
             {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,6 @@ import org.hisp.dhis.schema.Schema;
 import org.hisp.dhis.schema.SchemaService;
 import org.hisp.dhis.system.util.ReflectionUtils;
 import org.hisp.dhis.system.util.ValidationUtils;
-import org.hisp.dhis.user.User;
 import org.springframework.stereotype.Service;
 
 /**
@@ -109,15 +108,6 @@ public class DefaultSchemaValidator implements SchemaValidator
             }
         }
 
-        if ( object instanceof User )
-        {
-            User user = (User) object;
-
-            if ( user.getUserCredentials() != null )
-            {
-                errors.addAll( validate( user.getUserCredentials(), persisted ) );
-            }
-        }
         return errors;
     }
 
@@ -184,6 +174,10 @@ public class DefaultSchemaValidator implements SchemaValidator
         {
             errorReports.add( createNameReport( ErrorCode.E4003, klass, property, value ) );
         }
+        else if ( isInvalidUsername( property, value ) )
+        {
+            errorReports.add( createNameReport( ErrorCode.E4049, klass, property, value ) );
+        }
         else if ( isInvalidUrl( property, value ) )
         {
             errorReports.add( createNameReport( ErrorCode.E4004, klass, property, value ) );
@@ -218,6 +212,11 @@ public class DefaultSchemaValidator implements SchemaValidator
     {
         return !BCRYPT_PATTERN.matcher( value ).matches() && PropertyType.PASSWORD == property.getPropertyType()
             && !ValidationUtils.passwordIsValid( value );
+    }
+
+    private boolean isInvalidUsername( Property property, String value )
+    {
+        return PropertyType.USERNAME == property.getPropertyType() && !ValidationUtils.usernameIsValid( value );
     }
 
     private boolean isInvalidEmail( Property property, String value )

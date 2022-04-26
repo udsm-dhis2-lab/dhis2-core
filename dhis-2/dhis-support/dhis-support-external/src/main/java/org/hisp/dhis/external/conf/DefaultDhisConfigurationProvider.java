@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,10 +77,6 @@ public class DefaultDhisConfigurationProvider extends LogOnceLogger
     private static final String GOOGLE_AUTH_FILENAME = "dhis-google-auth.json";
 
     private static final String GOOGLE_EE_SCOPE = "https://www.googleapis.com/auth/earthengine";
-
-    private static final String ENABLED_VALUE = "on";
-
-    private static final String DISABLED_VALUE = "off";
 
     // -------------------------------------------------------------------------
     // Dependencies
@@ -174,37 +170,37 @@ public class DefaultDhisConfigurationProvider extends LogOnceLogger
     @Override
     public String getProperty( ConfigurationKey key )
     {
-        return properties.getProperty( key.getKey(), key.getDefaultValue() );
+        return getPropertyOrDefault( key, key.getDefaultValue() );
     }
 
     @Override
     public String getPropertyOrDefault( ConfigurationKey key, String defaultValue )
     {
+        for ( String alias : key.getAliases() )
+        {
+            if ( properties.contains( alias ) )
+            {
+                return properties.getProperty( alias );
+            }
+        }
+
         return properties.getProperty( key.getKey(), defaultValue );
     }
 
     @Override
     public boolean hasProperty( ConfigurationKey key )
     {
-        return StringUtils.isNotEmpty( properties.getProperty( key.getKey() ) );
-    }
+        String value = properties.getProperty( key.getKey() );
 
-    @Override
-    public boolean isEnabled( ConfigurationKey key )
-    {
-        return ENABLED_VALUE.equals( getProperty( key ) );
-    }
+        for ( String alias : key.getAliases() )
+        {
+            if ( properties.contains( alias ) )
+            {
+                value = alias;
+            }
+        }
 
-    @Override
-    public boolean getBoolean( ConfigurationKey key )
-    {
-        return Boolean.parseBoolean( getProperty( key ) );
-    }
-
-    @Override
-    public boolean isDisabled( ConfigurationKey key )
-    {
-        return DISABLED_VALUE.equals( getProperty( key ) );
+        return StringUtils.isNotEmpty( value );
     }
 
     @Override
@@ -347,9 +343,8 @@ public class DefaultDhisConfigurationProvider extends LogOnceLogger
 
     private void substituteEnvironmentVariables( Properties properties )
     {
-        final StringSubstitutor substitutor = new StringSubstitutor( System.getenv() ); // Matches
-                                                                                        // on
-                                                                                        // ${...}
+        // Matches on ${...}
+        final StringSubstitutor substitutor = new StringSubstitutor( System.getenv() );
 
         properties.entrySet().forEach( entry -> entry.setValue( substitutor.replace( entry.getValue() ).trim() ) );
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,10 @@
  */
 package org.hisp.dhis.analytics.data;
 
+import static org.hisp.dhis.DhisConvenienceTest.createCategory;
+import static org.hisp.dhis.DhisConvenienceTest.createCategoryCombo;
+import static org.hisp.dhis.DhisConvenienceTest.createCategoryOption;
+import static org.hisp.dhis.DhisConvenienceTest.createCategoryOptionCombo;
 import static org.hisp.dhis.DhisConvenienceTest.createDataElement;
 import static org.hisp.dhis.DhisConvenienceTest.createDataElementGroup;
 import static org.hisp.dhis.DhisConvenienceTest.createDataElementGroupSet;
@@ -41,13 +45,17 @@ import static org.hisp.dhis.common.DimensionalObject.DATA_X_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObjectUtils.getList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
 import org.hisp.dhis.analytics.AggregationType;
 import org.hisp.dhis.analytics.DataQueryParams;
 import org.hisp.dhis.analytics.OutputFormat;
+import org.hisp.dhis.category.Category;
+import org.hisp.dhis.category.CategoryCombo;
+import org.hisp.dhis.category.CategoryOption;
+import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.common.BaseDimensionalObject;
 import org.hisp.dhis.common.DimensionType;
 import org.hisp.dhis.common.IllegalQueryException;
@@ -56,6 +64,7 @@ import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementGroup;
 import org.hisp.dhis.dataelement.DataElementGroupSet;
+import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorMessage;
@@ -68,26 +77,42 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramDataElementDimensionItem;
 import org.hisp.dhis.setting.SystemSettingManager;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Lars Helge Overland
  */
-public class QueryValidatorTest
+@ExtendWith( MockitoExtension.class )
+class QueryValidatorTest
 {
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
     private DefaultQueryValidator queryValidator;
 
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
+
+    private CategoryOption coA;
+
+    private CategoryOption coB;
+
+    private CategoryOption coC;
+
+    private CategoryOption coD;
+
+    private Category caA;
+
+    private Category caB;
+
+    private CategoryCombo ccA;
+
+    private CategoryCombo ccB;
+
+    private CategoryOptionCombo cocC;
+
+    private CategoryOptionCombo cocD;
 
     private IndicatorType itA;
 
@@ -101,9 +126,15 @@ public class QueryValidatorTest
 
     private DataElement deB;
 
+    private DataElement deC;
+
     private ProgramDataElementDimensionItem pdeA;
 
     private ProgramDataElementDimensionItem pdeB;
+
+    private DataElementOperand doC;
+
+    private DataElementOperand doD;
 
     private ReportingRate rrA;
 
@@ -119,11 +150,26 @@ public class QueryValidatorTest
 
     private DataElementGroupSet dgsA;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         queryValidator = new DefaultQueryValidator( mock( SystemSettingManager.class ) );
         PeriodType pt = new MonthlyPeriodType();
+
+        coA = createCategoryOption( 'A' );
+        coB = createCategoryOption( 'B' );
+        coC = createCategoryOption( 'C' );
+        coD = createCategoryOption( 'D' );
+
+        caA = createCategory( 'A', coA, coB );
+        caB = createCategory( 'B', coC, coD );
+
+        ccA = createCategoryCombo( 'A', caA );
+        ccB = createCategoryCombo( 'B', caB );
+        ccB.setSkipTotal( true );
+
+        cocC = createCategoryOptionCombo( ccB, coC );
+        cocD = createCategoryOptionCombo( ccB, coD );
 
         itA = createIndicatorType( 'A' );
 
@@ -134,9 +180,17 @@ public class QueryValidatorTest
 
         deA = createDataElement( 'A', ValueType.INTEGER, AggregationType.SUM );
         deB = createDataElement( 'B', ValueType.INTEGER, AggregationType.SUM );
+        deC = createDataElement( 'C', ValueType.INTEGER, AggregationType.SUM );
+
+        deA.setCategoryCombo( ccA );
+        deB.setCategoryCombo( ccA );
+        deC.setCategoryCombo( ccB );
 
         pdeA = new ProgramDataElementDimensionItem( prA, deA );
         pdeB = new ProgramDataElementDimensionItem( prA, deB );
+
+        doC = new DataElementOperand( deC, cocC );
+        doD = new DataElementOperand( deC, cocD );
 
         DataSet dsA = createDataSet( 'A', pt );
 
@@ -156,7 +210,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateSuccessA()
+    void validateSuccessA()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -169,7 +223,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateSuccessB()
+    void validateSuccessB()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -183,7 +237,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateSuccessSingleIndicatorFilter()
+    void validateSuccessSingleIndicatorFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -195,7 +249,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateSuccessSingleProgramIndicatorFilter()
+    void validateSuccessSingleProgramIndicatorFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -208,7 +262,32 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureSingleIndicatorAsFilter()
+    void validateFailureNoPeriods()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .addDimension(
+                new BaseDimensionalObject( ORGUNIT_DIM_ID, DimensionType.ORGANISATION_UNIT, getList( ouA, ouB ) ) )
+            .addDimension( new BaseDimensionalObject( PERIOD_DIM_ID, DimensionType.PERIOD, getList() ) )
+            .addFilter( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( deA, inA ) ) ).build();
+
+        assertValidatonError( ErrorCode.E7104, params );
+    }
+
+    @Test
+    void validateFailureNoDataItems()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .addDimension(
+                new BaseDimensionalObject( ORGUNIT_DIM_ID, DimensionType.ORGANISATION_UNIT, getList( ouA, ouB ) ) )
+            .addDimension( new BaseDimensionalObject( PERIOD_DIM_ID, DimensionType.PERIOD, getList( peA, peB ) ) )
+            .addDimension( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList() ) )
+            .build();
+
+        assertValidatonError( ErrorCode.E7102, params );
+    }
+
+    @Test
+    void validateFailureSingleIndicatorAsFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -220,7 +299,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureSingleProgramIndicatorAsFilter()
+    void validateFailureSingleProgramIndicatorAsFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -234,7 +313,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateErrorSingleIndicatorAsFilter()
+    void validateErrorSingleIndicatorAsFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -248,7 +327,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureMultipleIndicatorsFilter()
+    void validateFailureMultipleIndicatorsFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -260,7 +339,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateErrorMultipleIndicatorsFilter()
+    void validateErrorMultipleIndicatorsFilter()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -274,7 +353,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureReportingRatesAndDataElementGroupSetAsDimensions()
+    void validateFailureReportingRatesAndDataElementGroupSetAsDimensions()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -289,7 +368,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateErrorReportingRatesAndDataElementGroupSetAsDimensions()
+    void validateErrorReportingRatesAndDataElementGroupSetAsDimensions()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -306,7 +385,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureReportingRatesAndStartEndDates()
+    void validateFailureReportingRatesAndStartEndDates()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -319,7 +398,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureValueType()
+    void validateFailureValueType()
     {
         deB.setValueType( ValueType.FILE_RESOURCE );
 
@@ -334,7 +413,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureAggregationType()
+    void validateFailureAggregationType()
     {
         deB.setAggregationType( AggregationType.CUSTOM );
 
@@ -349,7 +428,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateFailureOptionCombosWithIndicators()
+    void validateFailureOptionCombosWithIndicators()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( deA, inA ) ) )
@@ -363,7 +442,7 @@ public class QueryValidatorTest
     }
 
     @Test
-    public void validateMissingOrgUnitDimensionOutputFormatDataValueSet()
+    void validateMissingOrgUnitDimensionOutputFormatDataValueSet()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( deA, deB ) ) )
@@ -373,8 +452,81 @@ public class QueryValidatorTest
         assertValidatonError( ErrorCode.E7119, params );
     }
 
+    /**
+     * Asserts that the total value cannot be retrieved for data elements with
+     * category combinations with skip total enabled.
+     */
     @Test
-    public void validateSuccessWithSkipDataDimensionCheck()
+    void validateFailureSkipTotalDataElements()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .addDimension( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( deA, deC ) ) )
+            .addDimension(
+                new BaseDimensionalObject( ORGUNIT_DIM_ID, DimensionType.ORGANISATION_UNIT, getList( ouA, ouB ) ) )
+            .addDimension( new BaseDimensionalObject( PERIOD_DIM_ID, DimensionType.PERIOD, getList( peA ) ) )
+            .build();
+
+        assertValidatonError( ErrorCode.E7134, params );
+    }
+
+    /**
+     * Asserts that the total value can be retrieved for data elements with
+     * category combinations with skip total enabled if the query specifies all
+     * categories of the category combination with items as dimensions.
+     */
+    @Test
+    void validateSuccessSkipTotalDataElementsWithCategoryDimension()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .addDimension( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( deA, deC ) ) )
+            .addDimension(
+                new BaseDimensionalObject( ORGUNIT_DIM_ID, DimensionType.ORGANISATION_UNIT, getList( ouA, ouB ) ) )
+            .addDimension( new BaseDimensionalObject( PERIOD_DIM_ID, DimensionType.PERIOD, getList( peA ) ) )
+            .addDimension( new BaseDimensionalObject( caB.getDimension(), DimensionType.CATEGORY, getList( coC ) ) )
+            .build();
+
+        queryValidator.validate( params );
+    }
+
+    /**
+     * Asserts that the total value can be retrieved for data elements with
+     * category combinations with skip total enabled if the query specifies all
+     * categories of the category combination with items as filters.
+     */
+    @Test
+    void validateSuccessSkipTotalDataElementsWithCategoryFilter()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .addDimension( new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( deA, deC ) ) )
+            .addDimension(
+                new BaseDimensionalObject( ORGUNIT_DIM_ID, DimensionType.ORGANISATION_UNIT, getList( ouA, ouB ) ) )
+            .addDimension( new BaseDimensionalObject( PERIOD_DIM_ID, DimensionType.PERIOD, getList( peA ) ) )
+            .addFilter( new BaseDimensionalObject( caB.getDimension(), DimensionType.CATEGORY, getList( coD ) ) )
+            .build();
+
+        queryValidator.validate( params );
+    }
+
+    /**
+     * Asserts that the total value can be retrieved for data element operands
+     * with data elements category combinations with skip total enabled.
+     */
+    @Test
+    void validateSuccessSkipTotalWithOperands()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .addDimension(
+                new BaseDimensionalObject( DATA_X_DIM_ID, DimensionType.DATA_X, getList( doC, doD ) ) )
+            .addFilter(
+                new BaseDimensionalObject( ORGUNIT_DIM_ID, DimensionType.ORGANISATION_UNIT, getList( ouA, ouB ) ) )
+            .addDimension( new BaseDimensionalObject( PERIOD_DIM_ID, DimensionType.PERIOD, getList( peA, peB ) ) )
+            .build();
+
+        queryValidator.validate( params );
+    }
+
+    @Test
+    void validateSuccessWithSkipDataDimensionCheck()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .addDimension(
@@ -395,8 +547,7 @@ public class QueryValidatorTest
      */
     private void assertValidatonError( final ErrorCode errorCode, final DataQueryParams params )
     {
-        ThrowingRunnable runnable = () -> queryValidator.validate( params );
-        IllegalQueryException ex = assertThrows( "Error code mismatch", IllegalQueryException.class, runnable );
+        IllegalQueryException ex = assertThrows( IllegalQueryException.class, () -> queryValidator.validate( params ) );
         assertEquals( errorCode, ex.getErrorCode() );
     }
 }

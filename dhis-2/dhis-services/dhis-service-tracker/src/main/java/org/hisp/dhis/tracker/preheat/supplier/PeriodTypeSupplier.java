@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodStore;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.preheat.cache.PreheatCacheService;
@@ -59,7 +60,7 @@ public class PeriodTypeSupplier extends AbstractPreheatSupplier
     {
         if ( cache.hasKey( Period.class.getName() ) )
         {
-            addToPreheat( preheat, cache.getAll( Period.class.getName() ) );
+            preheat.put( TrackerIdSchemeParam.UID, cache.getAll( Period.class.getName() ) );
         }
         else
         {

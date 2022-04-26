@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,6 +89,16 @@ public class DataSourceConfig
         return jdbcTemplate;
     }
 
+    @Bean( "executionPlanJdbcTemplate" )
+    @DependsOn( "dataSource" )
+    public JdbcTemplate executionPlanJdbcTemplate( @Qualifier( "dataSource" ) DataSource dataSource )
+    {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate( dataSource );
+        jdbcTemplate.setFetchSize( 1000 );
+        jdbcTemplate.setQueryTimeout( 10 );
+        return jdbcTemplate;
+    }
+
     @Bean( "readOnlyJdbcTemplate" )
     @DependsOn( "dataSource" )
     public JdbcTemplate readOnlyJdbcTemplate( @Qualifier( "dataSource" ) DataSource dataSource )
@@ -135,7 +145,8 @@ public class DataSourceConfig
     @Primary
     public DataSource dataSource( @Qualifier( "actualDataSource" ) DataSource actualDataSource )
     {
-        boolean enableQueryLogging = dhisConfig.getBoolean( ConfigurationKey.ENABLE_QUERY_LOGGING );
+        boolean enableQueryLogging = dhisConfig.isEnabled(
+            ConfigurationKey.ENABLE_QUERY_LOGGING );
 
         if ( !enableQueryLogging )
         {
@@ -153,18 +164,22 @@ public class DataSourceConfig
         ProxyDataSourceBuilder b = ProxyDataSourceBuilder
 
             .create( actualDataSource )
-            .name( "ProxyDS_DHIS2_" + dhisConfig.getProperty( ConfigurationKey.DB_POOL_TYPE ) +
+            .name( "ProxyDS_DHIS2_" + dhisConfig.getProperty(
+                ConfigurationKey.DB_POOL_TYPE ) +
                 "_" + CodeGenerator.generateCode( 5 ) )
 
             .logSlowQueryBySlf4j(
-                Integer.parseInt( dhisConfig.getProperty( ConfigurationKey.SLOW_QUERY_LOGGING_THRESHOLD_TIME_MS ) ),
+                Integer.parseInt( dhisConfig.getProperty(
+                    ConfigurationKey.SLOW_QUERY_LOGGING_THRESHOLD_TIME_MS ) ),
                 TimeUnit.MILLISECONDS, SLF4JLogLevel.WARN )
 
             .listener( listener )
             .proxyResultSet();
 
-        boolean elapsedTimeLogging = dhisConfig.getBoolean( ConfigurationKey.ELAPSED_TIME_QUERY_LOGGING_ENABLED );
-        boolean methodLoggingEnabled = dhisConfig.getBoolean( ConfigurationKey.METHOD_QUERY_LOGGING_ENABLED );
+        boolean elapsedTimeLogging = dhisConfig.isEnabled(
+            ConfigurationKey.ELAPSED_TIME_QUERY_LOGGING_ENABLED );
+        boolean methodLoggingEnabled = dhisConfig.isEnabled(
+            ConfigurationKey.METHOD_QUERY_LOGGING_ENABLED );
 
         if ( methodLoggingEnabled )
         {
@@ -174,7 +189,8 @@ public class DataSourceConfig
         if ( elapsedTimeLogging )
         {
             b.afterQuery(
-                ( execInfo, queryInfoList ) -> log.info( "Query took " + execInfo.getElapsedTime() + "msec" ) );
+                ( execInfo, queryInfoList ) -> log.info( "Query took " +
+                    execInfo.getElapsedTime() + "msec" ) );
         }
 
         return b.build();
@@ -191,7 +207,7 @@ public class DataSourceConfig
     private static class PrettyQueryEntryCreator extends DefaultQueryLogEntryCreator
     {
         // use hibernate to format queries
-        private final Formatter formatter = FormatStyle.BASIC.getFormatter();
+        private final Formatter formatter = FormatStyle.HIGHLIGHT.getFormatter();
 
         @Override
         protected String formatQuery( String query )
@@ -199,7 +215,7 @@ public class DataSourceConfig
             try
             {
                 Objects.requireNonNull( query );
-                return this.formatter.format( query );
+                return this.formatter.format( query ) + "\n";
             }
             catch ( Exception e )
             {

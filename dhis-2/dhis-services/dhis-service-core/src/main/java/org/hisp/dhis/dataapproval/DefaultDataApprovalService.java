@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,10 @@
  */
 package org.hisp.dhis.dataapproval;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.hisp.dhis.dataapproval.DataApprovalAction.*;
+import static org.hisp.dhis.dataapproval.DataApprovalAction.ACCEPT;
+import static org.hisp.dhis.dataapproval.DataApprovalAction.APPROVE;
+import static org.hisp.dhis.dataapproval.DataApprovalAction.UNACCEPT;
+import static org.hisp.dhis.dataapproval.DataApprovalAction.UNAPPROVE;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -39,10 +41,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.category.CategoryCombo;
 import org.hisp.dhis.category.CategoryOptionCombo;
+import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.IdentifiableObjectUtils;
 import org.hisp.dhis.common.ListMap;
 import org.hisp.dhis.dataapproval.exceptions.DataApprovalNotFound;
@@ -52,12 +56,11 @@ import org.hisp.dhis.dataapproval.exceptions.DataMayNotBeUnacceptedException;
 import org.hisp.dhis.dataapproval.exceptions.DataMayNotBeUnapprovedException;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
-import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.Period;
-import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,13 +73,10 @@ import com.google.common.collect.Sets;
  */
 @Slf4j
 @Service( "org.hisp.dhis.dataapproval.DataApprovalService" )
+@AllArgsConstructor
 public class DefaultDataApprovalService
-    implements DataApprovalService
+    implements DataApprovalService, CurrentUserServiceTarget
 {
-    // -------------------------------------------------------------------------
-    // Dependencies
-    // -------------------------------------------------------------------------
-
     private final DataApprovalStore dataApprovalStore;
 
     private final DataApprovalAuditStore dataApprovalAuditStore;
@@ -85,43 +85,13 @@ public class DefaultDataApprovalService
 
     private final DataApprovalLevelService dataApprovalLevelService;
 
+    private final IdentifiableObjectManager idObjectManager;
+
     private CurrentUserService currentUserService;
-
-    private final OrganisationUnitService organisationUnitService;
-
-    private final PeriodService periodService;
 
     private final SystemSettingManager systemSettingManager;
 
-    public DefaultDataApprovalService( DataApprovalStore dataApprovalStore,
-        DataApprovalAuditStore dataApprovalAuditStore, DataApprovalWorkflowStore workflowStore,
-        DataApprovalLevelService dataApprovalLevelService, CurrentUserService currentUserService,
-        OrganisationUnitService organisationUnitService, PeriodService periodService,
-        SystemSettingManager systemSettingManager )
-    {
-        checkNotNull( dataApprovalStore );
-        checkNotNull( dataApprovalAuditStore );
-        checkNotNull( workflowStore );
-        checkNotNull( dataApprovalLevelService );
-        checkNotNull( currentUserService );
-        checkNotNull( organisationUnitService );
-        checkNotNull( periodService );
-        checkNotNull( systemSettingManager );
-
-        this.dataApprovalStore = dataApprovalStore;
-        this.dataApprovalAuditStore = dataApprovalAuditStore;
-        this.workflowStore = workflowStore;
-        this.dataApprovalLevelService = dataApprovalLevelService;
-        this.currentUserService = currentUserService;
-        this.organisationUnitService = organisationUnitService;
-        this.periodService = periodService;
-        this.systemSettingManager = systemSettingManager;
-    }
-
-    /**
-     * Used only for testing, remove when test is refactored
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -185,8 +155,8 @@ public class DefaultDataApprovalService
     {
         log.debug( "approveData ( " + dataApprovalList.size() + " items )" );
 
-        boolean accepted = !(Boolean) systemSettingManager
-            .getSystemSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL );
+        boolean accepted = !systemSettingManager
+            .getBoolSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL );
 
         User currentUser = currentUserService.getCurrentUser();
 
@@ -277,7 +247,7 @@ public class DefaultDataApprovalService
                 throw new DataMayNotBeApprovedException();
             }
 
-            da.setAccepted( accepted );
+            da.setAccepted( accepted, currentUser );
 
             checkedList.add( da );
         }
@@ -392,7 +362,7 @@ public class DefaultDataApprovalService
         {
             log.debug( "accepting " + da );
 
-            da.setAccepted( true );
+            da.setAccepted( true, currentUser );
 
             audit( da, currentUser, ACCEPT );
 
@@ -450,7 +420,7 @@ public class DefaultDataApprovalService
         {
             log.debug( "unaccepting " + da );
 
-            da.setAccepted( false );
+            da.setAccepted( false, currentUser );
 
             audit( da, currentUser, UNACCEPT );
 
@@ -458,6 +428,13 @@ public class DefaultDataApprovalService
         }
 
         log.info( "Accepts deleted: " + dataApprovalList.size() );
+    }
+
+    @Override
+    @Transactional
+    public void addDataApproval( DataApproval dataApproval )
+    {
+        dataApprovalStore.addDataApproval( dataApproval );
     }
 
     @Override
@@ -521,40 +498,51 @@ public class DefaultDataApprovalService
 
         DataApprovalStatus status;
 
-        List<DataApprovalStatus> statuses = dataApprovalStore.getDataApprovalStatuses( workflow,
-            periodService.reloadPeriod( period ), Lists.newArrayList( organisationUnit ),
-            organisationUnit.getHierarchyLevel(), null,
+        List<DataApprovalStatus> statuses = dataApprovalStore.getDataApprovalStatuses( workflow, period,
+            Lists.newArrayList( organisationUnit ), organisationUnit.getHierarchyLevel(), null,
             attributeOptionCombo == null ? null : Sets.newHashSet( attributeOptionCombo ),
-            dataApprovalLevelService.getUserDataApprovalLevelsOrLowestLevel( currentUserService.getCurrentUser(),
-                workflow ),
+            dataApprovalLevelService.getUserDataApprovalLevelsOrLowestLevel(
+                currentUserService.getCurrentUser(), workflow ),
             dataApprovalLevelService.getDataApprovalLevelMap() );
 
         if ( statuses == null || statuses.isEmpty() )
         {
-            status = new DataApprovalStatus( DataApprovalState.UNAPPROVABLE );
+            status = DataApprovalStatus.builder()
+                .state( DataApprovalState.UNAPPROVABLE )
+                .build();
         }
         else
         {
             status = statuses.get( 0 );
-
-            if ( status.getApprovedLevel() != null )
-            {
-                OrganisationUnit approvedOrgUnit = organisationUnitService
-                    .getOrganisationUnit( status.getApprovedOrgUnitId() );
-
-                DataApproval da = dataApprovalStore.getDataApproval( status.getActionLevel(),
-                    workflow, period, approvedOrgUnit, attributeOptionCombo );
-
-                if ( da != null )
-                {
-                    status.setCreated( da.getCreated() );
-                    status.setCreator( da.getCreator() );
-                }
-            }
         }
 
         makePermissionsEvaluator().evaluatePermissions( status, workflow );
 
+        if ( status.getApprovedLevel() != null )
+        {
+            OrganisationUnit approvedOrgUnit = idObjectManager
+                .get( OrganisationUnit.class, status.getApprovedOrgUnitId() );
+
+            DataApproval da = dataApprovalStore.getDataApproval( status.getActionLevel(),
+                workflow, period, approvedOrgUnit, attributeOptionCombo );
+
+            if ( da != null )
+            {
+                status.setCreated( da.getCreated() );
+                status.setCreator( da.getCreator() );
+                status.setLastUpdated( da.getLastUpdated() );
+                DataApprovalPermissions permissions = status.getPermissions();
+                permissions.setApprovedAt( da.getCreated() );
+                permissions.setApprovedBy( da.getCreator() != null ? da.getCreator().getName() : null );
+                permissions.setAcceptedAt( da.getLastUpdated() );
+                if ( permissions.isMayReadAcceptedBy() )
+                {
+                    User lastUpdatedBy = da.getLastUpdatedBy();
+                    status.setLastUpdatedBy( lastUpdatedBy );
+                    permissions.setAcceptedBy( lastUpdatedBy != null ? lastUpdatedBy.getName() : null );
+                }
+            }
+        }
         return status;
     }
 
@@ -848,6 +836,6 @@ public class DefaultDataApprovalService
     private DataApprovalPermissionsEvaluator makePermissionsEvaluator()
     {
         return DataApprovalPermissionsEvaluator.makePermissionsEvaluator(
-            currentUserService, organisationUnitService, systemSettingManager, dataApprovalLevelService );
+            currentUserService, idObjectManager, systemSettingManager, dataApprovalLevelService );
     }
 }

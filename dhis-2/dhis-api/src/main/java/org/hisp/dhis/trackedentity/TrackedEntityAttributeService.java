@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,6 +91,14 @@ public interface TrackedEntityAttributeService
     TrackedEntityAttribute getTrackedEntityAttribute( String uid );
 
     /**
+     * Returns the {@link TrackedEntityAttribute}s with the given UIDs.
+     *
+     * @param uids list of UIDs.
+     * @return all the TrackedEntityAttribute with the given UIDs.
+     */
+    List<TrackedEntityAttribute> getTrackedEntityAttributes( List<String> uids );
+
+    /**
      * Returns a {@link TrackedEntityAttribute} with a given name.
      *
      * @param name the name of the TrackedEntityAttribute to return.
@@ -114,6 +122,15 @@ public interface TrackedEntityAttributeService
 
     ProgramTrackedEntityAttribute getProgramTrackedEntityAttribute( Program program,
         TrackedEntityAttribute trackedEntityAttribute );
+
+    /**
+     * Returns all {@link TrackedEntityAttribute} that are candidates for
+     * creating trigram indexes.
+     *
+     * @return a set of all TrackedEntityAttribute, or an empty List if there
+     *         are no TrackedEntityAttributes that are indexable
+     */
+    Set<TrackedEntityAttribute> getAllTrigramIndexableTrackedEntityAttributes();
 
     /**
      * Returns all {@link TrackedEntityAttribute}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,10 @@
  */
 package org.hisp.dhis.tracker.preheat;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -44,24 +44,24 @@ import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.relationship.RelationshipType;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.tracker.TrackerIdScheme;
-import org.hisp.dhis.tracker.TrackerIdentifier;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
+import org.hisp.dhis.tracker.TrackerIdSchemeParams;
 import org.hisp.dhis.tracker.TrackerIdentifierCollector;
-import org.hisp.dhis.tracker.TrackerIdentifierParams;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.TrackerTest;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
-public class TrackerPreheatServiceTest
-    extends TrackerTest
+class TrackerPreheatServiceTest extends TrackerTest
 {
+
     @Autowired
     private TrackerPreheatService trackerPreheatService;
 
@@ -74,35 +74,30 @@ public class TrackerPreheatServiceTest
     }
 
     @Test
-    public void testCollectIdentifiersSimple()
+    void testCollectIdentifiersSimple()
     {
         TrackerImportParams params = new TrackerImportParams();
         Map<Class<?>, Set<String>> collectedMap = identifierCollector.collect( params, Maps.newHashMap() );
-        assertEquals( collectedMap.keySet().size(), 2 );
+        assertEquals( 2, collectedMap.keySet().size() );
         assertTrue( collectedMap.containsKey( TrackedEntityType.class ) );
         assertTrue( collectedMap.containsKey( RelationshipType.class ) );
     }
 
     @Test
-    public void testCollectIdentifiersEvents()
+    void testCollectIdentifiersEvents()
         throws IOException
     {
         TrackerImportParams params = fromJson( "tracker/event_events.json" );
-
         assertTrue( params.getTrackedEntities().isEmpty() );
         assertTrue( params.getEnrollments().isEmpty() );
         assertFalse( params.getEvents().isEmpty() );
-
         Map<Class<?>, Set<String>> collectedMap = identifierCollector.collect( params, Maps.newHashMap() );
-
         assertTrue( collectedMap.containsKey( DataElement.class ) );
         assertTrue( collectedMap.containsKey( ProgramStage.class ) );
         assertTrue( collectedMap.containsKey( OrganisationUnit.class ) );
         assertTrue( collectedMap.containsKey( CategoryOptionCombo.class ) );
         assertTrue( collectedMap.containsKey( CategoryOption.class ) );
-
         Set<String> dataElements = collectedMap.get( DataElement.class );
-
         assertTrue( dataElements.contains( "DSKTW8qFP0z" ) );
         assertTrue( dataElements.contains( "VD2olWcRozZ" ) );
         assertTrue( dataElements.contains( "WS3e6pInnuA" ) );
@@ -122,41 +117,32 @@ public class TrackerPreheatServiceTest
         assertTrue( dataElements.contains( "JXF90RhgNiI" ) );
         assertTrue( dataElements.contains( "gfEoDU4GtXK" ) );
         assertTrue( dataElements.contains( "qw67QlOlzdp" ) );
-
         Set<String> categoryCombos = collectedMap.get( CategoryOptionCombo.class );
         assertTrue( categoryCombos.contains( "HllvX50cXC0" ) );
-
         Set<String> categoryOptions = collectedMap.get( CategoryOption.class );
         assertTrue( categoryOptions.contains( "xYerKDKCefk" ) );
     }
 
     @Test
-    public void testCollectIdentifiersAttributeValues()
+    void testCollectIdentifiersAttributeValues()
     {
         TrackerImportParams params = TrackerImportParams.builder()
-            .identifiers( TrackerIdentifierParams.builder()
+            .idSchemes( TrackerIdSchemeParams.builder()
                 .idScheme(
-                    TrackerIdentifier.builder().idScheme( TrackerIdScheme.ATTRIBUTE ).value( "ATTR1234567" ).build() )
+                    TrackerIdSchemeParam.builder().idScheme( TrackerIdScheme.ATTRIBUTE ).attributeUid( "ATTR1234567" )
+                        .build() )
                 .build() )
             .trackedEntities( Lists.newArrayList(
-                TrackedEntity.builder()
-                    .trackedEntity( "TEI12345678" )
-                    .orgUnit( "OU123456789" )
-                    .build() ) )
+                TrackedEntity.builder().trackedEntity( "TEI12345678" ).orgUnit( "OU123456789" ).build() ) )
             .build();
-
         assertFalse( params.getTrackedEntities().isEmpty() );
         assertTrue( params.getEnrollments().isEmpty() );
         assertTrue( params.getEvents().isEmpty() );
-
         Map<Class<?>, Set<String>> collectedMap = identifierCollector.collect( params, Maps.newHashMap() );
-
         assertTrue( collectedMap.containsKey( TrackedEntity.class ) );
         Set<String> trackedEntities = collectedMap.get( TrackedEntity.class );
-
         assertTrue( collectedMap.containsKey( OrganisationUnit.class ) );
         Set<String> organisationUnits = collectedMap.get( OrganisationUnit.class );
-
         assertTrue( organisationUnits.contains( "OU123456789" ) );
         assertEquals( 1, organisationUnits.size() );
         assertTrue( trackedEntities.contains( "TEI12345678" ) );
@@ -164,24 +150,21 @@ public class TrackerPreheatServiceTest
     }
 
     @Test
-    public void testPreheatValidation()
+    void testPreheatValidation()
         throws IOException
     {
         TrackerImportParams params = fromJson( "tracker/event_events.json" );
-
         assertTrue( params.getTrackedEntities().isEmpty() );
         assertTrue( params.getEnrollments().isEmpty() );
         assertFalse( params.getEvents().isEmpty() );
     }
 
     @Test
-    public void testPreheatEvents()
+    void testPreheatEvents()
         throws IOException
     {
         setUpMetadata( "tracker/event_metadata.json" );
-
         TrackerImportParams params = fromJson( "tracker/event_events.json" );
-
         assertTrue( params.getTrackedEntities().isEmpty() );
         assertTrue( params.getEnrollments().isEmpty() );
         assertFalse( params.getEvents().isEmpty() );
@@ -189,12 +172,10 @@ public class TrackerPreheatServiceTest
         TrackerPreheat preheat = trackerPreheatService.preheat( params );
 
         assertNotNull( preheat );
-        assertNotNull( preheat.getMap() );
-        assertNotNull( preheat.getMap().get( DataElement.class ) );
-        assertNotNull( preheat.getMap().get( OrganisationUnit.class ) );
-        assertNotNull( preheat.getMap().get( ProgramStage.class ) );
-        assertNotNull( preheat.getMap().get( CategoryOptionCombo.class ) );
-
+        assertFalse( preheat.getAll( DataElement.class ).isEmpty() );
+        assertFalse( preheat.getAll( OrganisationUnit.class ).isEmpty() );
+        assertFalse( preheat.getAll( ProgramStage.class ).isEmpty() );
+        assertFalse( preheat.getAll( CategoryOptionCombo.class ).isEmpty() );
         assertNotNull( preheat.get( CategoryOptionCombo.class, "XXXvX50cXC0" ) );
         assertNotNull( preheat.get( CategoryOption.class, "XXXrKDKCefk" ) );
     }

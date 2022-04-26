@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,6 +111,13 @@ public class DefaultRelationshipService
     public Relationship getRelationship( String uid )
     {
         return relationshipStore.getByUid( uid );
+    }
+
+    @Override
+    @Transactional( readOnly = true )
+    public List<Relationship> getRelationships( List<String> uids )
+    {
+        return relationshipStore.getByUid( uids );
     }
 
     @Override

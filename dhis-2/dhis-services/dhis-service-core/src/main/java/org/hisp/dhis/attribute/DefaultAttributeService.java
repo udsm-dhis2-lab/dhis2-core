@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 import org.hisp.dhis.attribute.exception.NonUniqueAttributeValueException;
@@ -108,8 +107,7 @@ public class DefaultAttributeService
     @Transactional( readOnly = true )
     public Attribute getAttribute( String uid )
     {
-        Optional<Attribute> attribute = attributeCache.get( uid, attr -> attributeStore.getByUid( uid ) );
-        return attribute.orElse( null );
+        return attributeCache.get( uid, attr -> attributeStore.getByUid( uid ) );
     }
 
     @Override

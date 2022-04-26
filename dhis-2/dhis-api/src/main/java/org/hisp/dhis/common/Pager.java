@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,5 +176,18 @@ public class Pager
     public void setPrevPage( String prevPage )
     {
         this.prevPage = prevPage;
+    }
+
+    /**
+     * Method used when we don't need any pagination logic. We just want to
+     * simply set the current page and page size.
+     *
+     * @param page
+     * @param pageSize
+     */
+    public void force( int page, int pageSize )
+    {
+        this.page = page;
+        this.pageSize = pageSize;
     }
 }

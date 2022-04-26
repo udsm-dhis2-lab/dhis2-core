@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,16 @@ package org.hisp.dhis.dxf2.metadata.objectbundle.hooks;
 
 import java.util.function.Consumer;
 
-import org.hisp.dhis.common.IdentifiableObject;
+import lombok.AllArgsConstructor;
+
+import org.hisp.dhis.category.CategoryOptionCombo;
+import org.hisp.dhis.category.CategoryService;
 import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundle;
 import org.hisp.dhis.sms.command.SMSCommand;
+import org.hisp.dhis.sms.command.code.SMSCode;
 import org.hisp.dhis.sms.parse.ParserType;
 import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.google.common.collect.ImmutableMap;
@@ -43,10 +46,11 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Created by zubair@dhis2.org on 18.08.17.
  */
+@AllArgsConstructor
 @Component
-public class SmsCommandObjectBundleHook extends AbstractObjectBundleHook
+public class SmsCommandObjectBundleHook extends AbstractObjectBundleHook<SMSCommand>
 {
-    private ImmutableMap<ParserType, Consumer<SMSCommand>> VALUE_POPULATOR = new ImmutableMap.Builder<ParserType, Consumer<SMSCommand>>()
+    private static final ImmutableMap<ParserType, Consumer<SMSCommand>> VALUE_POPULATOR = new ImmutableMap.Builder<ParserType, Consumer<SMSCommand>>()
         .put( ParserType.TRACKED_ENTITY_REGISTRATION_PARSER, sc -> {
             sc.setProgramStage( null );
             sc.setUserGroup( null );
@@ -66,55 +70,53 @@ public class SmsCommandObjectBundleHook extends AbstractObjectBundleHook
         } )
         .build();
 
-    @Autowired
-    private DataElementService dataElementService;
+    private final DataElementService dataElementService;
 
-    @Autowired
-    private TrackedEntityAttributeService trackedEntityAttributeService;
+    private final TrackedEntityAttributeService trackedEntityAttributeService;
+
+    private final CategoryService categoryService;
 
     @Override
-    public <T extends IdentifiableObject> void preCreate( T object, ObjectBundle bundle )
+    public void preCreate( SMSCommand command, ObjectBundle bundle )
     {
-        if ( !SMSCommand.class.isInstance( object ) )
-        {
-            return;
-        }
-
-        SMSCommand command = (SMSCommand) object;
-
         process( command );
-
         getReferences( command );
     }
 
     @Override
-    public <T extends IdentifiableObject> void preUpdate( T object, T persistedObject, ObjectBundle bundle )
+    public void preUpdate( SMSCommand command, SMSCommand persistedObject, ObjectBundle bundle )
     {
-        if ( !SMSCommand.class.isInstance( object ) )
-        {
-            return;
-        }
-
-        SMSCommand command = (SMSCommand) object;
-
         getReferences( command );
     }
 
     private void process( SMSCommand command )
     {
-        VALUE_POPULATOR.getOrDefault( command.getParserType(), sc -> {
-        } ).accept( command );
+        Consumer<SMSCommand> mod = VALUE_POPULATOR.get( command.getParserType() );
+        if ( mod != null )
+        {
+            mod.accept( command );
+        }
     }
 
     private void getReferences( SMSCommand command )
     {
-        command.getCodes().stream()
-            .filter( c -> c.hasDataElement() )
-            .forEach( c -> c.setDataElement( dataElementService.getDataElement( c.getDataElement().getUid() ) ) );
+        CategoryOptionCombo defaultCoc = categoryService.getDefaultCategoryOptionCombo();
 
         command.getCodes().stream()
-            .filter( c -> c.hasTrackedEntityAttribute() )
-            .forEach( c -> c.setTrackedEntityAttribute(
-                trackedEntityAttributeService.getTrackedEntityAttribute( c.getTrackedEntityAttribute().getUid() ) ) );
+            .filter( SMSCode::hasDataElement )
+            .forEach( c -> {
+                c.setOptionId( c.getOptionId() == null ? defaultCoc
+                    : categoryService.getCategoryOptionCombo( c.getOptionId().getUid() ) );
+                c.setDataElement( dataElementService.getDataElement( c.getDataElement().getUid() ) );
+            } );
+
+        command.getCodes().stream()
+            .filter( SMSCode::hasTrackedEntityAttribute )
+            .forEach( c -> {
+                c.setOptionId( c.getOptionId() == null ? defaultCoc
+                    : categoryService.getCategoryOptionCombo( c.getOptionId().getUid() ) );
+                c.setTrackedEntityAttribute(
+                    trackedEntityAttributeService.getTrackedEntityAttribute( c.getTrackedEntityAttribute().getUid() ) );
+            } );
     }
 }

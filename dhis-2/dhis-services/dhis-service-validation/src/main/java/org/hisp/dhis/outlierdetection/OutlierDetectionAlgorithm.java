@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,5 +35,6 @@ package org.hisp.dhis.outlierdetection;
 public enum OutlierDetectionAlgorithm
 {
     Z_SCORE,
-    MIN_MAX;
+    MIN_MAX,
+    MOD_Z_SCORE;
 }

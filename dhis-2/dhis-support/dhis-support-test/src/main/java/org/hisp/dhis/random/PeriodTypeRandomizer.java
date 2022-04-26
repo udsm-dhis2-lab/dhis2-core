@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.hisp.dhis.period.PeriodType;
-
-import io.github.benas.randombeans.api.Randomizer;
+import org.jeasy.random.api.Randomizer;
 
 /**
  * @author Luciano Fiandesio

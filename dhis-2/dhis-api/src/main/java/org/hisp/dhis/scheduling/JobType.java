@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@ import java.util.Map;
 
 import org.hisp.dhis.scheduling.parameters.AnalyticsJobParameters;
 import org.hisp.dhis.scheduling.parameters.ContinuousAnalyticsJobParameters;
+import org.hisp.dhis.scheduling.parameters.DataIntegrityJobParameters;
 import org.hisp.dhis.scheduling.parameters.DataSynchronizationJobParameters;
 import org.hisp.dhis.scheduling.parameters.DisableInactiveUsersJobParameters;
 import org.hisp.dhis.scheduling.parameters.EventProgramsDataSynchronizationJobParameters;
@@ -41,8 +42,7 @@ import org.hisp.dhis.scheduling.parameters.PredictorJobParameters;
 import org.hisp.dhis.scheduling.parameters.PushAnalysisJobParameters;
 import org.hisp.dhis.scheduling.parameters.SmsJobParameters;
 import org.hisp.dhis.scheduling.parameters.TrackerProgramsDataSynchronizationJobParameters;
-
-import com.google.common.collect.ImmutableMap;
+import org.hisp.dhis.scheduling.parameters.TrackerTrigramIndexJobParameters;
 
 /**
  * Enum describing the different jobs in the system. Each job has a key, class,
@@ -56,66 +56,73 @@ import com.google.common.collect.ImmutableMap;
  */
 public enum JobType
 {
-    DATA_STATISTICS( "dataStatisticsJob", false ),
-    DATA_INTEGRITY( "dataIntegrityJob", true ),
-    RESOURCE_TABLE( "resourceTableJob", true ),
-    ANALYTICS_TABLE( "analyticsTableJob", true, SchedulingType.CRON, AnalyticsJobParameters.class, ImmutableMap.of(
-        "skipTableTypes", "/api/analytics/tableTypes" ) ),
-    CONTINUOUS_ANALYTICS_TABLE( "continuousAnalyticsTableJob", true, SchedulingType.FIXED_DELAY,
-        ContinuousAnalyticsJobParameters.class, ImmutableMap.of(
+    DATA_STATISTICS( false ),
+    DATA_INTEGRITY( true, SchedulingType.CRON, DataIntegrityJobParameters.class,
+        Map.of( "checks", "/api/dataIntegrity" ) ),
+    RESOURCE_TABLE( true ),
+    ANALYTICS_TABLE( true, SchedulingType.CRON, AnalyticsJobParameters.class, Map.of(
+        "skipTableTypes", "/api/analytics/tableTypes",
+        "skipPrograms", "/api/programs" ) ),
+    CONTINUOUS_ANALYTICS_TABLE( true, SchedulingType.FIXED_DELAY,
+        ContinuousAnalyticsJobParameters.class, Map.of(
             "skipTableTypes", "/api/analytics/tableTypes" ) ),
-    DATA_SYNC( "dataSyncJob", true, SchedulingType.CRON, DataSynchronizationJobParameters.class, null ),
-    TRACKER_PROGRAMS_DATA_SYNC( "trackerProgramsDataSyncJob", true, SchedulingType.CRON,
+    DATA_SYNC( true, SchedulingType.CRON, DataSynchronizationJobParameters.class, null ),
+    TRACKER_PROGRAMS_DATA_SYNC( true, SchedulingType.CRON,
         TrackerProgramsDataSynchronizationJobParameters.class, null ),
-    EVENT_PROGRAMS_DATA_SYNC( "eventProgramsDataSyncJob", true, SchedulingType.CRON,
+    EVENT_PROGRAMS_DATA_SYNC( true, SchedulingType.CRON,
         EventProgramsDataSynchronizationJobParameters.class, null ),
-    FILE_RESOURCE_CLEANUP( "fileResourceCleanUpJob", false ),
-    IMAGE_PROCESSING( "imageProcessingJob", false ),
-    META_DATA_SYNC( "metadataSyncJob", true, SchedulingType.CRON, MetadataSyncJobParameters.class, null ),
-    SMS_SEND( "sendSmsJob", false, SchedulingType.CRON, SmsJobParameters.class, null ),
-    SEND_SCHEDULED_MESSAGE( "sendScheduledMessageJob", true ),
-    PROGRAM_NOTIFICATIONS( "programNotificationsJob", true ),
-    VALIDATION_RESULTS_NOTIFICATION( "validationResultNotificationJob", false ),
-    CREDENTIALS_EXPIRY_ALERT( "credentialsExpiryAlertJob", false ),
-    MONITORING( "monitoringJob", true, SchedulingType.CRON, MonitoringJobParameters.class, ImmutableMap.of(
-        "relativePeriods", "/api/periodTypes/relativePeriodTypes", "validationRuleGroups",
-        "/api/validationRuleGroups" ) ),
-    PUSH_ANALYSIS( "pushAnalysisJob", true, SchedulingType.CRON, PushAnalysisJobParameters.class, ImmutableMap.of(
+    FILE_RESOURCE_CLEANUP( false ),
+    IMAGE_PROCESSING( false ),
+    META_DATA_SYNC( true, SchedulingType.CRON, MetadataSyncJobParameters.class, null ),
+    SMS_SEND( false, SchedulingType.CRON, SmsJobParameters.class, null ),
+    SEND_SCHEDULED_MESSAGE( true ),
+    PROGRAM_NOTIFICATIONS( true ),
+    VALIDATION_RESULTS_NOTIFICATION( false ),
+    CREDENTIALS_EXPIRY_ALERT( false ),
+    MONITORING( true, SchedulingType.CRON, MonitoringJobParameters.class, Map.of(
+        "relativePeriods", "/api/periodTypes/relativePeriodTypes",
+        "validationRuleGroups", "/api/validationRuleGroups" ) ),
+    PUSH_ANALYSIS( true, SchedulingType.CRON, PushAnalysisJobParameters.class, Map.of(
         "pushAnalysis", "/api/pushAnalysis" ) ),
-    PREDICTOR( "predictorJob", true, SchedulingType.CRON, PredictorJobParameters.class, ImmutableMap.of(
-        "predictors", "/api/predictors", "predictorGroups", "/api/predictorGroups" ) ),
-    DATA_SET_NOTIFICATION( "dataSetNotificationJob", false ),
-    REMOVE_EXPIRED_RESERVED_VALUES( "removeExpiredReservedValuesJob", false ),
-    TRACKER_IMPORT_JOB( "trackerImportJob", false ),
-    TRACKER_IMPORT_NOTIFICATION_JOB( "trackerImportNotificationJob", false ),
-    TRACKER_IMPORT_RULE_ENGINE_JOB( "trackerImportRuleEngineJob", false ),
+    // TODO: Update API in tracker search optimization job map to reflect actual
+    // api url after implementation
+    TRACKER_SEARCH_OPTIMIZATION( true, SchedulingType.CRON, TrackerTrigramIndexJobParameters.class, Map.of(
+        "attributes", "/api/trackedEntityAttributes/indexable" ) ),
+    PREDICTOR( true, SchedulingType.CRON, PredictorJobParameters.class, Map.of(
+        "predictors", "/api/predictors",
+        "predictorGroups", "/api/predictorGroups" ) ),
+    DATA_SET_NOTIFICATION( false ),
+    REMOVE_USED_OR_EXPIRED_RESERVED_VALUES( false ),
+    TRACKER_IMPORT_JOB( false ),
+    TRACKER_IMPORT_NOTIFICATION_JOB( false ),
+    TRACKER_IMPORT_RULE_ENGINE_JOB( false ),
 
     // Internal jobs
-    LEADER_ELECTION( "leaderElectionJob", false ),
-    LEADER_RENEWAL( "leaderRenewalJob", false ),
-    COMPLETE_DATA_SET_REGISTRATION_IMPORT( null, false ),
-    DATAVALUE_IMPORT_INTERNAL( null, false ),
-    METADATA_IMPORT( null, false ),
-    DATAVALUE_IMPORT( null, false ),
-    EVENT_IMPORT( null, false ),
-    ENROLLMENT_IMPORT( null, false ),
-    TEI_IMPORT( null, false ),
-    DISABLE_INACTIVE_USERS( "disableInactiveUsersJob", true, SchedulingType.CRON,
+    LEADER_ELECTION( false ),
+    LEADER_RENEWAL( false ),
+    COMPLETE_DATA_SET_REGISTRATION_IMPORT( false ),
+    DATAVALUE_IMPORT_INTERNAL( false ),
+    METADATA_IMPORT( false ),
+    DATAVALUE_IMPORT( false ),
+    EVENT_IMPORT( false ),
+    ENROLLMENT_IMPORT( false ),
+    TEI_IMPORT( false ),
+    DISABLE_INACTIVE_USERS( true, SchedulingType.CRON,
         DisableInactiveUsersJobParameters.class, null ),
+    ACCOUNT_EXPIRY_ALERT( false ),
+    SYSTEM_VERSION_UPDATE_CHECK( false ),
 
     // Testing purposes
-    MOCK( "mockJob", false, SchedulingType.CRON, MockJobParameters.class, null ),
+    MOCK( false, SchedulingType.CRON, MockJobParameters.class, null ),
 
     // Deprecated, present to satisfy code using the old enumeration
     // TaskCategory
     @Deprecated
-    GML_IMPORT( null, false ),
+    GML_IMPORT( false ),
     @Deprecated
-    ANALYTICSTABLE_UPDATE( null, false ),
+    ANALYTICSTABLE_UPDATE( false ),
     @Deprecated
-    PROGRAM_DATA_SYNC( null, false );
-
-    private final String key;
+    PROGRAM_DATA_SYNC( false );
 
     private final boolean configurable;
 
@@ -125,20 +132,48 @@ public enum JobType
 
     private final Map<String, String> relativeApiElements;
 
-    JobType( String key, boolean configurable )
+    JobType( boolean configurable )
     {
-        this( key, configurable, SchedulingType.CRON, null, null );
+        this( configurable, SchedulingType.CRON, null, null );
     }
 
-    JobType( String key, boolean configurable, SchedulingType schedulingType,
+    JobType( boolean configurable, SchedulingType schedulingType,
         Class<? extends JobParameters> jobParameters,
         Map<String, String> relativeApiElements )
     {
-        this.key = key;
         this.configurable = configurable;
         this.schedulingType = schedulingType;
         this.jobParameters = jobParameters;
         this.relativeApiElements = relativeApiElements;
+    }
+
+    public boolean isUsingNotifications()
+    {
+        return this == RESOURCE_TABLE
+            || this == SEND_SCHEDULED_MESSAGE
+            || this == ANALYTICS_TABLE
+            || this == CONTINUOUS_ANALYTICS_TABLE
+            || this == DATA_SET_NOTIFICATION
+            || this == MONITORING
+            || this == VALIDATION_RESULTS_NOTIFICATION
+            || this == SYSTEM_VERSION_UPDATE_CHECK
+            || this == EVENT_PROGRAMS_DATA_SYNC
+            || this == TRACKER_PROGRAMS_DATA_SYNC
+            || this == DATA_SYNC
+            || this == SMS_SEND
+            || this == PUSH_ANALYSIS
+            || this == PREDICTOR;
+    }
+
+    public boolean isUsingErrorNotification()
+    {
+        return this == ANALYTICS_TABLE
+            || this == VALIDATION_RESULTS_NOTIFICATION
+            || this == DATA_SET_NOTIFICATION
+            || this == SYSTEM_VERSION_UPDATE_CHECK
+            || this == EVENT_PROGRAMS_DATA_SYNC
+            || this == TRACKER_PROGRAMS_DATA_SYNC
+            || this == PROGRAM_NOTIFICATIONS;
     }
 
     public boolean isCronSchedulingType()
@@ -154,11 +189,6 @@ public enum JobType
     public boolean hasJobParameters()
     {
         return jobParameters != null;
-    }
-
-    public String getKey()
-    {
-        return key;
     }
 
     public Class<? extends JobParameters> getJobParameters()

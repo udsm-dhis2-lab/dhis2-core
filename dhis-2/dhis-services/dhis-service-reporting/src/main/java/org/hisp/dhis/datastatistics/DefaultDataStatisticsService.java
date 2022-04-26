@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,13 @@
  */
 package org.hisp.dhis.datastatistics;
 
-import java.util.*;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.hisp.dhis.analytics.SortOrder;
@@ -35,19 +41,18 @@ import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.dashboard.Dashboard;
 import org.hisp.dhis.datasummary.DataSummary;
 import org.hisp.dhis.datavalue.DataValueService;
-import org.hisp.dhis.eventchart.EventChart;
-import org.hisp.dhis.eventreport.EventReport;
+import org.hisp.dhis.eventvisualization.EventVisualization;
+import org.hisp.dhis.eventvisualization.EventVisualizationStore;
 import org.hisp.dhis.indicator.Indicator;
 import org.hisp.dhis.program.ProgramStageInstanceService;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.statistics.StatisticsProvider;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserInvitationStatus;
 import org.hisp.dhis.user.UserQueryParams;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.visualization.Visualization;
-import org.hisp.dhis.visualization.VisualizationStore;
 import org.joda.time.DateTime;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,29 +65,46 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultDataStatisticsService
     implements DataStatisticsService
 {
-    @Autowired
-    private DataStatisticsStore dataStatisticsStore;
+    private final DataStatisticsStore dataStatisticsStore;
 
-    @Autowired
-    private DataStatisticsEventStore dataStatisticsEventStore;
+    private final DataStatisticsEventStore dataStatisticsEventStore;
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
-    @Autowired
-    private IdentifiableObjectManager idObjectManager;
+    private final IdentifiableObjectManager idObjectManager;
 
-    @Autowired
-    private DataValueService dataValueService;
+    private final DataValueService dataValueService;
 
-    @Autowired
-    private StatisticsProvider statisticsProvider;
+    private final StatisticsProvider statisticsProvider;
 
-    @Autowired
-    private ProgramStageInstanceService programStageInstanceService;
+    private final ProgramStageInstanceService programStageInstanceService;
 
-    @Autowired
-    private VisualizationStore visualizationStore;
+    private final EventVisualizationStore eventVisualizationStore;
+
+    public DefaultDataStatisticsService( final DataStatisticsStore dataStatisticsStore,
+        final DataStatisticsEventStore dataStatisticsEventStore, final UserService userService,
+        final IdentifiableObjectManager idObjectManager, final DataValueService dataValueService,
+        final StatisticsProvider statisticsProvider, final ProgramStageInstanceService programStageInstanceService,
+        final EventVisualizationStore eventVisualizationStore )
+    {
+        checkNotNull( dataStatisticsStore );
+        checkNotNull( dataStatisticsEventStore );
+        checkNotNull( userService );
+        checkNotNull( idObjectManager );
+        checkNotNull( dataValueService );
+        checkNotNull( statisticsProvider );
+        checkNotNull( programStageInstanceService );
+        checkNotNull( eventVisualizationStore );
+
+        this.dataStatisticsStore = dataStatisticsStore;
+        this.dataStatisticsEventStore = dataStatisticsEventStore;
+        this.userService = userService;
+        this.idObjectManager = idObjectManager;
+        this.dataValueService = dataValueService;
+        this.statisticsProvider = statisticsProvider;
+        this.programStageInstanceService = programStageInstanceService;
+        this.eventVisualizationStore = eventVisualizationStore;
+    }
 
     // -------------------------------------------------------------------------
     // DataStatisticsService implementation
@@ -102,8 +124,7 @@ public class DefaultDataStatisticsService
         return dataStatisticsStore.getSnapshotsInInterval( eventInterval, startDate, endDate );
     }
 
-    @Override
-    public DataStatistics getDataStatisticsSnapshot( Date day )
+    private DataStatistics getDataStatisticsSnapshot( Date day, JobProgress progress )
     {
         Calendar cal = Calendar.getInstance();
         cal.setTime( day );
@@ -113,36 +134,61 @@ public class DefaultDataStatisticsService
         long diff = now.getTime() - startDate.getTime();
         int days = (int) TimeUnit.DAYS.convert( diff, TimeUnit.MILLISECONDS );
 
-        double savedCharts = visualizationStore.countChartsCreated( startDate );
-        double savedReportTables = visualizationStore.countPivotTablesCreated( startDate );
-        double savedMaps = idObjectManager.getCountByCreated( org.hisp.dhis.mapping.Map.class, startDate );
-        double savedVisualizations = idObjectManager.getCountByCreated( Visualization.class, startDate );
-        double savedEventReports = idObjectManager.getCountByCreated( EventReport.class, startDate );
-        double savedEventCharts = idObjectManager.getCountByCreated( EventChart.class, startDate );
-        double savedDashboards = idObjectManager.getCountByCreated( Dashboard.class, startDate );
-        double savedIndicators = idObjectManager.getCountByCreated( Indicator.class, startDate );
-        double savedDataValues = dataValueService.getDataValueCount( days );
-        int activeUsers = userService.getActiveUsersCount( 1 );
-        int users = idObjectManager.getCount( User.class );
+        // when counting fails we use null so the count does not appear in the
+        // stats
+        Integer errorValue = null;
+        progress.startingStage( "Counting maps" );
+        Integer savedMaps = progress.runStage( errorValue,
+            () -> idObjectManager.getCountByCreated( org.hisp.dhis.mapping.Map.class, startDate ) );
+        progress.startingStage( "Counting visualisations" );
+        Integer savedVisualizations = progress.runStage( errorValue,
+            () -> idObjectManager.getCountByCreated( Visualization.class, startDate ) );
+        progress.startingStage( "Counting event reports" );
+        Integer savedEventReports = progress.runStage( errorValue,
+            () -> eventVisualizationStore.countReportsCreated( startDate ) );
+        progress.startingStage( "Counting event charts" );
+        Integer savedEventCharts = progress.runStage( errorValue,
+            () -> eventVisualizationStore.countChartsCreated( startDate ) );
+        progress.startingStage( "Counting event visualisations" );
+        Integer savedEventVisualizations = progress.runStage( errorValue,
+            () -> idObjectManager.getCountByCreated( EventVisualization.class, startDate ) );
+        progress.startingStage( "Counting dashboards" );
+        Integer savedDashboards = progress.runStage( errorValue,
+            () -> idObjectManager.getCountByCreated( Dashboard.class, startDate ) );
+        progress.startingStage( "Counting indicators" );
+        Integer savedIndicators = progress.runStage( errorValue,
+            () -> idObjectManager.getCountByCreated( Indicator.class, startDate ) );
+        progress.startingStage( "Counting data values" );
+        Integer savedDataValues = progress.runStage( errorValue,
+            () -> dataValueService.getDataValueCount( days ) );
+        progress.startingStage( "Counting active users" );
+        Integer activeUsers = progress.runStage( errorValue,
+            () -> userService.getActiveUsersCount( 1 ) );
+        progress.startingStage( "Counting users" );
+        Integer users = progress.runStage( errorValue,
+            () -> idObjectManager.getCount( User.class ) );
+        progress.startingStage( "Counting views" );
+        Map<DataStatisticsEventType, Double> eventCountMap = progress.runStage( Map.of(),
+            () -> dataStatisticsEventStore.getDataStatisticsEventCount( startDate, day ) );
 
-        Map<DataStatisticsEventType, Double> eventCountMap = dataStatisticsEventStore
-            .getDataStatisticsEventCount( startDate, day );
-
-        DataStatistics dataStatistics = new DataStatistics(
+        return new DataStatistics(
             eventCountMap.get( DataStatisticsEventType.MAP_VIEW ),
-            eventCountMap.get( DataStatisticsEventType.CHART_VIEW ),
-            eventCountMap.get( DataStatisticsEventType.REPORT_TABLE_VIEW ),
             eventCountMap.get( DataStatisticsEventType.VISUALIZATION_VIEW ),
             eventCountMap.get( DataStatisticsEventType.EVENT_REPORT_VIEW ),
             eventCountMap.get( DataStatisticsEventType.EVENT_CHART_VIEW ),
+            eventCountMap.get( DataStatisticsEventType.EVENT_VISUALIZATION_VIEW ),
             eventCountMap.get( DataStatisticsEventType.DASHBOARD_VIEW ),
             eventCountMap.get( DataStatisticsEventType.PASSIVE_DASHBOARD_VIEW ),
             eventCountMap.get( DataStatisticsEventType.DATA_SET_REPORT_VIEW ),
             eventCountMap.get( DataStatisticsEventType.TOTAL_VIEW ),
-            savedMaps, savedCharts, savedReportTables, savedVisualizations, savedEventReports,
-            savedEventCharts, savedDashboards, savedIndicators, savedDataValues, activeUsers, users );
+            asDouble( savedMaps ), asDouble( savedVisualizations ), asDouble( savedEventReports ),
+            asDouble( savedEventCharts ), asDouble( savedEventVisualizations ), asDouble( savedDashboards ),
+            asDouble( savedIndicators ), asDouble( savedDataValues ), activeUsers, users );
+    }
 
-        return dataStatistics;
+    private Double asDouble( Integer count )
+    {
+        return count == null ? null : count.doubleValue();
     }
 
     @Override
@@ -154,9 +200,9 @@ public class DefaultDataStatisticsService
     }
 
     @Override
-    public long saveDataStatisticsSnapshot()
+    public long saveDataStatisticsSnapshot( JobProgress progress )
     {
-        return saveDataStatistics( getDataStatisticsSnapshot( new Date() ) );
+        return saveDataStatistics( getDataStatisticsSnapshot( new Date(), progress ) );
     }
 
     @Override

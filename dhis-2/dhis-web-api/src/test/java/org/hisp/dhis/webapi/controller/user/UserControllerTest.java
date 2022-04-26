@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,9 +30,9 @@ package org.hisp.dhis.webapi.controller.user;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -59,26 +59,28 @@ import org.hisp.dhis.hibernate.exception.UpdateAccessDeniedException;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserAuthorityGroup;
-import org.hisp.dhis.user.UserCredentials;
 import org.hisp.dhis.user.UserGroup;
 import org.hisp.dhis.user.UserGroupService;
+import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 /**
  * Unit tests for {@link UserController}.
  *
  * @author Volker Schmidt
  */
-public class UserControllerTest
+@MockitoSettings( strictness = Strictness.LENIENT )
+@ExtendWith( MockitoExtension.class )
+class UserControllerTest
 {
     @Mock
     private UserService userService;
@@ -105,10 +107,7 @@ public class UserControllerTest
 
     private User parsedUser;
 
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
-
-    @Before
+    @BeforeEach
     public void setUp()
     {
         userGroup1 = new UserGroup();
@@ -148,7 +147,7 @@ public class UserControllerTest
     }
 
     @Test
-    public void updateUserGroupsNotOk()
+    void updateUserGroupsNotOk()
     {
         if ( isInStatusUpdatedOK( createReportWith( Status.ERROR, Stats::incUpdated ) ) )
         {
@@ -161,7 +160,7 @@ public class UserControllerTest
     }
 
     @Test
-    public void updateUserGroupsNotUpdated()
+    void updateUserGroupsNotUpdated()
     {
         if ( isInStatusUpdatedOK( createReportWith( Status.OK, Stats::incCreated ) ) )
         {
@@ -174,7 +173,6 @@ public class UserControllerTest
     }
 
     @Test
-    @SuppressWarnings( "unchecked" )
     public void updateUserGroupsSameUser()
     {
         currentUser.setId( 1001 );
@@ -215,10 +213,10 @@ public class UserControllerTest
 
     private void setUpUserExpireScenarios()
     {
-        addUserCredentialsTo( user );
-        addUserCredentialsTo( currentUser );
+        addUserTo( user );
+        addUserTo( currentUser );
         // make current user have ALL authority
-        setUpUserAuthority( currentUser, UserAuthorityGroup.AUTHORITY_ALL );
+        setUpUserAuthority( currentUser, UserRole.AUTHORITY_ALL );
         // allow any change
         when( aclService.canUpdate( any(), any() ) ).thenReturn( true );
         when( userService.canAddOrUpdateUser( any(), any() ) ).thenReturn( true );
@@ -228,7 +226,7 @@ public class UserControllerTest
     }
 
     @Test
-    public void expireUserInTheFutureDoesNotExpireSession()
+    void expireUserInTheFutureDoesNotExpireSession()
         throws Exception
     {
         setUpUserExpireScenarios();
@@ -236,41 +234,41 @@ public class UserControllerTest
         Date inTheFuture = new Date( System.currentTimeMillis() + 1000 );
         userController.expireUser( user.getUid(), inTheFuture );
 
-        assertUserCredentialsUpdatedWithAccountExpiry( inTheFuture );
+        assertUserUpdatedWithAccountExpiry( inTheFuture );
         verify( userService, never() ).expireActiveSessions( any() );
     }
 
     @Test
-    public void expireUserNowDoesExpireSession()
+    void expireUserNowDoesExpireSession()
         throws Exception
     {
         setUpUserExpireScenarios();
-        when( userService.isAccountExpired( same( user.getUserCredentials() ) ) ).thenReturn( true );
+        when( userService.isAccountExpired( same( user ) ) ).thenReturn( true );
 
         Date now = new Date();
         userController.expireUser( user.getUid(), now );
 
-        assertUserCredentialsUpdatedWithAccountExpiry( now );
-        verify( userService, atLeastOnce() ).expireActiveSessions( same( user.getUserCredentials() ) );
+        assertUserUpdatedWithAccountExpiry( now );
+        verify( userService, atLeastOnce() ).expireActiveSessions( same( user ) );
     }
 
     @Test
-    public void unexpireUserDoesUpdateUserCredentials()
+    void unexpireUserDoesUpdateUser()
         throws Exception
     {
         setUpUserExpireScenarios();
 
         userController.unexpireUser( user.getUid() );
 
-        assertUserCredentialsUpdatedWithAccountExpiry( null );
+        assertUserUpdatedWithAccountExpiry( null );
     }
 
     @Test
-    public void updateUserExpireRequiresUserCredentialBasedAuthority()
+    void updateUserExpireRequiresUserBasedAuthority()
     {
         setUpUserExpireScenarios();
         // executing user has no authorities
-        currentUser.getUserCredentials().setUserAuthorityGroups( emptySet() );
+        currentUser.setUserRoles( emptySet() );
         // changed user does have an authority
         setUpUserAuthority( user, "whatever" );
 
@@ -282,7 +280,7 @@ public class UserControllerTest
     }
 
     @Test
-    public void updateUserExpireRequiresGroupBasedAuthority()
+    void updateUserExpireRequiresGroupBasedAuthority()
     {
         setUpUserExpireScenarios();
         when( userService.canAddOrUpdateUser( any(), any() ) ).thenReturn( false );
@@ -295,7 +293,7 @@ public class UserControllerTest
     }
 
     @Test
-    public void updateUserExpireRequiresShareBasedAuthority()
+    void updateUserExpireRequiresShareBasedAuthority()
     {
         setUpUserExpireScenarios();
         when( aclService.canUpdate( currentUser, user ) ).thenReturn( false );
@@ -307,26 +305,25 @@ public class UserControllerTest
 
     private void setUpUserAuthority( User user, String authority )
     {
-        UserAuthorityGroup suGroup = new UserAuthorityGroup();
+        UserRole suGroup = new UserRole();
         suGroup.setAuthorities( singleton( authority ) );
-        user.getUserCredentials().setUserAuthorityGroups( singleton( suGroup ) );
+        user.setUserRoles( singleton( suGroup ) );
     }
 
-    private void assertUserCredentialsUpdatedWithAccountExpiry( Date accountExpiry )
+    private void assertUserUpdatedWithAccountExpiry( Date accountExpiry )
     {
-        ArgumentCaptor<UserCredentials> credentials = ArgumentCaptor.forClass( UserCredentials.class );
-        verify( userService ).updateUserCredentials( credentials.capture() );
-        UserCredentials actual = credentials.getValue();
-        assertSame( "no user credentials update occurred", actual, user.getUserCredentials() );
-        assertEquals( "date was not updated", accountExpiry, actual.getAccountExpiry() );
+        ArgumentCaptor<User> credentials = ArgumentCaptor.forClass( User.class );
+        verify( userService ).updateUser( credentials.capture() );
+        User actual = credentials.getValue();
+        assertSame( actual, user, "no user credentials update occurred" );
+        assertEquals( accountExpiry, actual.getAccountExpiry(), "date was not updated" );
         verify( userService ).isAccountExpired( same( actual ) );
     }
 
-    private static void addUserCredentialsTo( User user )
+    private static void addUserTo( User user )
     {
-        UserCredentials credentials = new UserCredentials();
+        User credentials = new User();
         credentials.setUser( user );
         credentials.setUid( user.getUid() );
-        user.setUserCredentials( credentials );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,14 @@
  */
 package org.hisp.dhis.program.notification;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.net.URI;
 import java.util.Date;
@@ -39,6 +44,8 @@ import java.util.stream.Stream;
 
 import org.hisp.dhis.DhisConvenienceTest;
 import org.hisp.dhis.common.DeliveryChannel;
+import org.hisp.dhis.dataelement.DataElement;
+import org.hisp.dhis.eventdatavalue.EventDataValue;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramInstance;
@@ -46,16 +53,18 @@ import org.hisp.dhis.program.ProgramInstanceService;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.program.ProgramStageInstance;
 import org.hisp.dhis.program.ProgramStageInstanceService;
+import org.hisp.dhis.program.ProgramTrackedEntityAttribute;
 import org.hisp.dhis.render.RenderService;
+import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -69,9 +78,21 @@ import com.google.common.collect.Sets;
  * @author Zubair Asghar
  */
 
-public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
+@ExtendWith( MockitoExtension.class )
+class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
 {
+
     private static final String URL = "https://www.google.com";
+
+    private DataElement dataElement;
+
+    private EventDataValue dataValue;
+
+    private TrackedEntityAttribute trackedEntityAttribute;
+
+    private TrackedEntityAttributeValue trackedEntityAttributeValue;
+
+    private ProgramTrackedEntityAttribute programTrackedEntityAttribute;
 
     private OrganisationUnit organisationUnitA;
 
@@ -88,9 +109,6 @@ public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
     private ProgramNotificationTemplate programStageNotification;
 
     private ResponseEntity<String> responseEntity;
-
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock
     private ProgramInstanceService programInstanceService;
@@ -110,13 +128,20 @@ public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
     @InjectMocks
     private DefaultTrackerNotificationWebHookService subject;
 
-    @Before
+    @BeforeEach
     public void initTest()
     {
+        trackedEntityAttribute = createTrackedEntityAttribute( 'A' );
+        dataElement = createDataElement( 'D' );
         organisationUnitA = createOrganisationUnit( 'A' );
         programA = createProgram( 'A', new HashSet<>(), organisationUnitA );
-        programStageA = createProgramStage( 'A', programA );
+        programTrackedEntityAttribute = createProgramTrackedEntityAttribute( programA, trackedEntityAttribute );
+        programA.getProgramAttributes().add( programTrackedEntityAttribute );
         TrackedEntityInstance tei = createTrackedEntityInstance( organisationUnitA );
+        trackedEntityAttributeValue = createTrackedEntityAttributeValue( 'I', tei, trackedEntityAttribute );
+        tei.getTrackedEntityAttributeValues().add( trackedEntityAttributeValue );
+
+        programStageA = createProgramStage( 'A', programA );
 
         programInstance = new ProgramInstance();
         programInstance.setAutoFields();
@@ -134,6 +159,12 @@ public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
         programStageInstance.setExecutionDate( new Date() );
         programStageInstance.setDueDate( new Date() );
         programStageInstance.setProgramInstance( programInstance );
+
+        dataValue = new EventDataValue();
+        dataValue.setValue( "dataValue123" );
+        dataValue.setDataElement( dataElement.getUid() );
+        dataValue.setAutoFields();
+        programStageInstance.getEventDataValues().add( dataValue );
 
         programNotification = new ProgramNotificationTemplate();
         programNotification.setNotificationRecipient( ProgramNotificationRecipient.WEB_HOOK );
@@ -154,7 +185,7 @@ public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
     }
 
     @Test
-    public void testTrackerEnrollmentNotificationWebHook()
+    void testTrackerEnrollmentNotificationWebHook()
     {
         when( programInstanceService.getProgramInstance( anyString() ) ).thenReturn( programInstance );
         when( templateService.isProgramLinkedToWebHookNotification( any( Program.class ) ) ).thenReturn( true );
@@ -177,13 +208,15 @@ public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
 
         Stream.of( ProgramTemplateVariable.values() )
             .forEach( v -> assertTrue( bodyCaptor.getValue().containsKey( v.name() ) ) );
+
+        assertTrue( bodyCaptor.getValue().containsKey( trackedEntityAttribute.getUid() ) );
         assertEquals( URL, urlCaptor.getValue().toString() );
         assertEquals( HttpMethod.POST, httpMethodCaptor.getValue() );
         assertTrue( httpEntityCaptor.getValue().getHeaders().get( "Content-Type" ).contains( "application/json" ) );
     }
 
     @Test
-    public void testTrackerEventNotificationWebHook()
+    void testTrackerEventNotificationWebHook()
     {
         when( programStageInstanceService.getProgramStageInstance( anyString() ) ).thenReturn( programStageInstance );
         when( templateService.isProgramStageLinkedToWebHookNotification( any( ProgramStage.class ) ) )
@@ -207,6 +240,8 @@ public class TrackerNotificationWebHookServiceTest extends DhisConvenienceTest
 
         Stream.of( ProgramStageTemplateVariable.values() )
             .forEach( v -> assertTrue( bodyCaptor.getValue().containsKey( v.name() ) ) );
+
+        assertTrue( bodyCaptor.getValue().containsKey( dataElement.getUid() ) );
         assertEquals( URL, urlCaptor.getValue().toString() );
         assertEquals( HttpMethod.POST, httpMethodCaptor.getValue() );
         assertTrue( httpEntityCaptor.getValue().getHeaders().get( "Content-Type" ).contains( "application/json" ) );

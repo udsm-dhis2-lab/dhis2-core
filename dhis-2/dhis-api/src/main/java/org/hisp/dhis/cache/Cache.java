@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,9 @@
  */
 package org.hisp.dhis.cache;
 
-import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 public interface Cache<V>
 {
@@ -72,14 +72,22 @@ public interface Cache<V>
      *         Optional.empty() if the computed value is null
      * @throws IllegalArgumentException if the specified mappingFunction is null
      */
-    Optional<V> get( String key, Function<String, V> mappingFunction );
+    V get( String key, Function<String, V> mappingFunction );
 
     /**
      * Returns a collection of all the values in the cache
      *
      * @return collection with all cached values
      */
-    Collection<V> getAll();
+    Stream<V> getAll();
+
+    /**
+     * Should only be used with caution in cases where the set of keys is known
+     * to be a small set.
+     *
+     * @return an unmodifiable set of all keys set
+     */
+    Iterable<String> keys();
 
     /**
      * Associates the {@code value} with the {@code key} in this cache. If the
@@ -108,6 +116,17 @@ public interface Cache<V>
     void put( String key, V value, long ttlInSeconds );
 
     /**
+     * Associates the {@code value} with the {@code key} in this cache if and
+     * only of the cache does not already contain a value for the key.
+     *
+     * @param key the key for the value
+     * @param value value to be mapped to the key
+     * @return true, if the value was put, false otherwise
+     * @throws IllegalArgumentException if the specified value is null
+     */
+    boolean putIfAbsent( String key, V value );
+
+    /**
      * Discards any cached value for the {@code key}. The behavior of this
      * operation is undefined for an entry that is being loaded and is otherwise
      * not present.
@@ -117,8 +136,7 @@ public interface Cache<V>
     void invalidate( String key );
 
     /**
-     * Discards all entries in this cache instance. If a shared cache is used,
-     * this method does not clear anything.
+     * Discards all entries in this cache instance.
      */
     void invalidateAll();
 

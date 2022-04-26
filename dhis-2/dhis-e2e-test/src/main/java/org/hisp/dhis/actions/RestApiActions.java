@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,26 +25,28 @@ package org.hisp.dhis.actions;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.oneOf;
-
-import java.io.File;
-import java.util.List;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.hisp.dhis.TestRunStorage;
-import org.hisp.dhis.dto.ApiResponse;
-import org.hisp.dhis.dto.ImportSummary;
-import org.hisp.dhis.dto.ObjectReport;
-import org.hisp.dhis.helpers.QueryParamsBuilder;
-
+import com.google.gson.JsonArray;
 import io.restassured.RestAssured;
 import io.restassured.config.ObjectMapperConfig;
 import io.restassured.http.ContentType;
 import io.restassured.mapper.ObjectMapperType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import org.apache.commons.collections4.CollectionUtils;
+import org.hisp.dhis.TestRunStorage;
+import org.hisp.dhis.dto.ApiResponse;
+import org.hisp.dhis.dto.ImportSummary;
+import org.hisp.dhis.dto.ObjectReport;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
+import org.hisp.dhis.helpers.QueryParamsBuilder;
+
+import java.io.File;
+import java.util.List;
+
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.oneOf;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -80,8 +80,8 @@ public class RestApiActions
     }
 
     /**
-     * Sends post request to specified endpoint.
-     * If post request successful, saves created entity in TestRunStorage
+     * Sends post request to specified endpoint. If post request successful,
+     * saves created entity in TestRunStorage
      *
      * @param object Body of request
      * @return Response
@@ -122,8 +122,8 @@ public class RestApiActions
     }
 
     /**
-     * Shortcut used in preconditions only.
-     * Sends post request to specified endpoint and verifies that request was successful
+     * Shortcut used in preconditions only. Sends post request to specified
+     * endpoint and verifies that request was successful
      *
      * @param object Body of request
      * @return ID of generated entity.
@@ -133,7 +133,7 @@ public class RestApiActions
         ApiResponse response = post( object );
 
         response.validate()
-            .statusCode(  is(oneOf( 200, 201 ) ) );
+            .statusCode( is( oneOf( 200, 201 ) ) );
 
         return response.extractUid();
     }
@@ -175,14 +175,16 @@ public class RestApiActions
     }
 
     /**
-     * Sends get request with provided path, contentType, accepting content type and queryParams appended to URL.
+     * Sends get request with provided path, contentType, accepting content type
+     * and queryParams appended to URL.
      *
-     * @param resourceId            Id of resource
-     * @param contentType           Content type of the request
-     * @param accept                Accepted response Content type
-     * @param queryParamsBuilder    Query params to append to url
+     * @param resourceId         Id of resource
+     * @param contentType        Content type of the request
+     * @param accept             Accepted response Content type
+     * @param queryParamsBuilder Query params to append to url
      */
-    public ApiResponse get( String resourceId, String contentType, String accept, QueryParamsBuilder queryParamsBuilder )
+    public ApiResponse get( String resourceId, String contentType, String accept,
+        QueryParamsBuilder queryParamsBuilder )
     {
         String path = queryParamsBuilder == null ? "" : queryParamsBuilder.build();
 
@@ -196,11 +198,11 @@ public class RestApiActions
     }
 
     /**
-     * Sends delete request to specified resource.
-     * If delete request successful, removes entity from TestRunStorage.
+     * Sends delete request to specified resource. If delete request successful,
+     * removes entity from TestRunStorage.
      *
-     * @param resourceId            Id of resource
-     * @param queryParamsBuilder    Query params to append to url
+     * @param resourceId         Id of resource
+     * @param queryParamsBuilder Query params to append to url
      */
     public ApiResponse delete( String resourceId, QueryParamsBuilder queryParamsBuilder )
     {
@@ -210,8 +212,8 @@ public class RestApiActions
     }
 
     /**
-     * Sends delete request to specified resource.
-     * If delete request successful, removes entity from TestRunStorage.
+     * Sends delete request to specified resource. If delete request successful,
+     * removes entity from TestRunStorage.
      *
      * @param path Id of resource
      */
@@ -237,27 +239,53 @@ public class RestApiActions
      */
     public ApiResponse update( String resourceId, Object object )
     {
-        Response response =
-            this.given().body( object, ObjectMapperType.GSON )
-                .when()
-                .put( resourceId );
+        Response response = this.given().body( object, ObjectMapperType.GSON )
+            .when()
+            .put( resourceId );
 
         return new ApiResponse( response );
     }
 
     /**
      * Sends PATCH request to specified resource
+     *
+     * @param resourceId
+     * @param object
+     * @param paramsBuilder
+     * @return
+     */
+    public ApiResponse patch( String resourceId, Object object, QueryParamsBuilder paramsBuilder )
+    {
+        Response response = this.given().body( object, ObjectMapperType.GSON )
+            .when()
+            .contentType( "application/json-patch+json" )
+            .patch( resourceId + paramsBuilder.build() );
+
+        return new ApiResponse( response );
+    }
+
+    /**
+     * Sends PATCH request to specified resource. Uses importReportMode=ERRORS
+     *
      * @param resourceId
      * @param object
      * @return
      */
-    public ApiResponse patch( String resourceId, Object object) {
-        Response response =
-            this.given().body( object, ObjectMapperType.GSON )
-                .when()
-                .patch( resourceId );
+    public ApiResponse patch( String resourceId, Object object )
+    {
+        return this.patch( resourceId, object, new QueryParamsBuilder().add( "importReportMode", "ERRORS" ) );
+    }
 
-        return new ApiResponse( response );
+
+    public ApiResponse patch( String resourceId, String operation, String path, String value )
+    {
+        JsonArray body = JsonObjectBuilder.jsonObject()
+            .addProperty( "op", operation )
+            .addProperty( "path", path )
+            .addProperty( "value", value )
+            .wrapIntoArray();
+
+        return this.patch( resourceId, body );
     }
 
     public ApiResponse postFile( File file )
@@ -324,8 +352,8 @@ public class RestApiActions
         }
     }
 
-    protected void addCreatedEntity(String ep, String id) {
+    protected void addCreatedEntity( String ep, String id )
+    {
         TestRunStorage.addCreatedEntity( ep, id );
     }
 }
-

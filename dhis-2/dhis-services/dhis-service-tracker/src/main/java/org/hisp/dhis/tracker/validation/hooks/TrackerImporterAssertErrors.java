@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,8 @@ public class TrackerImporterAssertErrors
     public static final String PROGRAM_INSTANCE_CANT_BE_NULL = "ProgramInstance can't be null";
 
     public static final String ORGANISATION_UNIT_CANT_BE_NULL = "OrganisationUnit can't be null";
+
+    public static final String OWNER_ORGANISATION_UNIT_CANT_BE_NULL = "Owner OrganisationUnit can't be null";
 
     public static final String TRACKED_ENTITY_ATTRIBUTE_VALUE_CANT_BE_NULL = "TrackedEntityAttributeValue can't be null";
 

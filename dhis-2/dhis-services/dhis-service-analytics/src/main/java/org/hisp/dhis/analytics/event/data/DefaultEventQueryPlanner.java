@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,7 +142,8 @@ public class DefaultEventQueryPlanner
             ? PartitionUtils.getPartitions( params.getStartDate(), params.getEndDate() )
             : PartitionUtils.getPartitions( params.getAllPeriods() );
 
-        String baseName = params.hasEnrollmentProgramIndicatorDimension() ? AnalyticsTableType.ENROLLMENT.getTableName()
+        String baseName = params.hasEnrollmentProgramIndicatorDimension()
+            ? AnalyticsTableType.ENROLLMENT.getTableName()
             : AnalyticsTableType.EVENT.getTableName();
 
         String tableName = PartitionUtils.getTableName( baseName, params.getProgram() );

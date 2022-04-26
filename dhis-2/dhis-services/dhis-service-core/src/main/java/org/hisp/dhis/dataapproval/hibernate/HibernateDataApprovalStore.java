@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,10 +68,12 @@ import org.hisp.dhis.jdbc.StatementBuilder;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
+import org.hisp.dhis.period.PeriodStore;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.util.DateUtils;
 import org.springframework.context.ApplicationEventPublisher;
@@ -86,7 +88,7 @@ import org.springframework.stereotype.Repository;
 @Repository( "org.hisp.dhis.dataapproval.DataApprovalStore" )
 public class HibernateDataApprovalStore
     extends HibernateGenericStore<DataApproval>
-    implements DataApprovalStore
+    implements DataApprovalStore, CurrentUserServiceTarget
 {
     private static final int MAX_APPROVAL_LEVEL = 100000000;
 
@@ -102,6 +104,8 @@ public class HibernateDataApprovalStore
 
     private final PeriodService periodService;
 
+    private final PeriodStore periodStore;
+
     private CurrentUserService currentUserService;
 
     private final CategoryService categoryService;
@@ -112,7 +116,7 @@ public class HibernateDataApprovalStore
 
     public HibernateDataApprovalStore( SessionFactory sessionFactory, JdbcTemplate jdbcTemplate,
         ApplicationEventPublisher publisher, CacheProvider cacheProvider, PeriodService periodService,
-        CurrentUserService currentUserService, CategoryService categoryService,
+        PeriodStore periodStore, CurrentUserService currentUserService, CategoryService categoryService,
         SystemSettingManager systemSettingManager,
         StatementBuilder statementBuilder )
     {
@@ -120,12 +124,14 @@ public class HibernateDataApprovalStore
 
         checkNotNull( cacheProvider );
         checkNotNull( periodService );
+        checkNotNull( periodStore );
         checkNotNull( currentUserService );
         checkNotNull( categoryService );
         checkNotNull( systemSettingManager );
         checkNotNull( statementBuilder );
 
         this.periodService = periodService;
+        this.periodStore = periodStore;
         this.currentUserService = currentUserService;
         this.categoryService = categoryService;
         this.systemSettingManager = systemSettingManager;
@@ -133,10 +139,7 @@ public class HibernateDataApprovalStore
         this.isApprovedCache = cacheProvider.createIsDataApprovedCache();
     }
 
-    /**
-     * Used only for testing, remove when test is refactored
-     */
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -232,13 +235,17 @@ public class HibernateDataApprovalStore
     @Override
     public boolean dataApprovalExists( DataApproval dataApproval )
     {
-        return isApprovedCache.get( dataApproval.getCacheKey(), key -> dataApprovalExistsInternal( dataApproval ) )
-            .orElse( false );
+        return isApprovedCache.get( dataApproval.getCacheKey(), key -> dataApprovalExistsInternal( dataApproval ) );
     }
 
     private boolean dataApprovalExistsInternal( DataApproval dataApproval )
     {
-        Period storedPeriod = periodService.reloadPeriod( dataApproval.getPeriod() );
+        Period storedPeriod = periodStore.reloadPeriod( dataApproval.getPeriod() );
+
+        if ( storedPeriod == null )
+        {
+            return false;
+        }
 
         String sql = "select dataapprovalid " +
             "from dataapproval " +
@@ -280,8 +287,8 @@ public class HibernateDataApprovalStore
             && categoryService.getDefaultCategoryOptionCombo().equals( attributeOptionCombos.toArray()[0] );
 
         boolean maySeeDefaultCategoryCombo = (CollectionUtils
-            .isEmpty( user.getUserCredentials().getCogsDimensionConstraints() )
-            && CollectionUtils.isEmpty( user.getUserCredentials().getCatDimensionConstraints() ));
+            .isEmpty( user.getCogsDimensionConstraints() )
+            && CollectionUtils.isEmpty( user.getCatDimensionConstraints() ));
 
         // ---------------------------------------------------------------------
         // Validate
@@ -324,6 +331,9 @@ public class HibernateDataApprovalStore
         // ---------------------------------------------------------------------
         // Get other information
         // ---------------------------------------------------------------------
+
+        boolean acceptanceRequiredForApproval = systemSettingManager
+            .getBoolSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL );
 
         final boolean isSuperUser = currentUserService.currentUserIsSuper();
 
@@ -464,9 +474,6 @@ public class HibernateDataApprovalStore
 
         if ( approvalLevelBelowOrgUnit != null )
         {
-            boolean acceptanceRequiredForApproval = (Boolean) systemSettingManager
-                .getSystemSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL );
-
             readyBelowSubquery = "not exists ( " + // Ready if nothing expected
                                                    // below is
                                                    // unapproved(/unaccepted)
@@ -639,13 +646,12 @@ public class HibernateDataApprovalStore
             final boolean accepted = approved == null ? false : approved[1].substring( 0, 1 ).equalsIgnoreCase( "t" );
             final int approvedOrgUnitId = approved == null ? 0 : Integer.parseInt( approved[2] );
 
-            DataApprovalLevel approvedLevel = (level == 0 ? null : levelMap.get( level )); // null
-                                                                                           // if
-                                                                                           // not
-                                                                                           // approved
+            // null if not approved
+            DataApprovalLevel approvedLevel = (level == 0 ? null : levelMap.get( level ));
             DataApprovalLevel actionLevel = (approvedLevel == null ? lowestApprovalLevelForOrgUnit : approvedLevel);
 
-            if ( approvedAbove && accepted && approvedAboveLevel == approvalLevelAboveUser )
+            if ( approvedAbove && accepted && acceptanceRequiredForApproval
+                && approvedAboveLevel == approvalLevelAboveUser )
             {
                 approvedAbove = false; // Hide higher-level approval from user.
             }
@@ -659,8 +665,16 @@ public class HibernateDataApprovalStore
                             : readyBelow ? UNAPPROVED_READY : UNAPPROVED_WAITING
                         : accepted ? ACCEPTED_HERE : APPROVED_HERE);
 
-                statusList.add( new DataApprovalStatus( state, approvedLevel, approvedOrgUnitId, actionLevel, ouUid,
-                    ouName, aocUid, accepted, null ) );
+                statusList.add( DataApprovalStatus.builder()
+                    .state( state )
+                    .approvedLevel( approvedLevel )
+                    .approvedOrgUnitId( approvedOrgUnitId )
+                    .actionLevel( actionLevel )
+                    .organisationUnitUid( ouUid )
+                    .organisationUnitName( ouName )
+                    .attributeOptionComboUid( aocUid )
+                    .accepted( accepted )
+                    .build() );
             }
         }
 

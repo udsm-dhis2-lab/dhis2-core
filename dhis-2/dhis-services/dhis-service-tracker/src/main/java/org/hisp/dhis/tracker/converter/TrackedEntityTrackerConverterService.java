@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.UserInfoSnapshot;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
-import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.util.DateUtils;
@@ -49,7 +48,6 @@ import org.springframework.stereotype.Service;
 public class TrackedEntityTrackerConverterService
     implements TrackerConverterService<TrackedEntity, TrackedEntityInstance>
 {
-
     @Override
     public TrackedEntity to( TrackedEntityInstance trackedEntityInstance )
     {
@@ -78,7 +76,7 @@ public class TrackedEntityTrackerConverterService
     public TrackedEntityInstance from( TrackerPreheat preheat,
         TrackedEntity trackedEntity )
     {
-        TrackedEntityInstance tei = preheat.getTrackedEntity( TrackerIdScheme.UID,
+        TrackedEntityInstance tei = preheat.getTrackedEntity(
             trackedEntity.getTrackedEntity() );
         return from( preheat, trackedEntity, tei );
     }
@@ -114,6 +112,7 @@ public class TrackedEntityTrackerConverterService
         tei.setStoredBy( te.getStoredBy() );
         tei.setLastUpdated( now );
         tei.setDeleted( false );
+        tei.setPotentialDuplicate( te.isPotentialDuplicate() );
         tei.setCreatedAtClient( DateUtils.fromInstant( te.getCreatedAtClient() ) );
         tei.setLastUpdatedAtClient( DateUtils.fromInstant( te.getUpdatedAtClient() ) );
         tei.setOrganisationUnit( organisationUnit );

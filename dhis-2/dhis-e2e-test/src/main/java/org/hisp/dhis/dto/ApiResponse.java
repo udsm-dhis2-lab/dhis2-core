@@ -1,7 +1,5 @@
-package org.hisp.dhis.dto;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,18 +25,22 @@ package org.hisp.dhis.dto;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import com.google.gson.JsonObject;
-import io.restassured.path.json.config.JsonParserType;
-import io.restassured.path.json.config.JsonPathConfig;
-import io.restassured.response.Response;
-import io.restassured.response.ValidatableResponse;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
+package org.hisp.dhis.dto;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
+
+import com.google.gson.JsonObject;
+
+import io.restassured.path.json.config.JsonParserType;
+import io.restassured.path.json.config.JsonPathConfig;
+import io.restassured.response.Response;
+import io.restassured.response.ValidatableResponse;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -54,7 +56,6 @@ public class ApiResponse
 
     /**
      * Extracts uid when only one object was created.
-     *
      */
     public String extractUid()
     {
@@ -76,9 +77,8 @@ public class ApiResponse
     }
 
     /**
-     * Extracts uids from import summaries.
-     * Use when more than one object was created.
-     *
+     * Extracts uids from import summaries. Use when more than one object was
+     * created.
      */
     public List<String> extractUids()
     {
@@ -132,6 +132,11 @@ public class ApiResponse
         return extractJsonObject( "" );
     }
 
+    public JsonObjectBuilder getBodyAsJsonBuilder()
+    {
+        return new JsonObjectBuilder( getBody() );
+    }
+
     public boolean isEntityCreated()
     {
         return this.extractUid() != null;
@@ -170,11 +175,14 @@ public class ApiResponse
 
     public List<TypeReport> getTypeReports()
     {
+        if ( this.extractList( "response.typeReports" ) != null )
+        {
+            return this.extractList( "response.typeReports", TypeReport.class );
+        }
         if ( this.extractList( "typeReports" ) != null )
         {
             return this.extractList( "typeReports", TypeReport.class );
         }
-
         return null;
     }
 
@@ -205,4 +213,10 @@ public class ApiResponse
         return raw.as( klass );
     }
 
+    public ApiResponse validateStatus( int status )
+    {
+        this.validate().statusCode( status );
+
+        return this;
+    }
 }

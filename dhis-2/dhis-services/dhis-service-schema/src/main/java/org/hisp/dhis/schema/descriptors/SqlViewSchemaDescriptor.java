@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,7 @@ public class SqlViewSchemaDescriptor implements SchemaDescriptor
         schema.setRelativeApiEndpoint( API_ENDPOINT );
         schema.setOrder( 1010 );
         schema.setDataShareable( true );
+        schema.setDataWriteShareable( false );
 
         schema.add( new Authority( AuthorityType.CREATE_PUBLIC, Lists.newArrayList( "F_SQLVIEW_PUBLIC_ADD" ) ) );
         schema.add( new Authority( AuthorityType.CREATE_PRIVATE, Lists.newArrayList( "F_SQLVIEW_PRIVATE_ADD" ) ) );

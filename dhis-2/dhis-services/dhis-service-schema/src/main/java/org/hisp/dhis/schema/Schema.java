@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,6 +161,16 @@ public class Schema implements Ordered, Klass
      * Is data sharing supported for instances of this class.
      */
     private boolean dataShareable;
+
+    /**
+     * Is data write sharing support for instances of this class.
+     */
+    private Boolean dataWriteShareable;
+
+    /**
+     * Is data read sharing support for instances of this class.
+     */
+    private Boolean dataReadShareable;
 
     /**
      * Points to relative Web-API endpoint (if exposed).
@@ -412,6 +422,30 @@ public class Schema implements Ordered, Klass
     public void setDataShareable( boolean dataShareable )
     {
         this.dataShareable = dataShareable;
+    }
+
+    @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public boolean isDataWriteShareable()
+    {
+        return dataWriteShareable != null ? dataWriteShareable : isDataShareable();
+    }
+
+    public void setDataWriteShareable( boolean dataWriteShareable )
+    {
+        this.dataWriteShareable = dataWriteShareable;
+    }
+
+    @JsonProperty
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public boolean isDataReadShareable()
+    {
+        return dataReadShareable != null ? dataReadShareable : isDataShareable();
+    }
+
+    public void setDataReadShareable( boolean dataReadShareable )
+    {
+        this.dataReadShareable = dataReadShareable;
     }
 
     @JsonProperty

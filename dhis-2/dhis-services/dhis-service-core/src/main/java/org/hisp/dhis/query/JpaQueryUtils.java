@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.commons.collection.CollectionUtils;
 import org.hisp.dhis.hibernate.jsonb.type.JsonbFunctions;
@@ -130,6 +130,8 @@ public class JpaQueryUtils
         {
         case EQUALS:
             return builder.equal( path, attrValue );
+        case NOT_EQUALS:
+            return builder.notEqual( path, attrValue );
         case ENDING_LIKE:
             return builder.like( path, "%" + attrValue );
         case NOT_ENDING_LIKE:
@@ -140,10 +142,11 @@ public class JpaQueryUtils
             return builder.notLike( path, attrValue + "%" );
         case ANYWHERE:
             return builder.like( path, "%" + attrValue + "%" );
+        case NOT_ANYWHERE:
+            return builder.notLike( path, "%" + attrValue + "%" );
         case LIKE:
-            return builder.like( path, (String) attrValue ); // assume user
-                                                             // provide the wild
-                                                             // cards
+            // Assumes user provides wildcards
+            return builder.like( path, (String) attrValue );
         case NOT_LIKE:
             return builder.notLike( path, (String) attrValue );
         default:
@@ -156,16 +159,15 @@ public class JpaQueryUtils
      */
     public enum StringSearchMode
     {
-
         EQUALS( "eq" ), // Match exactly
+        NOT_EQUALS( "neq" ),
         ANYWHERE( "any" ), // Like search with '%' prefix and suffix
-        STARTING_LIKE( "sl" ), // Like search and add a '%' prefix before
-                               // searching
+        NOT_ANYWHERE( "nany" ), // Like search with '%' prefix and suffix
+        STARTING_LIKE( "sl" ), // Like search and add '%' prefix first
         NOT_STARTING_LIKE( "nsl" ),
         LIKE( "li" ), // User provides the wild card
-        ENDING_LIKE( "el" ), // LIKE search and add a '%' suffix before
-                             // searching
-        NOT_LIKE( "nli" ),
+        NOT_LIKE( "nli" ), // User provides the wild card
+        ENDING_LIKE( "el" ), // LIKE search and add a '%' suffix first
         NOT_ENDING_LIKE( "nel" );
 
         private final String code;
@@ -306,7 +308,7 @@ public class JpaQueryUtils
     public static <T> Function<Root<T>, Predicate> checkUserAccess( CriteriaBuilder builder, String userUid,
         String access )
     {
-        return ( Root<T> root ) -> builder.and(
+        return root -> builder.and(
             builder.equal(
                 builder.function(
                     JsonbFunctions.HAS_USER_ID,
@@ -334,7 +336,7 @@ public class JpaQueryUtils
     public static <T> Function<Root<T>, Predicate> checkUserGroupsAccess( CriteriaBuilder builder,
         Set<String> userGroupUids, String access )
     {
-        return ( Root<T> root ) -> {
+        return root -> {
             if ( CollectionUtils.isEmpty( userGroupUids ) )
             {
                 return null;
@@ -389,16 +391,17 @@ public class JpaQueryUtils
             + " and " + JsonbFunctions.CHECK_USER_ACCESS + "( %1$s, '%2$s', '%4$s' ) = true )  "
             + (StringUtils.isEmpty( groupsIds ) ? ""
                 : " or ( " + JsonbFunctions.HAS_USER_GROUP_IDS + "( %1$s, '%3$s') = true "
-                    + " and " + JsonbFunctions.CHECK_USER_GROUPS_ACCESS + "( %1$s, '%3$s', '%4$s') = true )");
+                    + " and " + JsonbFunctions.CHECK_USER_GROUPS_ACCESS + "( %1$s, '%4$s', '%3$s') = true )");
         return String.format( sql, sharingColumn, userId, groupsIds, access );
     }
 
     public static String generateHqlQueryForSharingCheck( String tableName, User user, String access )
     {
-        if ( user.isSuper() )
+        if ( user.isSuper() || user.isAuthorized( "Test_skipSharingCheck" ) )
         {
             return "1=1";
         }
+
         return "(" + sqlToHql( tableName,
             generateSQlQueryForSharingCheck( tableName + ".sharing", user, access ) ) + ")";
     }

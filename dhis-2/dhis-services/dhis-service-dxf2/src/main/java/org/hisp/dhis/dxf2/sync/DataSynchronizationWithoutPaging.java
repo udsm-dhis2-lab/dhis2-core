@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,19 +27,37 @@
  */
 package org.hisp.dhis.dxf2.sync;
 
+import java.util.Date;
+
+import lombok.Getter;
+
 import org.hisp.dhis.dxf2.synch.SystemInstance;
-import org.hisp.dhis.system.util.Clock;
+import org.hisp.dhis.scheduling.JobProgress;
 
 /**
  * @author David Katuscak <katuscak.d@gmail.com>
  */
-public abstract class DataSynchronizationWithoutPaging
+public interface DataSynchronizationWithoutPaging
 {
-    protected Clock clock;
+    @Getter
+    class DataSynchronizationContext
+    {
+        private final Date startTime;
 
-    protected int objectsToSynchronize;
+        private final Date skipChangedBefore;
 
-    protected SystemInstance instance;
+        private final int objectsToSynchronize;
 
-    public abstract SynchronizationResult synchronizeData();
+        private final SystemInstance instance;
+
+        public DataSynchronizationContext( Date skipChangedBefore, int objectsToSynchronize, SystemInstance instance )
+        {
+            this.startTime = new Date();
+            this.skipChangedBefore = skipChangedBefore;
+            this.objectsToSynchronize = objectsToSynchronize;
+            this.instance = instance;
+        }
+    }
+
+    SynchronizationResult synchronizeData( JobProgress progress );
 }

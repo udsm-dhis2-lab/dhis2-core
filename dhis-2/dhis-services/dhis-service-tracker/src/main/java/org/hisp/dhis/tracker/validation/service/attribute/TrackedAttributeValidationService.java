@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,7 @@ public class TrackedAttributeValidationService
                 .message( " '%s' is not true (true-only type) for attribute %s " )
                 .build(),
             ValueTypeValidationFunction.builder().valueType( ValueType.USERNAME )
-                .function( v -> userService.getUserCredentialsByUsername( v ) == null )
+                .function( v -> userService.getUserByUsername( v ) == null )
                 .message( " '%s' is not true (true-only type) for attribute %s " )
                 .build(),
             ValueTypeValidationFunction.builder().valueType( ValueType.DATETIME )

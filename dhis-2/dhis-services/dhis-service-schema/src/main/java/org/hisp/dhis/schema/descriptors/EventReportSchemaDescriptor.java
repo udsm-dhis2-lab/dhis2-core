@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ public class EventReportSchemaDescriptor implements SchemaDescriptor
     {
         Schema schema = new Schema( EventReport.class, SINGULAR, PLURAL );
         schema.setRelativeApiEndpoint( API_ENDPOINT );
-        schema.setOrder( 1540 );
+        schema.setOrder( 1640 );
         schema.setImplicitPrivateAuthority( true );
 
         schema.add( new Authority( AuthorityType.CREATE_PUBLIC, Lists.newArrayList( "F_EVENTREPORT_PUBLIC_ADD" ) ) );

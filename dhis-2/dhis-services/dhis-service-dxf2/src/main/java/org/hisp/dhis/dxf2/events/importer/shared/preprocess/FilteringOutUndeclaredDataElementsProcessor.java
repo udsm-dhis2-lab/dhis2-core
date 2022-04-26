@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ import org.hisp.dhis.dxf2.events.importer.Processor;
 import org.hisp.dhis.dxf2.events.importer.context.WorkContext;
 import org.hisp.dhis.eventdatavalue.EventDataValue;
 import org.hisp.dhis.program.ProgramStage;
+import org.springframework.stereotype.Component;
 
 /**
  * Remove data elements from event and context map which are not present in the
@@ -48,6 +49,7 @@ import org.hisp.dhis.program.ProgramStage;
  *
  * @author Giuseppe Nespolino <g.nespolino@gmail.com>
  */
+@Component
 public class FilteringOutUndeclaredDataElementsProcessor implements Processor
 {
     @Override

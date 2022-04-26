@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,10 +30,11 @@ package org.hisp.dhis.reservedvalue.hibernate;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hisp.dhis.common.Objects.TRACKEDENTITYATTRIBUTE;
 
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -52,6 +53,7 @@ import org.springframework.stereotype.Repository;
  * @author Stian Sandvold
  */
 @Repository( "org.hisp.dhis.reservedvalue.ReservedValueStore" )
+@Slf4j
 public class HibernateReservedValueStore
     extends HibernateGenericStore<ReservedValue>
     implements ReservedValueStore
@@ -69,21 +71,40 @@ public class HibernateReservedValueStore
     }
 
     @Override
-    public List<ReservedValue> reserveValuesAndCheckUniqueness( ReservedValue reservedValue,
-        List<String> values )
+    public List<ReservedValue> getAvailableValues( ReservedValue reservedValue,
+        List<String> values, String ownerObject )
     {
-        List<String> availableValues = getIfAvailable( reservedValue, values );
+        List<String> availableValues = getIfAvailable( reservedValue, values, ownerObject );
 
-        List<ReservedValue> toAdd = availableValues.stream()
+        return availableValues.stream()
             .map( value -> reservedValue.toBuilder().value( value ).build() ).collect( Collectors.toList() );
+    }
 
+    @Override
+    public void bulkInsertReservedValues( List<ReservedValue> toAdd )
+    {
         BatchHandler<ReservedValue> batchHandler = batchHandlerFactory
             .createBatchHandler( ReservedValueBatchHandler.class ).init();
 
         toAdd.forEach( batchHandler::addObject );
         batchHandler.flush();
+    }
 
-        return toAdd;
+    private List<String> getIfAvailable( ReservedValue reservedValue, List<String> values, String ownerObject )
+    {
+        Optional.of( values ).filter(
+            v -> !v.isEmpty() && reservedValue.getOwnerObject().equals( ownerObject ) )
+            .ifPresent(
+                v -> values.removeAll( getSession().createNamedQuery( "getRandomGeneratedAvailableValuesNamedQuery" )
+                    .setParameter( "teaId", reservedValue.getTrackedEntityAttributeId() )
+                    .setParameter( "ownerObject", reservedValue.getOwnerObject() )
+                    .setParameter( "ownerUid", reservedValue.getOwnerUid() )
+                    .setParameter( "key", reservedValue.getKey() )
+                    .setParameter( "values",
+                        v.parallelStream().map( String::toLowerCase ).collect( Collectors.toList() ) )
+                    .list() ) );
+
+        return values;
     }
 
     @Override
@@ -104,21 +125,6 @@ public class HibernateReservedValueStore
 
         toAdd.forEach( this::save );
         return toAdd;
-    }
-
-    @Override
-    public List<ReservedValue> getIfReservedValues( ReservedValue reservedValue,
-        List<String> values )
-    {
-        String hql = "from ReservedValue rv where rv.ownerObject =:ownerObject and rv.ownerUid =:ownerUid " +
-            "and rv.key =:key and rv.value in :values";
-
-        return getQuery( hql )
-            .setParameter( "ownerObject", reservedValue.getOwnerObject() )
-            .setParameter( "ownerUid", reservedValue.getOwnerUid() )
-            .setParameter( "key", reservedValue.getKey() )
-            .setParameter( "values", values )
-            .getResultList();
     }
 
     @Override
@@ -146,14 +152,6 @@ public class HibernateReservedValueStore
         }
 
         return count.intValue();
-    }
-
-    @Override
-    public void removeExpiredReservations()
-    {
-        getQuery( "DELETE FROM ReservedValue WHERE expiryDate < :now" )
-            .setParameter( "now", new Date() )
-            .executeUpdate();
     }
 
     @Override
@@ -187,27 +185,19 @@ public class HibernateReservedValueStore
             .isEmpty();
     }
 
-    // -------------------------------------------------------------------------
-    // Supportive methods
-    // -------------------------------------------------------------------------
-
-    private List<String> getIfAvailable( ReservedValue reservedValue, List<String> values )
+    @Override
+    public void removeUsedOrExpiredReservations()
     {
-        List<String> reservedValues = getIfReservedValues( reservedValue, values ).stream()
-            .map( ReservedValue::getValue )
-            .collect( Collectors.toList() );
+        String deleteQuery = "DELETE FROM ReservedValue r WHERE r.expiryDate < CURRENT_TIMESTAMP OR r.value IN (" +
+            "SELECT teav.plainValue FROM TrackedEntityAttributeValue teav JOIN teav.attribute tea " +
+            "WHERE r.ownerUid = tea.uid AND r.value = teav.plainValue" +
+            ")";
 
-        values.removeAll( reservedValues );
+        log.info( "Starting deleting expired or used reserved values ...." );
 
-        Optional.of( values ).filter(
-            v -> !v.isEmpty() && Objects.valueOf( reservedValue.getOwnerObject() ).equals( TRACKEDENTITYATTRIBUTE ) )
-            .ifPresent(
-                v -> values.removeAll( getUntypedSqlQuery(
-                    "SELECT value FROM trackedentityattributevalue WHERE trackedentityattributeid = (SELECT trackedentityattributeid FROM trackedentityattribute WHERE uid = :uid) AND value IN :values" )
-                        .setParameter( "uid", reservedValue.getOwnerUid() )
-                        .setParameter( "values", v )
-                        .list() ) );
+        getQuery( deleteQuery )
+            .executeUpdate();
 
-        return values;
+        log.info( "... Completed deleting expired or used reserved values" );
     }
 }

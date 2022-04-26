@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,10 @@ package org.hisp.dhis.program.notification;
 
 import java.util.Date;
 
+import org.hisp.dhis.program.ProgramInstance;
+import org.hisp.dhis.program.ProgramStageInstance;
+import org.hisp.dhis.scheduling.JobProgress;
+
 /**
  * @author Halvdan Hoem Grelland
  */
@@ -50,14 +54,17 @@ public interface ProgramNotificationService
      *
      * @param day the Date representing the day relative to the scheduled
      *        notifications for which to send messages.
+     * @param progress tracking of job progress
      */
-    void sendScheduledNotificationsForDay( Date day );
+    void sendScheduledNotificationsForDay( Date day, JobProgress progress );
 
     /**
      * Sends all notifications which are scheduled by program rule and having
      * scheduledDate for today.
+     *
+     * @param progress tracking of job progress
      */
-    void sendScheduledNotifications();
+    void sendScheduledNotifications( JobProgress progress );
 
     /**
      * Send completion notifications for the ProgramStageInstance. If the
@@ -78,6 +85,8 @@ public interface ProgramNotificationService
      */
     void sendProgramRuleTriggeredNotifications( long pnt, long programInstance );
 
+    void sendProgramRuleTriggeredNotifications( long pnt, ProgramInstance programInstance );
+
     /**
      * Send completion notifications for the ProgramStageInstance triggered by
      * ProgramRule evaluation. {@link ProgramNotificationTemplate templates},
@@ -87,6 +96,8 @@ public interface ProgramNotificationService
      * @param programStageInstance the ProgramStageInstance id.
      */
     void sendProgramRuleTriggeredEventNotifications( long pnt, long programStageInstance );
+
+    void sendProgramRuleTriggeredEventNotifications( long pnt, ProgramStageInstance programStageInstance );
 
     /**
      * Send completion notifications for the ProgramInstance. If the Program is

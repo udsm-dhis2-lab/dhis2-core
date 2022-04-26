@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 package org.hisp.dhis.sms.scheduling;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.hisp.dhis.system.notification.NotificationLevel.INFO;
+import static java.lang.String.format;
 
 import java.util.Date;
 import java.util.List;
@@ -36,20 +36,19 @@ import java.util.List;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorReport;
 import org.hisp.dhis.message.MessageSender;
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.sms.outbound.OutboundSms;
 import org.hisp.dhis.sms.outbound.OutboundSmsService;
 import org.hisp.dhis.sms.outbound.OutboundSmsStatus;
 import org.hisp.dhis.system.notification.Notifier;
-import org.hisp.dhis.system.util.Clock;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component( "sendScheduledMessageJob" )
-public class SendScheduledMessageJob
-    extends AbstractJob
+public class SendScheduledMessageJob implements Job
 {
     private final OutboundSmsService outboundSmsService;
 
@@ -80,17 +79,11 @@ public class SendScheduledMessageJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration config, JobProgress progress )
     {
-        Clock clock = new Clock().startClock();
-
-        clock.logTime( "Starting to send messages in outbound" );
-        notifier.notify( jobConfiguration, INFO, "Start to send messages in outbound", true );
-
-        sendMessages();
-
-        clock.logTime( "Sending messages in outbound completed" );
-        notifier.notify( jobConfiguration, INFO, "Sending messages in outbound completed", true );
+        progress.startingProcess( "Starting to send messages in outbound" );
+        sendMessages( progress );
+        progress.completedProcess( "Sending messages in outbound completed" );
     }
 
     @Override
@@ -101,26 +94,27 @@ public class SendScheduledMessageJob
             return new ErrorReport( SendScheduledMessageJob.class, ErrorCode.E7010,
                 "SMS gateway configuration does not exist" );
         }
-
-        return super.validate();
+        return Job.super.validate();
     }
 
-    // -------------------------------------------------------------------------
-    // Supportive methods
-    // -------------------------------------------------------------------------
-
-    private void sendMessages()
+    private void sendMessages( JobProgress progress )
     {
-        List<OutboundSms> outboundSmsList = outboundSmsService.get( OutboundSmsStatus.OUTBOUND );
+        progress.startingStage( "Finding outbound SMS messages" );
+        List<OutboundSms> outboundSmsList = progress.runStage( List.of(),
+            list -> "found " + list.size() + " outbound SMS",
+            () -> outboundSmsService.get( OutboundSmsStatus.OUTBOUND ) );
 
-        if ( outboundSmsList != null )
+        if ( outboundSmsList != null && !outboundSmsList.isEmpty() )
         {
-            for ( OutboundSms outboundSms : outboundSmsList )
-            {
-                outboundSms.setDate( new Date() );
-                outboundSms.setStatus( OutboundSmsStatus.SENT );
-                smsSender.sendMessage( null, outboundSms.getMessage(), outboundSms.getRecipients() );
-            }
+            progress.startingStage( "Sending SMS messages", outboundSmsList.size() );
+            progress.runStage( outboundSmsList,
+                outboundSms -> format( "Sending message `%1.20s...` to %d recipients",
+                    outboundSms.getMessage(), outboundSms.getRecipients().size() ),
+                outboundSms -> {
+                    outboundSms.setDate( new Date() );
+                    outboundSms.setStatus( OutboundSmsStatus.SENT );
+                    smsSender.sendMessage( null, outboundSms.getMessage(), outboundSms.getRecipients() );
+                } );
         }
     }
 }

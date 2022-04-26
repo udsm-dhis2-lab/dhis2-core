@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,8 @@ import static org.hisp.dhis.common.cache.Cacheability.PRIVATE;
 import static org.hisp.dhis.common.cache.Cacheability.PUBLIC;
 import static org.hisp.dhis.setting.SettingKey.CACHEABILITY;
 import static org.hisp.dhis.setting.SettingKey.CACHE_STRATEGY;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
-import static org.mockito.junit.MockitoJUnit.rule;
 import static org.springframework.http.CacheControl.maxAge;
 import static org.springframework.http.CacheControl.noCache;
 
@@ -57,14 +56,15 @@ import org.hisp.dhis.analytics.cache.AnalyticsCacheSettings;
 import org.hisp.dhis.common.cache.CacheStrategy;
 import org.hisp.dhis.common.cache.Cacheability;
 import org.hisp.dhis.setting.SystemSettingManager;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.CacheControl;
 
-public class WebCacheTest
+@ExtendWith( MockitoExtension.class )
+class WebCacheTest
 {
 
     @Mock
@@ -73,50 +73,45 @@ public class WebCacheTest
     @Mock
     private AnalyticsCacheSettings analyticsCacheSettings;
 
-    @Rule
-    public MockitoRule mockitoRule = rule();
-
     private WebCache webCache;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         webCache = new WebCache( systemSettingManager, analyticsCacheSettings );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsNoCache()
+    void testGetCacheControlForWhenCacheStrategyIsNoCache()
     {
         // Given
-        final CacheStrategy theCacheStrategy = NO_CACHE;
         final CacheControl expectedCacheControl = noCache();
 
         // When
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( NO_CACHE );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsRespectSystemSetting()
+    void testGetCacheControlForWhenCacheStrategyIsRespectSystemSetting()
     {
         // Given
-        final CacheStrategy theInputCacheStrategy = RESPECT_SYSTEM_SETTING;
-        final CacheStrategy theCacheStrategySet = CACHE_5_MINUTES;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategySet );
+        final CacheStrategy strategy = CACHE_5_MINUTES;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
+        givenCacheStartegy( strategy );
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        when( systemSettingManager.getSystemSetting( CACHE_STRATEGY ) ).thenReturn( theCacheStrategySet );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theInputCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( RESPECT_SYSTEM_SETTING );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetAnalyticsCacheControlForWhenTimeToLiveIsZero()
+    void testGetAnalyticsCacheControlForWhenTimeToLiveIsZero()
     {
         // Given
         final long zeroTimeToLive = 0;
@@ -132,7 +127,7 @@ public class WebCacheTest
     }
 
     @Test
-    public void testGetAnalyticsCacheControlForWhenTimeToLiveIsNegative()
+    void testGetAnalyticsCacheControlForWhenTimeToLiveIsNegative()
     {
         // Given
         final long zeroTimeToLive = -1;
@@ -148,184 +143,167 @@ public class WebCacheTest
     }
 
     @Test
-    public void testGetAnalyticsCacheControlForWhenTimeToLiveIsPositive()
+    void testGetAnalyticsCacheControlForWhenTimeToLiveIsPositive()
     {
         // Given
         final long positiveTimeToLive = 60;
         final Date aDate = new Date();
         final CacheControl expectedCacheControl = stubPublicCacheControl( positiveTimeToLive );
-        final Cacheability setCacheability = PUBLIC;
-
-        // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( setCacheability );
+        givenCacheability( PUBLIC );
         when( analyticsCacheSettings.progressiveExpirationTimeOrDefault( aDate ) ).thenReturn( positiveTimeToLive );
+
         final CacheControl actualCacheControl = webCache.getCacheControlFor( aDate );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
-    @Test( expected = UnsupportedOperationException.class )
-    public void testGetCacheControlForWhenCacheStrategyIsRespectSystemSettingNotUsedInObjectBasis()
+    @Test
+    void testGetCacheControlForWhenCacheStrategyIsRespectSystemSettingNotUsedInObjectBasis()
     {
         // Given
-        final CacheStrategy theInputCacheStrategy = RESPECT_SYSTEM_SETTING;
-        final CacheStrategy theCacheStrategySet = RESPECT_SYSTEM_SETTING;
+        givenCacheStartegy( RESPECT_SYSTEM_SETTING );
 
-        // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        when( systemSettingManager.getSystemSetting( CACHE_STRATEGY ) ).thenReturn( theCacheStrategySet );
-        webCache.getCacheControlFor( theInputCacheStrategy );
-
-        // Then
-        fail( "Should not reach here. Exception was expected: " );
+        assertThrows( UnsupportedOperationException.class,
+            () -> webCache.getCacheControlFor( RESPECT_SYSTEM_SETTING ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache1Minute()
+    void testGetCacheControlForWhenCacheStrategyIsCache1Minute()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_1_MINUTE;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_1_MINUTE;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache5Minutes()
+    void testGetCacheControlForWhenCacheStrategyIsCache5Minutes()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_5_MINUTES;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_5_MINUTES;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache10Minutes()
+    void testGetCacheControlForWhenCacheStrategyIsCache10Minutes()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_10_MINUTES;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_10_MINUTES;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache15Minutes()
+    void testGetCacheControlForWhenCacheStrategyIsCache15Minutes()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_15_MINUTES;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_15_MINUTES;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache30Minutes()
+    void testGetCacheControlForWhenCacheStrategyIsCache30Minutes()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_30_MINUTES;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_30_MINUTES;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache1Hour()
+    void testGetCacheControlForWhenCacheStrategyIsCache1Hour()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_1_HOUR;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_1_HOUR;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testGetCacheControlForWhenCacheStrategyIsCache2Weeks()
+    void testGetCacheControlForWhenCacheStrategyIsCache2Weeks()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_TWO_WEEKS;
-        final CacheControl expectedCacheControl = stubPublicCacheControl( theCacheStrategy );
+        final CacheStrategy strategy = CACHE_TWO_WEEKS;
+        final CacheControl expectedCacheControl = stubPublicCacheControl( strategy );
+        givenCacheabilityPublic();
 
         // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( PUBLIC );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( strategy );
 
         // Then
         assertThat( actualCacheControl.toString(), is( expectedCacheControl.toString() ) );
     }
 
     @Test
-    public void testSetCacheabilityWhenCacheabilityIsSetToPublic()
+    void testSetCacheabilityWhenCacheabilityIsSetToPublic()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_5_MINUTES;
-        final Cacheability setCacheability = PUBLIC;
+        givenCacheability( PUBLIC );
 
-        // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( setCacheability );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( CACHE_5_MINUTES );
 
         // Then
         assertThat( actualCacheControl.toString().toLowerCase(), containsString( "public" ) );
     }
 
     @Test
-    public void testSetCacheabilityWhenCacheabilityIsSetToPrivate()
+    void testSetCacheabilityWhenCacheabilityIsSetToPrivate()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_5_MINUTES;
-        final Cacheability setCacheability = PRIVATE;
+        givenCacheability( PRIVATE );
 
-        // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( setCacheability );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( CACHE_5_MINUTES );
 
         // Then
         assertThat( actualCacheControl.toString().toLowerCase(), containsString( "private" ) );
     }
 
     @Test
-    public void testSetCacheabilityWhenCacheabilityIsSetToNull()
+    void testSetCacheabilityWhenCacheabilityIsSetToNull()
     {
         // Given
-        final CacheStrategy theCacheStrategy = CACHE_5_MINUTES;
-        final Cacheability nullCacheability = null;
+        givenCacheability( null );
 
-        // When
-        when( systemSettingManager.getSystemSetting( CACHEABILITY ) ).thenReturn( nullCacheability );
-        final CacheControl actualCacheControl = webCache.getCacheControlFor( theCacheStrategy );
+        final CacheControl actualCacheControl = webCache.getCacheControlFor( CACHE_5_MINUTES );
 
         // Then
         assertThat( actualCacheControl.toString().toLowerCase(), not( containsString( "private" ) ) );
@@ -340,5 +318,22 @@ public class WebCacheTest
     private CacheControl stubPublicCacheControl( final long seconds )
     {
         return maxAge( seconds, SECONDS ).cachePublic();
+    }
+
+    private void givenCacheStartegy( CacheStrategy theCacheStrategySet )
+    {
+        when( systemSettingManager.getSystemSetting( CACHE_STRATEGY, CacheStrategy.class ) )
+            .thenReturn( theCacheStrategySet );
+    }
+
+    private void givenCacheabilityPublic()
+    {
+        givenCacheability( PUBLIC );
+    }
+
+    private void givenCacheability( Cacheability cacheability )
+    {
+        when( systemSettingManager.getSystemSetting( CACHEABILITY, Cacheability.class ) )
+            .thenReturn( cacheability );
     }
 }

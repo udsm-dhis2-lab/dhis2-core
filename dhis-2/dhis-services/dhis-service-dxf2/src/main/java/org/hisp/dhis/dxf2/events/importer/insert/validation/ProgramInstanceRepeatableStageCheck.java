@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,12 @@ import org.hisp.dhis.program.ProgramInstance;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Luciano Fiandesio
  */
+@Component
 public class ProgramInstanceRepeatableStageCheck implements Checker
 {
     @Override
@@ -69,7 +71,7 @@ public class ProgramInstanceRepeatableStageCheck implements Checker
              tei != null &&
              program.isRegistration() &&
              !programStage.getRepeatable() &&
-             hasProgramStageInstance( ctx.getServiceDelegator().getJdbcTemplate(), programStage.getId(), tei.getId() ) )
+             hasProgramStageInstance( ctx.getServiceDelegator().getJdbcTemplate(), programInstance.getId(), programStage.getId(), tei.getId() ) )
         {
             return new ImportSummary( ImportStatus.ERROR,
                 "Program stage is not repeatable and an event already exists" ).setReference( event.getEvent() )
@@ -80,7 +82,7 @@ public class ProgramInstanceRepeatableStageCheck implements Checker
         return success();
     }
 
-    private boolean hasProgramStageInstance( JdbcTemplate jdbcTemplate, long programStageId,
+    private boolean hasProgramStageInstance( JdbcTemplate jdbcTemplate, long programInstanceId, long programStageId,
         long trackedEntityInstanceId )
     {
         // @formatter:off
@@ -88,13 +90,15 @@ public class ProgramInstanceRepeatableStageCheck implements Checker
                 "select * " +
                 "from programstageinstance psi " +
                 "  join programinstance pi on psi.programinstanceid = pi.programinstanceid " +
-                "where psi.programstageid = ? " +
+                "where pi.programinstanceid = ? " +
+                "  and psi.programstageid = ? " +
                 "  and psi.deleted = false " +
                 "  and pi.trackedentityinstanceid = ? " +
                 "  and psi.status != 'SKIPPED'" +
                 ")";
         // @formatter:on
 
-        return jdbcTemplate.queryForObject( sql, Boolean.class, programStageId, trackedEntityInstanceId );
+        return jdbcTemplate.queryForObject( sql, Boolean.class, programInstanceId, programStageId,
+            trackedEntityInstanceId );
     }
 }

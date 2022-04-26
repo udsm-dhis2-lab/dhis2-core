@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ public class vAnalyticsPeriodEnd
     @Override
     public Object getSql( CommonExpressionVisitor visitor )
     {
-        return visitor.getStatementBuilder().encode( DateUtils.getSqlDateString( visitor.getReportingEndDate() ) );
+        return visitor.getStatementBuilder().encode( DateUtils.getSqlDateString(
+            visitor.getProgParams().getReportingEndDate() ) );
     }
 }

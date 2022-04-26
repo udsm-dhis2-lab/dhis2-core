@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 package org.hisp.dhis.tracker.report;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -66,7 +66,7 @@ public class TrackerTimingsStats
     public static final String TOTAL_REQUEST_OPS = "totalRequest";
 
     @JsonProperty
-    private Map<String, String> timers = new HashMap<>();
+    private Map<String, String> timers = new LinkedHashMap<>();
 
     private final static String DEFAULT_VALUE = "0.0 sec.";
 

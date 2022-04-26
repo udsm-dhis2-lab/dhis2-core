@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.external.conf.ConfigurationKey;
 import org.hisp.dhis.external.conf.DhisConfigurationProvider;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.SchedulingManager;
 
 /**
@@ -57,13 +58,13 @@ public class NoOpLeaderManager implements LeaderManager
     }
 
     @Override
-    public void renewLeader()
+    public void renewLeader( JobProgress progress )
     {
         // No operation
     }
 
     @Override
-    public void electLeader()
+    public void electLeader( JobProgress progress )
     {
         // No operation
     }

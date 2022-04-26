@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,8 +131,7 @@ public class HibernateTrackedEntityAttributeValueAuditStore
             trackedEntityAttributes, trackedEntityInstances, auditType );
 
         query.select( builder.countDistinct( root.get( "id" ) ) )
-            .where( predicates.toArray( new Predicate[0] ) )
-            .orderBy( builder.desc( root.get( "created" ) ) );
+            .where( predicates.toArray( new Predicate[0] ) );
 
         return (sessionFactory.getCurrentSession()
             .createQuery( query )

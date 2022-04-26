@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers.file;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +25,17 @@ package org.hisp.dhis.helpers.file;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import org.hisp.dhis.actions.IdGenerator;
-import org.hisp.dhis.utils.DataGenerator;
+package org.hisp.dhis.helpers.file;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
+
+import org.hisp.dhis.actions.IdGenerator;
+import org.hisp.dhis.utils.DataGenerator;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -63,15 +63,15 @@ public class FileReaderUtils
             return new XmlFileReader( file );
         }
 
-        logger.warning( "Tried to read file " + file.getName() + ", but there is no reader implemented for this file type. " );
+        logger.warning(
+            "Tried to read file " + file.getName() + ", but there is no reader implemented for this file type. " );
 
         return null;
     }
 
     /**
-     * Reads json file and generates data where needed.
-     * Json file should indicate what data should be generated.
-     * Format: %string%, %id%
+     * Reads json file and generates data where needed. Json file should
+     * indicate what data should be generated. Format: %string%, %id%
      *
      * @param file
      * @return

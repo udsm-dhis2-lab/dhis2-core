@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.hibernate.SessionFactory;
 import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.schema.introspection.GistPropertyIntrospector;
@@ -52,7 +50,6 @@ import org.springframework.stereotype.Service;
  *
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
-@Slf4j
 @Service( "org.hisp.dhis.schema.PropertyIntrospectorService" )
 public class DefaultPropertyIntrospectorService implements PropertyIntrospectorService
 {

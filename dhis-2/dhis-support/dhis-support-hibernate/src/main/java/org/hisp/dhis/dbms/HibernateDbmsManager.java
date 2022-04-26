@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,32 +107,6 @@ public class HibernateDbmsManager
 
         emptyTable( "report" );
 
-        emptyTable( "reporttable_categorydimensions" );
-        emptyTable( "reporttable_categoryoptiongroupsetdimensions" );
-        emptyTable( "reporttable_columns" );
-        emptyTable( "reporttable_datadimensionitems" );
-        emptyTable( "reporttable_dataelementgroupsetdimensions" );
-        emptyTable( "reporttable_filters" );
-        emptyTable( "reporttable_itemorgunitgroups" );
-        emptyTable( "reporttable_organisationunits" );
-        emptyTable( "reporttable_orgunitgroupsetdimensions" );
-        emptyTable( "reporttable_orgunitlevels" );
-        emptyTable( "reporttable_periods" );
-        emptyTable( "reporttable_rows" );
-        emptyTable( "reporttable" );
-
-        emptyTable( "chart_categorydimensions" );
-        emptyTable( "chart_categoryoptiongroupsetdimensions" );
-        emptyTable( "chart_datadimensionitems" );
-        emptyTable( "chart_dataelementgroupsetdimensions" );
-        emptyTable( "chart_filters" );
-        emptyTable( "chart_itemorgunitgroups" );
-        emptyTable( "chart_organisationunits" );
-        emptyTable( "chart_orgunitgroupsetdimensions" );
-        emptyTable( "chart_orgunitlevels" );
-        emptyTable( "chart_periods" );
-        emptyTable( "chart" );
-
         emptyTable( "visualization_yearlyseries" );
         emptyTable( "visualization_rows" );
         emptyTable( "visualization_periods" );
@@ -175,6 +149,19 @@ public class HibernateDbmsManager
         emptyTable( "eventchart_programindicatordimensions" );
         emptyTable( "eventchart_rows" );
         emptyTable( "eventchart" );
+
+        emptyTable( "eventvisualization_attributedimensions" );
+        emptyTable( "eventvisualization_columns" );
+        emptyTable( "eventvisualization_dataelementdimensions" );
+        emptyTable( "eventvisualization_filters" );
+        emptyTable( "eventvisualization_itemorgunitgroups" );
+        emptyTable( "eventvisualization_organisationunits" );
+        emptyTable( "eventvisualization_orgunitgroupsetdimensions" );
+        emptyTable( "eventvisualization_orgunitlevels" );
+        emptyTable( "eventvisualization_periods" );
+        emptyTable( "eventvisualization_programindicatordimensions" );
+        emptyTable( "eventvisualization_rows" );
+        emptyTable( "eventvisualization" );
 
         emptyTable( "dataelementgroupsetdimension_items" );
         emptyTable( "dataelementgroupsetdimension" );
@@ -332,7 +319,6 @@ public class HibernateDbmsManager
         emptyTable( "usergroup" );
 
         emptyTable( "previouspasswords" );
-        emptyTable( "users" );
         emptyTable( "usersetting" );
         emptyTable( "fileresource" );
         emptyTable( "trackedentitycomment" );

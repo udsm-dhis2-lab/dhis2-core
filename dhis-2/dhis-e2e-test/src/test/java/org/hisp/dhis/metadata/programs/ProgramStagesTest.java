@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata.programs;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +25,15 @@ package org.hisp.dhis.metadata.programs;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata.programs;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.actions.metadata.ProgramActions;
 import org.hisp.dhis.dto.ApiResponse;
+import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.ResponseValidationHelper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -65,8 +64,8 @@ public class ProgramStagesTest
         programStageActions = programActions.programStageActions;
 
         loginActions.loginAsSuperUser();
-        programId = programActions.createTrackerProgram().extractUid();
-        programStageId = programActions.createProgramStage( "Tracker program stage 1" );
+        programId = programActions.createTrackerProgram( null ).extractUid();
+        programStageId = programActions.createProgramStage( programId, "Tracker program stage 1" );
     }
 
     @Test
@@ -74,15 +73,11 @@ public class ProgramStagesTest
     {
         // arrange
 
-        JsonObject programBody = programActions.get( programId ).getBody();
-        JsonArray programStages = new JsonArray();
-
-        JsonObject programStage = new JsonObject();
-        programStage.addProperty( "id", programStageId );
-
-        programStages.add( programStage );
-
-        programBody.add( "programStages", programStages );
+        JsonObject programBody = programActions.get( programId ).getBodyAsJsonBuilder()
+            .addArray( "programStages", new JsonObjectBuilder()
+                .addProperty( "id", programStageId )
+                .build() )
+            .build();
 
         // act
         ApiResponse response = programActions.update( programId, programBody );

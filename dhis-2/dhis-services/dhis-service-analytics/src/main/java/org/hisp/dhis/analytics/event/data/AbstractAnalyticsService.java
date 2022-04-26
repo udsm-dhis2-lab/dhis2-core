@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,12 @@
 package org.hisp.dhis.analytics.event.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.hisp.dhis.analytics.AnalyticsMetaDataKey.*;
+import static org.apache.commons.lang3.StringUtils.joinWith;
+import static org.hisp.dhis.analytics.AnalyticsMetaDataKey.DIMENSIONS;
+import static org.hisp.dhis.analytics.AnalyticsMetaDataKey.ITEMS;
+import static org.hisp.dhis.analytics.AnalyticsMetaDataKey.ORG_UNIT_HIERARCHY;
+import static org.hisp.dhis.analytics.AnalyticsMetaDataKey.ORG_UNIT_NAME_HIERARCHY;
+import static org.hisp.dhis.analytics.AnalyticsMetaDataKey.PAGER;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObjectUtils.asTypedList;
@@ -39,17 +44,35 @@ import static org.hisp.dhis.common.ValueType.COORDINATE;
 import static org.hisp.dhis.organisationunit.OrganisationUnit.getParentGraphMap;
 import static org.hisp.dhis.organisationunit.OrganisationUnit.getParentNameGraphMap;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.hisp.dhis.analytics.AnalyticsSecurityManager;
+import org.hisp.dhis.analytics.data.handler.SchemaIdResponseMapper;
 import org.hisp.dhis.analytics.event.EventQueryParams;
 import org.hisp.dhis.analytics.event.EventQueryValidator;
 import org.hisp.dhis.analytics.util.AnalyticsUtils;
 import org.hisp.dhis.calendar.Calendar;
-import org.hisp.dhis.common.*;
+import org.hisp.dhis.common.BaseIdentifiableObject;
+import org.hisp.dhis.common.DimensionItemKeywords;
+import org.hisp.dhis.common.DimensionalItemObject;
+import org.hisp.dhis.common.DimensionalObject;
+import org.hisp.dhis.common.Grid;
+import org.hisp.dhis.common.GridHeader;
+import org.hisp.dhis.common.IdScheme;
+import org.hisp.dhis.common.MetadataItem;
+import org.hisp.dhis.common.Pager;
+import org.hisp.dhis.common.QueryItem;
+import org.hisp.dhis.common.RepeatableStageParams;
+import org.hisp.dhis.common.SlimPager;
+import org.hisp.dhis.common.ValueType;
+import org.hisp.dhis.option.Option;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.user.User;
@@ -65,13 +88,18 @@ public abstract class AbstractAnalyticsService
 
     final EventQueryValidator queryValidator;
 
-    public AbstractAnalyticsService( AnalyticsSecurityManager securityManager, EventQueryValidator queryValidator )
+    final SchemaIdResponseMapper schemaIdResponseMapper;
+
+    public AbstractAnalyticsService( AnalyticsSecurityManager securityManager, EventQueryValidator queryValidator,
+        SchemaIdResponseMapper schemaIdResponseMapper )
     {
         checkNotNull( securityManager );
         checkNotNull( queryValidator );
+        checkNotNull( schemaIdResponseMapper );
 
         this.securityManager = securityManager;
         this.queryValidator = queryValidator;
+        this.schemaIdResponseMapper = schemaIdResponseMapper;
     }
 
     protected Grid getGrid( EventQueryParams params )
@@ -85,6 +113,13 @@ public abstract class AbstractAnalyticsService
         params = securityManager.withUserConstraints( params );
 
         queryValidator.validate( params );
+
+        // keywords as well as their periods are removed in the next step,
+        // params object is modified
+        List<DimensionItemKeywords.Keyword> periodKeywords = params.getDimensions().stream().map(
+            DimensionalObject::getDimensionItemKeywords )
+            .filter( dimensionItemKeywords -> dimensionItemKeywords != null && !dimensionItemKeywords.isEmpty() )
+            .flatMap( dk -> dk.getKeywords().stream() ).collect( Collectors.toList() );
 
         params = new EventQueryParams.Builder( params )
             .withStartEndDatesForPeriods()
@@ -116,10 +151,27 @@ public abstract class AbstractAnalyticsService
                     item.getItem().getDisplayProperty( params.getDisplayProperty() ), COORDINATE,
                     false, true, item.getOptionSet(), item.getLegendSet() ) );
             }
+            else if ( hasNonDefaultRepeatableProgramStageOffset( item ) )
+            {
+
+                String column = item.getItem().getDisplayProperty( params.getDisplayProperty() );
+
+                RepeatableStageParams repeatableStageParams = item.getRepeatableStageParams();
+
+                String name = repeatableStageParams.getDimension();
+
+                grid.addHeader( new GridHeader( name, column,
+                    repeatableStageParams.simpleStageValueExpected() ? item.getValueType() : ValueType.REFERENCE,
+                    false, true, item.getOptionSet(), item.getLegendSet(),
+                    item.getProgramStage().getUid(), item.getRepeatableStageParams() ) );
+            }
             else
             {
-                grid.addHeader( new GridHeader( item.getItem().getUid(),
-                    item.getItem().getDisplayProperty( params.getDisplayProperty() ), item.getValueType(),
+                final String uid = getItemUid( item );
+
+                final String column = item.getItem().getDisplayProperty( params.getDisplayProperty() );
+
+                grid.addHeader( new GridHeader( uid, column, item.getValueType(),
                     false, true, item.getOptionSet(), item.getLegendSet() ) );
             }
         }
@@ -128,13 +180,18 @@ public abstract class AbstractAnalyticsService
         // Data
         // ---------------------------------------------------------------------
 
-        long count = addEventData( grid, params );
+        long count = 0;
+
+        if ( !params.isSkipData() || params.analyzeOnly() )
+        {
+            count = addEventData( grid, params );
+        }
 
         // ---------------------------------------------------------------------
         // Meta-data
         // ---------------------------------------------------------------------
 
-        addMetadata( params, grid );
+        addMetadata( params, periodKeywords, grid );
 
         // ---------------------------------------------------------------------
         // Data ID scheme
@@ -145,23 +202,82 @@ public abstract class AbstractAnalyticsService
             substituteData( grid );
         }
 
+        maybeApplyIdScheme( params, grid );
+
         // ---------------------------------------------------------------------
         // Paging
         // ---------------------------------------------------------------------
 
+        maybeApplyPaging( params, count, grid );
+
+        maybeApplyHeaders( params, grid );
+
+        return grid;
+    }
+
+    /**
+     * Substitutes the meta data of the grid with the identifier scheme meta
+     * data property indicated in the query. This happens only when a custom ID
+     * Schema is set.
+     *
+     * @param params the {@link EventQueryParams}.
+     * @param grid the grid.
+     */
+    void maybeApplyIdScheme( EventQueryParams params, Grid grid )
+    {
+        if ( !params.isSkipMeta() )
+        {
+            if ( params.hasCustomIdSchemaSet() )
+            {
+                // Apply all schemas set/mapped to the grid.
+                grid.substituteMetaData( schemaIdResponseMapper.getSchemeIdResponseMap( params ) );
+            }
+        }
+    }
+
+    private void maybeApplyPaging( EventQueryParams params, long count, Grid grid )
+    {
         if ( params.isPaging() )
         {
-            Pager pager = new Pager( params.getPageWithDefault(), count, params.getPageSizeWithDefault() );
+            Pager pager = params.isTotalPages()
+                ? new Pager( params.getPageWithDefault(), count, params.getPageSizeWithDefault() )
+                : new SlimPager( params.getPageWithDefault(), params.getPageSizeWithDefault(), grid.hasLastDataRow() );
 
             grid.getMetaData().put( PAGER.getKey(), pager );
         }
+    }
 
-        return grid;
+    /**
+     * Based on the given item this method returns the correct uid based on
+     * internal rules/requirements.
+     *
+     * @param item the current QueryItem
+     * @return the correct uid based on the item type
+     */
+    private String getItemUid( final QueryItem item )
+    {
+        String uid = item.getItem().getUid();
+
+        if ( item.hasProgramStage() )
+        {
+            uid = joinWith( ".", item.getProgramStage().getUid(), uid );
+        }
+
+        return uid;
     }
 
     protected abstract Grid createGridWithHeaders( EventQueryParams params );
 
     protected abstract long addEventData( Grid grid, EventQueryParams params );
+
+    private void maybeApplyHeaders( final EventQueryParams params, final Grid grid )
+    {
+        if ( params.hasHeaders() )
+        {
+            grid.keepOnlyThese( params.getHeaders() );
+            grid.repositionColumns( grid.repositionHeaders( params.getHeaders() ) );
+        }
+    }
 
     /**
      * Adds meta data values to the given grid based on the given data query
@@ -172,12 +288,27 @@ public abstract class AbstractAnalyticsService
      */
     protected void addMetadata( EventQueryParams params, Grid grid )
     {
+        addMetadata( params, null, grid );
+    }
+
+    /**
+     * Adds meta data values to the given grid based on the given data query
+     * parameters.
+     *
+     * @param params the data query parameters.
+     * @param grid the grid.
+     */
+    protected void addMetadata( EventQueryParams params, List<DimensionItemKeywords.Keyword> periodKeywords, Grid grid )
+    {
         if ( !params.isSkipMeta() )
         {
             final Map<String, Object> metadata = new HashMap<>();
 
-            metadata.put( ITEMS.getKey(), getMetadataItems( params ) );
-            metadata.put( DIMENSIONS.getKey(), getDimensionItems( params ) );
+            List<Option> options = getItemOptions( grid );
+
+            metadata.put( ITEMS.getKey(), getMetadataItems( params, periodKeywords, options ) );
+
+            metadata.put( DIMENSIONS.getKey(), getDimensionItems( params, options ) );
 
             if ( params.isHierarchyMeta() || params.isShowHierarchy() )
             {
@@ -203,12 +334,50 @@ public abstract class AbstractAnalyticsService
     }
 
     /**
+     * Returns a map of metadata item options and {@link Option}.
+     *
+     * @param grid the Grid instance.
+     * @return a list of options.
+     */
+    protected List<Option> getItemOptions( Grid grid )
+    {
+        List<Option> options = new ArrayList<>();
+
+        for ( int i = 0; i < grid.getHeaders().size(); ++i )
+        {
+            GridHeader gridHeader = grid.getHeaders().get( i );
+
+            if ( gridHeader.hasOptionSet() )
+            {
+                final int columnIndex = i;
+
+                options.addAll( gridHeader
+                    .getOptionSetObject()
+                    .getOptions()
+                    .stream()
+                    .filter( opt -> opt != null && grid.getRows().stream().anyMatch( r -> {
+                        Object o = r.get( columnIndex );
+                        if ( o instanceof String )
+                        {
+                            return ((String) o).equalsIgnoreCase( opt.getCode() );
+                        }
+
+                        return false;
+                    } ) ).collect( Collectors.toList() ) );
+            }
+        }
+
+        return options.stream().distinct().collect( Collectors.toList() );
+    }
+
+    /**
      * Returns a map of metadata item identifiers and {@link MetadataItem}.
      *
      * @param params the data query parameters.
      * @return a map.
      */
-    private Map<String, MetadataItem> getMetadataItems( EventQueryParams params )
+    private Map<String, MetadataItem> getMetadataItems( EventQueryParams params,
+        List<DimensionItemKeywords.Keyword> periodKeywords, List<Option> itemOptions )
     {
         Map<String, MetadataItem> metadataItemMap = AnalyticsUtils.getDimensionMetadataItemMap( params );
 
@@ -223,23 +392,109 @@ public abstract class AbstractAnalyticsService
         }
 
         params.getItemLegends().stream()
-            .filter( legend -> legend != null )
+            .filter( Objects::nonNull )
             .forEach( legend -> metadataItemMap.put( legend.getUid(),
                 new MetadataItem( legend.getDisplayName(), includeDetails ? legend.getUid() : null,
                     legend.getCode() ) ) );
 
-        params.getItemOptions().stream()
-            .filter( option -> option != null )
-            .forEach( option -> metadataItemMap.put( option.getUid(),
-                new MetadataItem( option.getDisplayName(), includeDetails ? option.getUid() : null,
-                    option.getCode() ) ) );
+        addMetadataItems( metadataItemMap, params, itemOptions );
 
         params.getItemsAndItemFilters().stream()
-            .filter( item -> item != null )
-            .forEach( item -> metadataItemMap.put( item.getItemId(),
-                new MetadataItem( item.getItem().getDisplayName(), includeDetails ? item.getItem() : null ) ) );
+            .filter( Objects::nonNull )
+            .forEach( item -> addItemIntoMetadata( metadataItemMap, item, includeDetails ) );
+
+        if ( hasPeriodKeywords( periodKeywords ) )
+        {
+            for ( DimensionItemKeywords.Keyword keyword : periodKeywords )
+            {
+                if ( keyword.getMetadataItem() != null )
+                {
+                    metadataItemMap.put( keyword.getKey(), new MetadataItem( keyword.getMetadataItem().getName() ) );
+                }
+            }
+        }
 
         return metadataItemMap;
+    }
+
+    private void addItemIntoMetadata( final Map<String, MetadataItem> metadataItemMap, final QueryItem item,
+        final boolean includeDetails )
+    {
+        final MetadataItem metadataItem = new MetadataItem( item.getItem().getDisplayName(),
+            includeDetails ? item.getItem() : null );
+
+        metadataItemMap.put( getItemIdMaybeWithProgramStageIdPrefix( item ), metadataItem );
+
+        // This is done for backward compatibility reason. It should remain here
+        // while the New Event Report is living along with its "classic"
+        // version.
+        metadataItemMap.put( item.getItemId(), metadataItem );
+    }
+
+    /**
+     * Program Stage id prefix for meta items
+     *
+     * @param item QueryItem.
+     */
+    private String getItemIdMaybeWithProgramStageIdPrefix( QueryItem item )
+    {
+        if ( item.hasProgramStage() )
+        {
+            return item.getProgramStage().getUid() + "." + item.getItemId();
+        }
+
+        return item.getItemId();
+    }
+
+    /**
+     * check the period dimension keywords
+     *
+     * @param periodKeywords PeriodKeywords.
+     */
+    private boolean hasPeriodKeywords( List<DimensionItemKeywords.Keyword> periodKeywords )
+    {
+        return periodKeywords != null && !periodKeywords.isEmpty();
+    }
+
+    /**
+     * Add into the MetadataItemMap itemOptions
+     *
+     * @param metadataItemMap MetadataItemMap.
+     * @param params EventQueryParams.
+     * @param itemOptions itemOtion list.
+     */
+    private void addMetadataItems( final Map<String, MetadataItem> metadataItemMap, final EventQueryParams params,
+        final List<Option> itemOptions )
+    {
+        boolean includeDetails = params.isIncludeMetadataDetails();
+
+        if ( !params.isSkipData() )
+        {
+            // filtering if the rows in grid are there (skipData = false)
+            itemOptions.forEach( option -> metadataItemMap.put( option.getUid(),
+                new MetadataItem( option.getDisplayName(), includeDetails ? option.getUid() : null,
+                    option.getCode() ) ) );
+        }
+        else
+        {
+            // filtering if the rows in grid are not there (skipData = true
+            // only)
+            // dimension=Zj7UnCAulEk.K6uUAvq500H:IN:A00;A60;A01 -> IN indicates
+            // there is a filter
+            // the stream contains all options if no filter or only options fit
+            // to the filter
+            // options can be divided by separator <<;>>
+            params.getItemOptions().stream()
+                .filter( option -> option != null &&
+                    (params.getItems().stream().noneMatch( QueryItem::hasFilter ) ||
+                        params.getItems().stream().filter( QueryItem::hasFilter )
+                            .anyMatch( qi -> qi.getFilters().stream()
+                                .anyMatch( f -> Arrays.stream( f.getFilter().split( ";" ) )
+                                    .anyMatch( ft -> ft.equalsIgnoreCase( option.getCode() ) ) ) )) )
+                .forEach( option -> metadataItemMap.put( option.getUid(),
+                    new MetadataItem( option.getDisplayName(), includeDetails ? option.getUid() : null,
+                        option.getCode() ) ) );
+        }
     }
 
     /**
@@ -249,7 +504,7 @@ public abstract class AbstractAnalyticsService
      * @param params the data query parameters.
      * @return a map.
      */
-    private Map<String, List<String>> getDimensionItems( EventQueryParams params )
+    private Map<String, List<String>> getDimensionItems( EventQueryParams params, List<Option> itemOptions )
     {
         Calendar calendar = PeriodType.getCalendar();
 
@@ -267,17 +522,19 @@ public abstract class AbstractAnalyticsService
 
         for ( QueryItem item : params.getItems() )
         {
+            final String itemUid = getItemUid( item );
+
             if ( item.hasOptionSet() )
             {
-                dimensionItems.put( item.getItemId(), item.getOptionSetFilterItemsOrAll() );
+                dimensionItems.put( itemUid, getDimensionItemUidList( params, item, itemOptions ) );
             }
             else if ( item.hasLegendSet() )
             {
-                dimensionItems.put( item.getItemId(), item.getLegendSetFilterItemsOrAll() );
+                dimensionItems.put( itemUid, item.getLegendSetFilterItemsOrAll() );
             }
             else
             {
-                dimensionItems.put( item.getItemId(), Lists.newArrayList() );
+                dimensionItems.put( itemUid, Lists.newArrayList() );
             }
         }
 
@@ -298,6 +555,28 @@ public abstract class AbstractAnalyticsService
         }
 
         return dimensionItems;
+    }
+
+    /**
+     * Return list of dimension item uids
+     *
+     * @param params EventQueryParams.
+     * @param item QueryItem
+     * @param itemOptions itemOtion list.
+     * @return a list of uids.
+     */
+    private List<String> getDimensionItemUidList( EventQueryParams params, QueryItem item, List<Option> itemOptions )
+    {
+        if ( params.isSkipData() )
+        {
+            return item.getOptionSetFilterItemsOrAll();
+        }
+        else
+        {
+            return itemOptions.stream()
+                .map( BaseIdentifiableObject::getUid )
+                .collect( Collectors.toList() );
+        }
     }
 
     /**
@@ -322,5 +601,11 @@ public abstract class AbstractAnalyticsService
                 grid.substituteMetaData( i, i, legendMap );
             }
         }
+    }
+
+    private boolean hasNonDefaultRepeatableProgramStageOffset( QueryItem item )
+    {
+        return item != null && item.getProgramStage() != null && item.getRepeatableStageParams() != null
+            && !item.getRepeatableStageParams().isDefaultObject();
     }
 }

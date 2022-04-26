@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.hisp.dhis.program.ProgramInstance;
 import org.hisp.dhis.program.ProgramStage;
+import org.hisp.dhis.tracker.TrackerImportStrategy;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.MetadataIdentifier;
 import org.hisp.dhis.tracker.report.TrackerErrorCode;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -51,36 +53,50 @@ public class RepeatedEventsValidationHook
     extends AbstractTrackerDtoValidationHook
 {
     @Override
-    public ValidationErrorReporter validate( TrackerImportValidationContext context )
+    public void validate( ValidationErrorReporter reporter, TrackerBundle bundle )
     {
-        TrackerBundle bundle = context.getBundle();
-
-        ValidationErrorReporter rootReporter = context.getRootReporter();
-
-        Map<Pair<String, String>, List<Event>> eventsByEnrollmentAndNotRepeatableProgramStage = bundle.getEvents()
+        Map<Pair<MetadataIdentifier, String>, List<Event>> eventsByEnrollmentAndNotRepeatableProgramStage = bundle
+            .getEvents()
             .stream()
-            .filter( e -> !rootReporter.isInvalid( e ) )
+            .filter( e -> !reporter.isInvalid( e ) )
+            .filter( e -> !bundle.getStrategy( e ).isDelete() )
             .filter( e -> {
-                ProgramStage programStage = context.getProgramStage( e.getProgramStage() );
+                ProgramStage programStage = bundle.getPreheat().getProgramStage( e.getProgramStage() );
                 return programStage.getProgram().isRegistration() && !programStage.getRepeatable();
             } )
             .collect( Collectors.groupingBy( e -> Pair.of( e.getProgramStage(), e.getEnrollment() ) ) );
 
-        for ( Map.Entry<Pair<String, String>, List<Event>> mapEntry : eventsByEnrollmentAndNotRepeatableProgramStage
+        for ( Map.Entry<Pair<MetadataIdentifier, String>, List<Event>> mapEntry : eventsByEnrollmentAndNotRepeatableProgramStage
             .entrySet() )
         {
             if ( mapEntry.getValue().size() > 1 )
             {
                 for ( Event event : mapEntry.getValue() )
                 {
-                    final ValidationErrorReporter reporter = new ValidationErrorReporter( context, event );
-                    addError( reporter, TrackerErrorCode.E1039, mapEntry.getKey().getLeft() );
-                    context.getRootReporter().merge( reporter );
+                    reporter.addError( event, TrackerErrorCode.E1039,
+                        mapEntry.getKey().getLeft().getIdentifierOrAttributeValue() );
                 }
             }
         }
 
-        return rootReporter;
+        bundle.getEvents()
+            .forEach( e -> validateNotMultipleEvents( reporter, bundle, e ) );
+    }
+
+    private void validateNotMultipleEvents( ValidationErrorReporter reporter, TrackerBundle bundle, Event event )
+    {
+        ProgramInstance programInstance = bundle.getProgramInstance( event.getEnrollment() );
+        ProgramStage programStage = bundle.getPreheat().getProgramStage( event.getProgramStage() );
+
+        TrackerImportStrategy strategy = bundle.getStrategy( event );
+
+        if ( strategy == TrackerImportStrategy.CREATE && programStage != null && programInstance != null
+            && !programStage.getRepeatable()
+            && reporter.getBundle().getPreheat().hasProgramStageWithEvents( event.getProgramStage(),
+                event.getEnrollment() ) )
+        {
+            reporter.addError( event, TrackerErrorCode.E1039, event.getProgramStage().getIdentifierOrAttributeValue() );
+        }
     }
 
     @Override

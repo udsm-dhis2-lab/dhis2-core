@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,16 @@
 package org.hisp.dhis.reservedvalue;
 
 import static java.util.Calendar.DATE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.*;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.collections4.ListUtils;
 import org.hisp.dhis.TransactionalIntegrationTest;
@@ -43,14 +47,15 @@ import org.hisp.dhis.textpattern.TextPattern;
 import org.hisp.dhis.textpattern.TextPatternGenerationException;
 import org.hisp.dhis.textpattern.TextPatternParser;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.annotation.Commit;
 
 @Commit
-public class ReservedValueServiceIntegrationTest extends TransactionalIntegrationTest
+class ReservedValueServiceIntegrationTest extends TransactionalIntegrationTest
 {
+
     @Autowired
     private ReservedValueService reservedValueService;
 
@@ -60,194 +65,204 @@ public class ReservedValueServiceIntegrationTest extends TransactionalIntegratio
     // Preset values
     private static Date future;
 
-    private static TextPattern simpleTextPattern;
+    private static TrackedEntityAttribute simpleTextPattern;
 
-    private static TextPattern simpleSequentialTextPattern;
+    private static TrackedEntityAttribute simpleSequentialTextPattern;
 
-    private static TextPattern simpleRandomTextPattern;
+    private static TrackedEntityAttribute simpleRandomTextPattern;
 
-    private static TextPattern simpleStringPattern;
+    private static TrackedEntityAttribute simpleRandomTextNumericPattern;
 
-    @BeforeClass
-    public static void setUpClass()
+    private static TrackedEntityAttribute simpleStringPattern;
+
+    @BeforeAll
+    static void setUpClass()
     {
         // Set up future Date
         Calendar calendar = Calendar.getInstance();
         calendar.add( DATE, 10 );
         future = calendar.getTime();
-
         // Set up dummy TrackedEntityAttribute
         TrackedEntityAttribute tea = createTrackedEntityAttribute( 'A' );
-
         // Set up text patterns
         simpleTextPattern = createTextPattern( tea, "\"FOOBAR\"" );
         simpleSequentialTextPattern = createTextPattern( tea, "\"TEST-\"+SEQUENTIAL(##)" );
         simpleRandomTextPattern = createTextPattern( tea, "\"TEST-\"+RANDOM(XXX)" );
+        simpleRandomTextNumericPattern = createTextPattern( tea, "\"EPI_\"+RANDOM(######)" );
         simpleStringPattern = createTextPattern( tea, "\"TEST-\"+ORG_UNIT_CODE(..)" );
     }
 
     @Test
-    public void testReserveReserveASingleSimpleValueWhenNotUsed()
+    void testReserveReserveASingleSimpleValueWhenNotUsed()
         throws Exception
     {
         List<ReservedValue> res = reservedValueService.reserve( simpleTextPattern, 1, new HashMap<>(), future );
-
         assertEquals( "FOOBAR", res.get( 0 ).getValue() );
         assertEquals( 1, reservedValueStore.getCount() );
     }
 
     @Test
-    public void testReserveReserveASingleSimpleValueWhenUsed()
+    void testReserveReserveASingleSimpleValueWhenUsed()
         throws TextPatternGenerationException,
         ReserveValueException
     {
         reservedValueService.reserve( simpleTextPattern, 1, new HashMap<>(), future );
-
         assertThrows( ReserveValueException.class,
             () -> reservedValueService.reserve( simpleTextPattern, 1, new HashMap<>(), future ) );
-
         assertEquals( 1, reservedValueStore.getCount() );
     }
 
     @Test
-    public void testReserveReserveATwoSimpleValuesShouldFail()
+    void testReserveReserveATwoSimpleValuesShouldFail()
     {
         assertThrows( ReserveValueException.class,
             () -> reservedValueService.reserve( simpleTextPattern, 2, new HashMap<>(), future ) );
-
         assertEquals( 0, reservedValueStore.getCount() );
     }
 
     @Test
-    public void testReserveReserveMultipleRandomValues()
+    void testReserveReserveMultipleRandomValues()
         throws Exception
     {
         reservedValueService.reserve( simpleRandomTextPattern, 3, new HashMap<>(), future );
-
         List<ReservedValue> all = reservedValueStore.getAll();
         assertEquals( 3, all.stream()
-            .filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 8 )
-            .count() );
+            .filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 8 ).count() );
         assertEquals( 3, all.size() );
     }
 
     @Test
-    public void testReserveReserveASequentialValueWhenNotUsed()
+    void testReserveReserveRandomValuesWithExistingGenerationAndAlphaNumericPattern()
+        throws Exception
+    {
+        TrackedEntityAttribute tea = createTrackedEntityAttribute( 'A' );
+
+        simpleRandomTextNumericPattern = createTextPattern( tea, "\"EPI_\"+RANDOM(######)" );
+
+        ReservedValue reservedValue = new ReservedValue();
+        reservedValue.setTrackedEntityAttributeId( tea.getId() );
+        reservedValue.setCreated( new Date() );
+        reservedValue.setExpiryDate( new Date() );
+        reservedValue.setOwnerObject( simpleRandomTextNumericPattern.getTextPattern().getOwnerObject().toString() );
+        reservedValue.setOwnerUid( tea.getUid() );
+        reservedValue.setKey( "EPI_RANDOM(######)" );
+        reservedValue.setValue( "EPI_000000" );
+
+        reservedValueStore.save( reservedValue );
+
+        reservedValueService.reserve( simpleRandomTextNumericPattern, 3, new HashMap<>(), future );
+
+        List<ReservedValue> all = reservedValueStore.getAll();
+        assertEquals( 4, all.stream()
+            .filter( ( rv ) -> rv.getValue().indexOf( "EPI_" ) == 0 && rv.getValue().length() == 10 )
+            .count() );
+        assertEquals( 4, all.size() );
+    }
+
+    @Test
+    void testReserveReserveASequentialValueWhenNotUsed()
         throws Exception
     {
         List<ReservedValue> res = reservedValueService.reserve( simpleSequentialTextPattern, 1, new HashMap<>(),
             future );
-
         assertEquals( 1, res.stream()
             .filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 7 ).count() );
         assertEquals( 0, reservedValueStore.getCount() );
     }
 
     @Test
-    public void testReserveReserveMultipleSequentialValueWhenNotUsed()
+    void testReserveReserveMultipleSequentialValueWhenNotUsed()
         throws Exception
     {
         List<ReservedValue> res = reservedValueService.reserve( simpleSequentialTextPattern, 50, new HashMap<>(),
             future );
-
         assertEquals( 50, res.stream()
             .filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 7 ).count() );
         assertEquals( 0, reservedValueStore.getCount() );
-
     }
 
     @Test
-    public void testReserveReserveMultipleSequentialValueWhenSomeExists()
+    void testReserveReserveMultipleSequentialValueWhenSomeExists()
         throws Exception
     {
-        List<ReservedValue> reserved = reservedValueService
-            .reserve( simpleSequentialTextPattern, 50, new HashMap<>(), future );
-
-        assertEquals( 50,
-            reserved.stream().filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 7 )
-                .count() );
+        List<ReservedValue> reserved = reservedValueService.reserve( simpleSequentialTextPattern, 50, new HashMap<>(),
+            future );
+        assertEquals( 50, reserved.stream()
+            .filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 7 ).count() );
         assertEquals( 0, reservedValueStore.getCount() );
-
         List<ReservedValue> res = reservedValueService.reserve( simpleSequentialTextPattern, 25, new HashMap<>(),
             future );
-
         assertTrue( ListUtils.intersection( reserved, res ).isEmpty() );
         assertEquals( 25, res.stream()
             .filter( ( rv ) -> rv.getValue().indexOf( "TEST-" ) == 0 && rv.getValue().length() == 7 ).count() );
         assertEquals( 0, reservedValueStore.getCount() );
-
     }
 
     @Test
-    public void testReserveReserveTooManySequentialValuesWhenNoneExists()
+    void testReserveReserveTooManySequentialValuesWhenNoneExists()
     {
-        assertThrows( "Could not reserve value: Not enough values left to reserve 101 values.",
+        assertThrows(
             ReserveValueException.class,
-            () -> reservedValueService.reserve( simpleSequentialTextPattern, 101, new HashMap<>(), future ) );
+            () -> reservedValueService.reserve( simpleSequentialTextPattern, 101, new HashMap<>(), future ),
+            "Could not reserve value: Not enough values left to reserve 101 values." );
     }
 
     @Test
-    public void testReserveReserveTooManySequentialValuesWhenSomeExists()
+    void testReserveReserveTooManySequentialValuesWhenSomeExists()
         throws Exception
     {
         assertEquals( 99,
             reservedValueService.reserve( simpleSequentialTextPattern, 99, new HashMap<>(), future ).size() );
-
-        assertThrows( "Could not reserve value: Not enough values left to reserve 1 values.",
+        assertThrows(
             ReserveValueException.class,
-            () -> reservedValueService.reserve( simpleSequentialTextPattern, 1, new HashMap<>(), future ) );
+            () -> reservedValueService.reserve( simpleSequentialTextPattern, 1, new HashMap<>(), future ),
+            "Could not reserve value: Not enough values left to reserve 1 values." );
     }
 
     @Test
-    public void testReserveReserveStringValueWithValues()
+    void testReserveReserveStringValueWithValues()
         throws Exception
     {
         Map<String, String> map = new HashMap<>();
         map.put( "ORG_UNIT_CODE", "OSLO" );
-
         List<ReservedValue> result = reservedValueService.reserve( simpleStringPattern, 1, map, future );
-
         assertEquals( 1, result.size() );
         assertEquals( "TEST-OS", result.get( 0 ).getValue() );
     }
 
     @Test
-    public void testUseReservationWhenReserved()
+    void testUseReservationWhenReserved()
         throws TextPatternGenerationException,
         ReserveValueException
     {
         reservedValueService.reserve( simpleTextPattern, 1, new HashMap<>(), future );
-
-        assertTrue( reservedValueService.useReservedValue( simpleTextPattern, "FOOBAR" ) );
-
+        assertTrue( reservedValueService.useReservedValue( simpleTextPattern.getTextPattern(), "FOOBAR" ) );
         assertEquals( 0, reservedValueStore.getCount() );
     }
 
     @Test
-    public void testUseReservationWhenNotReserved()
+    void testUseReservationWhenNotReserved()
     {
-        assertFalse( reservedValueService.useReservedValue( simpleTextPattern, "FOOBAR" ) );
-
+        assertFalse( reservedValueService.useReservedValue( simpleTextPattern.getTextPattern(), "FOOBAR" ) );
         assertEquals( 0, reservedValueStore.getCount() );
     }
 
-    // Helpers
-
-    private static TextPattern createTextPattern( IdentifiableObject owner, String pattern )
+    private static TrackedEntityAttribute createTextPattern( IdentifiableObject owner, String pattern )
     {
         try
         {
-            TextPattern tp = TextPatternParser.parse( pattern );
-            tp.setOwnerObject( Objects.fromClass( owner.getClass() ) );
-            tp.setOwnerUid( owner.getUid() );
-
-            return tp;
+            TextPattern textPattern = TextPatternParser.parse( pattern );
+            textPattern.setOwnerObject( Objects.fromClass( owner.getClass() ) );
+            textPattern.setOwnerUid( owner.getUid() );
+            TrackedEntityAttribute trackedEntityAttribute = new TrackedEntityAttribute();
+            trackedEntityAttribute.setTextPattern( textPattern );
+            trackedEntityAttribute.setGenerated( true );
+            return trackedEntityAttribute;
         }
         catch ( TextPatternParser.TextPatternParsingException | IllegalAccessException e )
         {
             e.printStackTrace();
         }
-
         return null;
     }
 }

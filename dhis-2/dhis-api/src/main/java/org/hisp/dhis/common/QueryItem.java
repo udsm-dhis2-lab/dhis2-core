@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
+import lombok.Getter;
+import lombok.Setter;
+
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.analytics.AggregationType;
 import org.hisp.dhis.analytics.QueryKey;
 import org.hisp.dhis.dataelement.DataElement;
@@ -50,8 +54,12 @@ import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
  *
  * @author Lars Helge Overland
  */
-public class QueryItem
+public class QueryItem implements GroupableItem
 {
+    @Getter
+    @Setter
+    private UUID groupUUID;
+
     private DimensionalItemObject item; // TODO DimensionObject
 
     private LegendSet legendSet;
@@ -67,6 +75,8 @@ public class QueryItem
     private Program program;
 
     private ProgramStage programStage;
+
+    private RepeatableStageParams repeatableStageParams;
 
     private Boolean unique = false;
 
@@ -281,8 +291,8 @@ public class QueryItem
     {
         return getQueryFilterItems().stream()
             .map( code -> optionSet.getOptionByCode( code ) )
-            .filter( option -> option != null )
-            .map( option -> option.getUid() )
+            .filter( Objects::nonNull )
+            .map( BaseIdentifiableObject::getUid )
             .collect( Collectors.toList() );
     }
 
@@ -305,9 +315,7 @@ public class QueryItem
      */
     public String getSqlFilter( QueryFilter filter, String encodedFilter )
     {
-        String sqlFilter = filter.getSqlFilter( encodedFilter );
-
-        return isText() ? sqlFilter.toLowerCase() : sqlFilter;
+        return filter.getSqlFilter( encodedFilter, valueType );
     }
 
     // -------------------------------------------------------------------------
@@ -349,7 +357,7 @@ public class QueryItem
     @Override
     public int hashCode()
     {
-        return Objects.hash( item, program, programStage );
+        return Objects.hash( item, program, programStage, repeatableStageParams );
     }
 
     @Override
@@ -374,15 +382,18 @@ public class QueryItem
 
         return Objects.equals( item, other.getItem() ) &&
             Objects.equals( program, other.getProgram() ) &&
-            Objects.equals( programStage, other.getProgramStage() );
+            Objects.equals( programStage, other.getProgramStage() ) &&
+            Objects.equals( repeatableStageParams, other.getRepeatableStageParams() );
     }
 
     @Override
     public String toString()
     {
-        return "[Item: " + item + ", legend set: " + legendSet + ", filters: " + filters +
-            ", value type: " + valueType + ", optionSet: " + optionSet +
-            ", program: " + program + ", program stage: " + programStage + "]";
+        return "[Item: " + item + ", legend set: " + legendSet + ", filters: " + filters
+            + ", value type: " + valueType + ", optionSet: " + optionSet
+            + ", program: " + program + ", program stage: " + programStage
+            + "repeatable program stage params: "
+            + (repeatableStageParams != null ? repeatableStageParams.toString() : null) + "]";
     }
 
     // -------------------------------------------------------------------------
@@ -464,9 +475,29 @@ public class QueryItem
         return programStage;
     }
 
+    public int getProgramStageOffset()
+    {
+        return hasRepeatableStageParams() ? repeatableStageParams.getStartIndex() : 0;
+    }
+
+    public RepeatableStageParams getRepeatableStageParams()
+    {
+        return repeatableStageParams;
+    }
+
+    public boolean hasRepeatableStageParams()
+    {
+        return repeatableStageParams != null;
+    }
+
     public void setProgramStage( ProgramStage programStage )
     {
         this.programStage = programStage;
+    }
+
+    public void setRepeatableStageParams( RepeatableStageParams repeatableStageParams )
+    {
+        this.repeatableStageParams = repeatableStageParams;
     }
 
     public Boolean isUnique()

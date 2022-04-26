@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@ import org.hisp.dhis.external.conf.DhisConfigurationProvider;
 import org.hisp.dhis.security.SecurityService;
 import org.hisp.dhis.security.oidc.DhisOidcUser;
 import org.hisp.dhis.security.spring2fa.TwoFactorWebAuthenticationDetails;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
@@ -76,7 +76,7 @@ public class AuthenticationListener
         {
             TwoFactorWebAuthenticationDetails authDetails = (TwoFactorWebAuthenticationDetails) details;
 
-            log.info( String.format( "Login attempt failed for remote IP: %s", authDetails.getIp() ) );
+            log.debug( String.format( "Login attempt failed for remote IP: %s", authDetails.getIp() ) );
         }
 
         if ( OAuth2LoginAuthenticationToken.class.isAssignableFrom( auth.getClass() ) )
@@ -86,14 +86,13 @@ public class AuthenticationListener
 
             if ( principal != null )
             {
-                UserCredentials userCredentials = principal.getUserCredentials();
-                username = userCredentials.getUsername();
+                username = principal.getUser().getUsername();
             }
 
             WebAuthenticationDetails tokenDetails = (WebAuthenticationDetails) authenticationToken.getDetails();
             String remoteAddress = tokenDetails.getRemoteAddress();
 
-            log.info( String.format( "OIDC login attempt failed for remote IP: %s", remoteAddress ) );
+            log.debug( String.format( "OIDC login attempt failed for remote IP: %s", remoteAddress ) );
         }
 
         securityService.registerFailedLogin( username );
@@ -118,8 +117,7 @@ public class AuthenticationListener
         {
             OAuth2LoginAuthenticationToken authenticationToken = (OAuth2LoginAuthenticationToken) auth;
             DhisOidcUser principal = (DhisOidcUser) authenticationToken.getPrincipal();
-            UserCredentials userCredentials = principal.getUserCredentials();
-            username = userCredentials.getUsername();
+            username = principal.getUser().getUsername();
 
             WebAuthenticationDetails tokenDetails = (WebAuthenticationDetails) authenticationToken.getDetails();
             String remoteAddress = tokenDetails.getRemoteAddress();
@@ -132,14 +130,14 @@ public class AuthenticationListener
 
     private void registerSuccessfulLogin( String username )
     {
-        UserCredentials credentials = userService.getUserCredentialsByUsername( username );
+        User user = userService.getUserByUsername( username );
 
         boolean readOnly = config.isReadOnlyMode();
 
-        if ( Objects.nonNull( credentials ) && !readOnly )
+        if ( Objects.nonNull( user ) && !readOnly )
         {
-            credentials.updateLastLogin();
-            userService.updateUserCredentials( credentials );
+            user.updateLastLogin();
+            userService.updateUser( user );
         }
 
         securityService.registerSuccessfulLogin( username );

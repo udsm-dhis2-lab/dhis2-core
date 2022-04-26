@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,17 +28,16 @@
 package org.hisp.dhis.tracker.bundle.persister;
 
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Objects;
 
 import org.hibernate.Session;
 import org.hisp.dhis.program.ProgramInstance;
 import org.hisp.dhis.reservedvalue.ReservedValueService;
-import org.hisp.dhis.trackedentity.TrackerOwnershipManager;
+import org.hisp.dhis.trackedentity.TrackedEntityProgramOwnerService;
+import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueAuditService;
 import org.hisp.dhis.trackedentitycomment.TrackedEntityComment;
 import org.hisp.dhis.trackedentitycomment.TrackedEntityCommentService;
-import org.hisp.dhis.tracker.TrackerIdScheme;
 import org.hisp.dhis.tracker.TrackerType;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.converter.TrackerConverterService;
@@ -60,19 +59,21 @@ public class EnrollmentPersister extends AbstractTrackerPersister<Enrollment, Pr
 
     private final TrackerSideEffectConverterService sideEffectConverterService;
 
-    private final TrackerOwnershipManager trackerOwnershipManager;
+    private final TrackedEntityProgramOwnerService trackedEntityProgramOwnerService;
 
     public EnrollmentPersister( ReservedValueService reservedValueService,
         TrackerConverterService<Enrollment, ProgramInstance> enrollmentConverter,
         TrackedEntityCommentService trackedEntityCommentService,
-        TrackerSideEffectConverterService sideEffectConverterService, TrackerOwnershipManager trackerOwnershipManager )
+        TrackerSideEffectConverterService sideEffectConverterService,
+        TrackedEntityProgramOwnerService trackedEntityProgramOwnerService,
+        TrackedEntityAttributeValueAuditService trackedEntityAttributeValueAuditService )
     {
-        super( reservedValueService );
+        super( reservedValueService, trackedEntityAttributeValueAuditService );
 
         this.enrollmentConverter = enrollmentConverter;
         this.trackedEntityCommentService = trackedEntityCommentService;
         this.sideEffectConverterService = sideEffectConverterService;
-        this.trackerOwnershipManager = trackerOwnershipManager;
+        this.trackedEntityProgramOwnerService = trackedEntityProgramOwnerService;
     }
 
     @Override
@@ -80,7 +81,7 @@ public class EnrollmentPersister extends AbstractTrackerPersister<Enrollment, Pr
         Enrollment enrollment, ProgramInstance programInstance )
     {
         handleTrackedEntityAttributeValues( session, preheat, enrollment.getAttributes(),
-            programInstance.getEntityInstance() );
+            preheat.getTrackedEntity( programInstance.getEntityInstance().getUid() ) );
     }
 
     @Override
@@ -108,13 +109,15 @@ public class EnrollmentPersister extends AbstractTrackerPersister<Enrollment, Pr
     @Override
     protected void updatePreheat( TrackerPreheat preheat, ProgramInstance programInstance )
     {
-        preheat.putEnrollments( TrackerIdScheme.UID, Collections.singletonList( programInstance ) );
+        preheat.putEnrollments( Collections.singletonList( programInstance ) );
+        preheat.addProgramOwner( programInstance.getEntityInstance().getUid(), programInstance.getProgram().getUid(),
+            programInstance.getOrganisationUnit() );
     }
 
     @Override
     protected boolean isNew( TrackerPreheat preheat, String uid )
     {
-        return preheat.getEnrollment( TrackerIdScheme.UID, uid ) == null;
+        return preheat.getEnrollment( uid ) == null;
     }
 
     @Override
@@ -128,17 +131,15 @@ public class EnrollmentPersister extends AbstractTrackerPersister<Enrollment, Pr
             .object( programInstance.getUid() )
             .importStrategy( bundle.getImportStrategy() )
             .accessedBy( bundle.getUsername() )
+            .programInstance( programInstance )
+            .program( programInstance.getProgram() )
             .build();
     }
 
     @Override
     protected ProgramInstance convert( TrackerBundle bundle, Enrollment enrollment )
     {
-        Date now = new Date();
-        ProgramInstance programInstance = enrollmentConverter.from( bundle.getPreheat(), enrollment );
-        programInstance.setLastUpdated( now );
-        programInstance.setLastUpdatedBy( bundle.getUser() );
-        return programInstance;
+        return enrollmentConverter.from( bundle.getPreheat(), enrollment );
     }
 
     @Override
@@ -152,8 +153,19 @@ public class EnrollmentPersister extends AbstractTrackerPersister<Enrollment, Pr
     {
         if ( isNew( preheat, entity.getUid() ) )
         {
-            trackerOwnershipManager.assignOwnership( entity.getEntityInstance(), entity.getProgram(),
-                entity.getOrganisationUnit(), false, true );
+            if ( preheat.getProgramOwner().get( entity.getEntityInstance().getUid() ) == null
+                || preheat.getProgramOwner().get( entity.getEntityInstance().getUid() )
+                    .get( entity.getProgram().getUid() ) == null )
+            {
+                trackedEntityProgramOwnerService.createTrackedEntityProgramOwner( entity.getEntityInstance(),
+                    entity.getProgram(), entity.getOrganisationUnit() );
+            }
         }
+    }
+
+    @Override
+    protected String getUpdatedTrackedEntity( ProgramInstance entity )
+    {
+        return entity.getEntityInstance().getUid();
     }
 }

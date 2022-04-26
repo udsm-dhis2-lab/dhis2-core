@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@ import javax.annotation.Nonnull;
 import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.node.types.RootNode;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
@@ -57,7 +59,9 @@ public interface MetadataExportService
      * @param params Export parameters
      * @return RootNode instance with children containing all exported objects
      */
-    RootNode getMetadataAsNode( MetadataExportParams params );
+    ObjectNode getMetadataAsNode( MetadataExportParams params );
+
+    RootNode getMetadataAsRootNode( MetadataExportParams params );
 
     /**
      * Validates the import params. Not currently implemented.
@@ -96,6 +100,5 @@ public interface MetadataExportService
      * @return Original object + selected set of dependencies, exported as
      *         RootNode
      */
-    RootNode getMetadataWithDependenciesAsNode( IdentifiableObject object, @Nonnull MetadataExportParams params );
-
+    ObjectNode getMetadataWithDependenciesAsNode( IdentifiableObject object, @Nonnull MetadataExportParams params );
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ import org.hisp.dhis.common.OrganisationUnitSelectionMode;
 import org.hisp.dhis.common.QueryFilter;
 import org.hisp.dhis.common.QueryItem;
 import org.hisp.dhis.common.QueryOperator;
-import org.hisp.dhis.commons.util.TextUtils;
+import org.hisp.dhis.commons.collection.CollectionUtils;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.dxf2.events.event.Event;
@@ -75,7 +75,6 @@ import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
 import org.hisp.dhis.webapi.controller.event.mapper.OrderParam.SortDirection;
 import org.hisp.dhis.webapi.controller.event.webrequest.EventCriteria;
 import org.hisp.dhis.webapi.controller.event.webrequest.OrderCriteria;
@@ -134,8 +133,26 @@ public class RequestToSearchParamsMapper
         Set<String> assignedUsers, Set<String> filters, Set<String> dataElements, boolean includeAllDataElements,
         boolean includeDeleted )
     {
+        return map( program, programStage, programStatus, followUp, orgUnit, orgUnitSelectionMode,
+            trackedEntityInstance, startDate, endDate, dueDateStart, dueDateEnd, lastUpdatedStartDate,
+            lastUpdatedEndDate, lastUpdatedDuration, status, attributeOptionCombo, idSchemes, page, pageSize,
+            totalPages, skipPaging, orders, gridOrders, includeAttributes, events, null, skipEventId,
+            assignedUserSelectionMode, assignedUsers, filters, dataElements, includeAllDataElements, includeDeleted );
+    }
+
+    public EventSearchParams map( String program, String programStage, ProgramStatus programStatus, Boolean followUp,
+        String orgUnit, OrganisationUnitSelectionMode orgUnitSelectionMode, String trackedEntityInstance,
+        Date startDate, Date endDate, Date dueDateStart, Date dueDateEnd, Date lastUpdatedStartDate,
+        Date lastUpdatedEndDate, String lastUpdatedDuration, EventStatus status,
+        CategoryOptionCombo attributeOptionCombo, IdSchemes idSchemes, Integer page, Integer pageSize,
+        boolean totalPages, boolean skipPaging, List<OrderParam> orders, List<OrderParam> gridOrders,
+        boolean includeAttributes,
+        Set<String> events, Set<String> programInstances, Boolean skipEventId,
+        AssignedUserSelectionMode assignedUserSelectionMode,
+        Set<String> assignedUsers, Set<String> filters, Set<String> dataElements, boolean includeAllDataElements,
+        boolean includeDeleted )
+    {
         User user = currentUserService.getCurrentUser();
-        UserCredentials userCredentials = user.getUserCredentials();
 
         EventSearchParams params = new EventSearchParams();
 
@@ -160,21 +177,12 @@ public class RequestToSearchParamsMapper
             throw new IllegalQueryException( "Org unit is specified but does not exist: " + orgUnit );
         }
 
-        if ( ou != null && !organisationUnitService.isInUserHierarchy( ou ) )
-        {
-            if ( !userCredentials.isSuper()
-                && !userCredentials.isAuthorized( "F_TRACKED_ENTITY_INSTANCE_SEARCH_IN_ALL_ORGUNITS" ) )
-            {
-                throw new IllegalQueryException( "User has no access to organisation unit: " + ou.getUid() );
-            }
-        }
-
-        if ( pr != null && !userCredentials.isSuper() && !aclService.canDataRead( user, pr ) )
+        if ( pr != null && !user.isSuper() && !aclService.canDataRead( user, pr ) )
         {
             throw new IllegalQueryException( "User has no access to program: " + pr.getUid() );
         }
 
-        if ( ps != null && !userCredentials.isSuper() && !aclService.canDataRead( user, ps ) )
+        if ( ps != null && !user.isSuper() && !aclService.canDataRead( user, ps ) )
         {
             throw new IllegalQueryException( "User has no access to program stage: " + ps.getUid() );
         }
@@ -187,14 +195,14 @@ public class RequestToSearchParamsMapper
                 "Tracked entity instance is specified but does not exist: " + trackedEntityInstance );
         }
 
-        if ( attributeOptionCombo != null && !userCredentials.isSuper()
+        if ( attributeOptionCombo != null && !user.isSuper()
             && !aclService.canDataRead( user, attributeOptionCombo ) )
         {
             throw new IllegalQueryException(
                 "User has no access to attribute category option combo: " + attributeOptionCombo.getUid() );
         }
 
-        if ( events != null && filters != null )
+        if ( !CollectionUtils.isEmpty( events ) && !CollectionUtils.isEmpty( filters ) )
         {
             throw new IllegalQueryException( "Event UIDs and filters can not be specified at the same time" );
         }
@@ -242,6 +250,13 @@ public class RequestToSearchParamsMapper
                 .collect( Collectors.toSet() );
         }
 
+        if ( programInstances != null )
+        {
+            programInstances = programInstances.stream()
+                .filter( CodeGenerator::isValidUid )
+                .collect( Collectors.toSet() );
+        }
+
         return params.setProgram( pr ).setProgramStage( ps ).setOrgUnit( ou ).setTrackedEntityInstance( tei )
             .setProgramStatus( programStatus ).setFollowUp( followUp ).setOrgUnitSelectionMode( orgUnitSelectionMode )
             .setAssignedUserSelectionMode( assignedUserSelectionMode ).setAssignedUsers( assignedUsers )
@@ -252,7 +267,7 @@ public class RequestToSearchParamsMapper
             .setPageSize( pageSize ).setTotalPages( totalPages ).setSkipPaging( skipPaging )
             .setSkipEventId( skipEventId ).setIncludeAttributes( includeAttributes )
             .setIncludeAllDataElements( includeAllDataElements ).setOrders( orders ).setGridOrders( gridOrders )
-            .setEvents( events ).setIncludeDeleted( includeDeleted );
+            .setEvents( events ).setProgramInstances( programInstances ).setIncludeDeleted( includeDeleted );
     }
 
     private QueryItem getQueryItem( String item )
@@ -298,8 +313,8 @@ public class RequestToSearchParamsMapper
             eventCriteria.getAttributeCos(),
             true );
 
-        Set<String> eventIds = TextUtils.splitToArray( eventCriteria.getEvent(), TextUtils.SEMICOLON );
-        Set<String> assignedUserIds = TextUtils.splitToArray( eventCriteria.getAssignedUser(), TextUtils.SEMICOLON );
+        Set<String> eventIds = eventCriteria.getEvents();
+        Set<String> assignedUserIds = eventCriteria.getAssignedUsers();
         Map<String, SortDirection> dataElementOrders = getDataElementsFromOrder( eventCriteria.getOrder() );
 
         return map( eventCriteria.getProgram(),
@@ -328,6 +343,7 @@ public class RequestToSearchParamsMapper
             getGridOrderParams( eventCriteria.getOrder(), dataElementOrders ),
             false,
             eventIds,
+            eventCriteria.getProgramInstances(),
             eventCriteria.getSkipEventId(),
             eventCriteria.getAssignedUserMode(),
             assignedUserIds,

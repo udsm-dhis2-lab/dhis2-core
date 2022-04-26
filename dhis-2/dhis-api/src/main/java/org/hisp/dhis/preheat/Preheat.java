@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,53 +27,34 @@
  */
 package org.hisp.dhis.preheat;
 
-/*
- * Copyright (c) 2004-2021, University of Oslo
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * Neither the name of the HISP project nor the names of its contributors may
- * be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hisp.dhis.attribute.Attribute;
 import org.hisp.dhis.category.Category;
 import org.hisp.dhis.category.CategoryCombo;
 import org.hisp.dhis.category.CategoryOption;
 import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.common.IdentifiableObject;
+import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.hibernate.HibernateProxyUtils;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserAuthorityGroup;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.UserRole;
+
+import com.google.common.collect.Sets;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
@@ -88,7 +69,8 @@ public class Preheat
     /**
      * Internal map of all objects mapped by identifier => class type => uid.
      */
-    private Map<PreheatIdentifier, Map<Class<? extends IdentifiableObject>, Map<String, IdentifiableObject>>> map = new HashMap<>();
+    private final Map<PreheatIdentifier, Map<Class<? extends IdentifiableObject>, Map<String, IdentifiableObject>>> map = new EnumMap<>(
+        PreheatIdentifier.class );
 
     /**
      * Internal map of all default object (like category option combo, etc).
@@ -126,8 +108,19 @@ public class Preheat
      */
     private Map<Class<?>, Map<String, Map<String, String>>> uniqueAttributeValues = new HashMap<>();
 
+    /**
+     * Map of all metadata attributes, mapped by class type.
+     * <p>
+     * Only Class which has attribute will be put into this map.
+     */
+    private Map<Class<? extends IdentifiableObject>, Set<Attribute>> attributesByTargetObjectType = new HashMap<>();
+
     public Preheat()
     {
+        for ( PreheatIdentifier identifier : PreheatIdentifier.values() )
+        {
+            map.put( identifier, new HashMap<>() );
+        }
     }
 
     public User getUser()
@@ -148,42 +141,63 @@ public class Preheat
     public <T extends IdentifiableObject> T get( PreheatIdentifier identifier,
         Class<? extends IdentifiableObject> klass, IdentifiableObject object )
     {
-        return get( identifier, klass, identifier.getIdentifier( object ) );
+        return object == null
+            ? null
+            : get( identifier, klass, identifier.getIdentifier( object ) );
     }
 
-    @SuppressWarnings( "unchecked" )
     public <T extends IdentifiableObject> T get( PreheatIdentifier identifier,
         Class<? extends IdentifiableObject> klass, String key )
     {
-        identifier = getIdentifier( klass, identifier );
-
-        if ( !containsKey( identifier, klass, key ) )
+        Map<String, IdentifiableObject> byKey = getNullable( effectiveIdentifier( identifier, klass ), klass );
+        if ( byKey == null )
         {
             return null;
         }
-
-        return (T) map.get( identifier ).get( klass ).get( key );
+        @SuppressWarnings( "unchecked" )
+        T res = (T) byKey.get( key );
+        return res;
     }
 
-    @SuppressWarnings( "unchecked" )
-    public <T extends IdentifiableObject> List<T> getAll( PreheatIdentifier identifier, List<T> keys )
+    /**
+     * Get objects from this context by using potentially "shallow" sample
+     * objects to extract the keys.
+     *
+     * @param identifier type of {@link PreheatIdentifier} to use
+     * @param samples objects used to extract the keys
+     * @return a list of objects from this {@link Preheat} context in the order
+     *         of given objects but not containing {@code null} values for
+     *         objects not found in this context
+     */
+    public <T extends IdentifiableObject> List<T> getAll( PreheatIdentifier identifier, List<T> samples )
     {
-        List<T> objects = new ArrayList<>();
-
-        for ( T key : keys )
+        if ( samples == null || samples.isEmpty() )
         {
-            IdentifiableObject identifiableObject = get( identifier, key );
+            return emptyList();
+        }
+        // Implementation Note: calling single get in a loop is intentionally
+        // not used to gain less overhead
+        Class<? extends IdentifiableObject> klass = getObjectType( samples.iterator().next() );
+        identifier = effectiveIdentifier( identifier, klass );
+        Map<String, IdentifiableObject> byKey = getNullable( identifier, klass );
+        if ( byKey == null )
+        {
+            return emptyList();
+        }
+        List<T> objects = new ArrayList<>( samples.size() );
+        for ( T sample : samples )
+        {
+            @SuppressWarnings( "unchecked" )
+            T object = (T) byKey.get( identifier.getIdentifier( sample ) );
 
-            if ( identifiableObject != null )
+            if ( object != null )
             {
-                objects.add( (T) identifiableObject );
+                objects.add( object );
             }
         }
-
         return objects;
     }
 
-    @SuppressWarnings( "unchecked" )
     public <T extends IdentifiableObject> T get( PreheatIdentifier identifier, T object )
     {
         if ( object == null )
@@ -191,284 +205,149 @@ public class Preheat
             return null;
         }
 
-        T reference = null;
-
-        Class<? extends IdentifiableObject> realClass = HibernateProxyUtils.getRealClass( object );
-        identifier = getIdentifier( realClass, identifier );
+        Class<? extends IdentifiableObject> klass = getObjectType( object );
+        identifier = effectiveIdentifier( identifier, klass );
 
         if ( PreheatIdentifier.UID == identifier )
         {
-            reference = get( PreheatIdentifier.UID, realClass, object.getUid() );
+            return get( PreheatIdentifier.UID, klass, object.getUid() );
         }
 
         if ( PreheatIdentifier.CODE == identifier )
         {
-            reference = get( PreheatIdentifier.CODE, realClass, object.getCode() );
+            return get( PreheatIdentifier.CODE, klass, object.getCode() );
         }
 
-        return reference;
+        return null;
     }
 
     public boolean containsKey( PreheatIdentifier identifier, Class<? extends IdentifiableObject> klass, String key )
     {
-        identifier = getIdentifier( klass, identifier );
-
-        return !(isEmpty() || isEmpty( identifier ) || isEmpty( identifier, klass ))
-            && map.get( identifier ).get( klass ).containsKey( key );
+        Map<String, IdentifiableObject> byKey = getNullable( effectiveIdentifier( identifier, klass ), klass );
+        return byKey != null && byKey.containsKey( key );
     }
 
     public boolean isEmpty()
     {
-        return map.isEmpty();
+        return map.values().stream().allMatch( Map::isEmpty );
     }
 
     public boolean isEmpty( PreheatIdentifier identifier )
     {
-        return !map.containsKey( identifier ) || map.get( identifier ).isEmpty();
+        return map.get( identifier ).isEmpty();
     }
 
     public boolean isEmpty( PreheatIdentifier identifier, Class<? extends IdentifiableObject> klass )
     {
-        return isEmpty( identifier ) || !map.get( identifier ).containsKey( klass )
-            || map.get( identifier ).get( klass ).isEmpty();
+        Map<String, IdentifiableObject> byKey = map.get( identifier ).get( klass );
+        return byKey == null || byKey.isEmpty();
     }
 
-    @SuppressWarnings( "unchecked" )
     public <T extends IdentifiableObject> Preheat put( PreheatIdentifier identifier, T object )
     {
         if ( object == null )
         {
             return this;
         }
+        Class<? extends IdentifiableObject> klass = getObjectType( object );
+        return put( effectiveIdentifier( identifier, klass ), klass, object );
+    }
 
-        Class<? extends IdentifiableObject> realClass = HibernateProxyUtils.getRealClass( object );
-        identifier = getIdentifier( realClass, identifier );
-
-        if ( PreheatIdentifier.UID == identifier )
+    private Preheat put( PreheatIdentifier identifier,
+        Class<? extends IdentifiableObject> klass, IdentifiableObject object )
+    {
+        String key = identifier.getIdentifier( object );
+        if ( StringUtils.isEmpty( key ) )
         {
-            if ( !map.containsKey( PreheatIdentifier.UID ) )
-            {
-                map.put( PreheatIdentifier.UID, new HashMap<>() );
-            }
-
-            if ( !map.get( PreheatIdentifier.UID ).containsKey( realClass ) )
-            {
-                map.get( PreheatIdentifier.UID ).put( realClass, new HashMap<>() );
-            }
-
-            if ( User.class.isAssignableFrom( realClass ) )
-            {
-                if ( !map.get( PreheatIdentifier.UID ).containsKey( UserCredentials.class ) )
-                {
-                    map.get( PreheatIdentifier.UID ).put( UserCredentials.class, new HashMap<>() );
-                }
-
-                User user = (User) object;
-
-                Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.UID )
-                    .get( UserCredentials.class );
-
-                if ( !StringUtils.isEmpty( user.getUid() ) && !identifierMap.containsKey( user.getUid() ) )
-                {
-                    identifierMap.put( user.getUid(), user.getUserCredentials() );
-                }
-            }
-
-            Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.UID ).get( realClass );
-            String key = PreheatIdentifier.UID.getIdentifier( object );
-
-            if ( !StringUtils.isEmpty( key ) && !identifierMap.containsKey( key ) )
-            {
-                identifierMap.put( key, object );
-            }
+            return this;
         }
-
-        if ( PreheatIdentifier.CODE == identifier )
-        {
-            if ( !map.containsKey( PreheatIdentifier.CODE ) )
-            {
-                map.put( PreheatIdentifier.CODE, new HashMap<>() );
-            }
-
-            if ( !map.get( PreheatIdentifier.CODE ).containsKey( realClass ) )
-            {
-                map.get( PreheatIdentifier.CODE ).put( realClass, new HashMap<>() );
-            }
-
-            if ( User.class.isAssignableFrom( realClass ) )
-            {
-                if ( !map.get( PreheatIdentifier.CODE ).containsKey( UserCredentials.class ) )
-                {
-                    map.get( PreheatIdentifier.CODE ).put( UserCredentials.class, new HashMap<>() );
-                }
-
-                User user = (User) object;
-
-                Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.CODE )
-                    .get( UserCredentials.class );
-                identifierMap.put( user.getCode(), user.getUserCredentials() );
-            }
-
-            Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.CODE ).get( realClass );
-            String key = PreheatIdentifier.CODE.getIdentifier( object );
-
-            if ( !StringUtils.isEmpty( key ) && !identifierMap.containsKey( key ) )
-            {
-                identifierMap.put( key, object );
-            }
-        }
-
+        put( getOrCreate( identifier, klass ), identifier, key, object );
         return this;
     }
 
-    @SuppressWarnings( "unchecked" )
+    private void put( Map<String, IdentifiableObject> byKey, PreheatIdentifier identifier, String key,
+        IdentifiableObject object )
+    {
+        byKey.putIfAbsent( key, object );
+    }
+
     public <T extends IdentifiableObject> Preheat replace( PreheatIdentifier identifier, T object )
     {
         if ( object == null )
         {
             return this;
         }
+        Class<? extends IdentifiableObject> klass = getObjectType( object );
+        return replace( effectiveIdentifier( identifier, klass ), klass, object );
+    }
 
-        Class<? extends IdentifiableObject> realClass = HibernateProxyUtils.getRealClass( object );
-        identifier = getIdentifier( realClass, identifier );
-
-        if ( PreheatIdentifier.UID == identifier )
+    private Preheat replace( PreheatIdentifier identifier,
+        Class<? extends IdentifiableObject> klass, IdentifiableObject object )
+    {
+        String key = identifier.getIdentifier( object );
+        if ( StringUtils.isEmpty( key ) )
         {
-            if ( !map.containsKey( PreheatIdentifier.UID ) )
-            {
-                map.put( PreheatIdentifier.UID, new HashMap<>() );
-            }
-
-            if ( !map.get( PreheatIdentifier.UID ).containsKey( realClass ) )
-            {
-                map.get( PreheatIdentifier.UID ).put( realClass, new HashMap<>() );
-            }
-
-            if ( User.class.isAssignableFrom( realClass ) )
-            {
-                if ( !map.get( PreheatIdentifier.UID ).containsKey( UserCredentials.class ) )
-                {
-                    map.get( PreheatIdentifier.UID ).put( UserCredentials.class, new HashMap<>() );
-                }
-
-                User user = (User) object;
-
-                Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.UID )
-                    .get( UserCredentials.class );
-
-                if ( !StringUtils.isEmpty( user.getUid() ) && !identifierMap.containsKey( user.getUid() ) )
-                {
-                    identifierMap.put( user.getUid(), user.getUserCredentials() );
-                }
-            }
-
-            Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.UID ).get( realClass );
-            String key = PreheatIdentifier.UID.getIdentifier( object );
-
-            if ( !StringUtils.isEmpty( key ) )
-            {
-                identifierMap.put( key, object );
-            }
+            return this;
         }
-
-        if ( PreheatIdentifier.CODE == identifier )
-        {
-            if ( !map.containsKey( PreheatIdentifier.CODE ) )
-                map.put( PreheatIdentifier.CODE, new HashMap<>() );
-
-            if ( !map.get( PreheatIdentifier.CODE ).containsKey( realClass ) )
-                map.get( PreheatIdentifier.CODE ).put( realClass, new HashMap<>() );
-
-            if ( User.class.isAssignableFrom( realClass ) )
-            {
-                if ( !map.get( PreheatIdentifier.CODE ).containsKey( UserCredentials.class ) )
-                {
-                    map.get( PreheatIdentifier.CODE ).put( UserCredentials.class, new HashMap<>() );
-                }
-
-                User user = (User) object;
-
-                Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.CODE )
-                    .get( UserCredentials.class );
-                identifierMap.put( user.getCode(), user.getUserCredentials() );
-            }
-
-            Map<String, IdentifiableObject> identifierMap = map.get( PreheatIdentifier.CODE ).get( realClass );
-            String key = PreheatIdentifier.CODE.getIdentifier( object );
-
-            if ( !StringUtils.isEmpty( key ) )
-            {
-                identifierMap.put( key, object );
-            }
-        }
-
+        getOrCreate( identifier, klass ).put( key, object );
         return this;
     }
 
+    /**
+     * Implementation Note: This might look a bit overly complicated since a
+     * simple for loop calling the single element put would work as well. The
+     * idea here is to avoid doing first two levels of lookup and initialisation
+     * over and over since the list of objects might be large.
+     */
     public <T extends IdentifiableObject> Preheat put( PreheatIdentifier identifier, Collection<T> objects )
     {
+        if ( objects == null || objects.isEmpty() )
+        {
+            return this;
+        }
+        Class<? extends IdentifiableObject> klass = getObjectType( objects.iterator().next() );
+        identifier = effectiveIdentifier( identifier, klass );
+        Map<String, IdentifiableObject> byKey = getOrCreate( identifier, klass );
         for ( T object : objects )
         {
-            if ( isDefault( object ) )
-                continue;
-            put( identifier, object );
+            if ( !isDefault( object ) )
+            {
+                String key = identifier.getIdentifier( object );
+                if ( !StringUtils.isEmpty( key ) )
+                {
+                    put( byKey, identifier, key, object );
+                }
+            }
         }
-
         return this;
     }
 
     public Preheat remove( PreheatIdentifier identifier, Class<? extends IdentifiableObject> klass, String key )
     {
-        if ( containsKey( identifier, klass, key ) )
+        Map<String, IdentifiableObject> byKey = getNullable( identifier, klass );
+        if ( byKey != null )
         {
-            map.get( identifier ).get( klass ).remove( key );
+            byKey.remove( key );
         }
-
         return this;
     }
 
-    @SuppressWarnings( "unchecked" )
     public Preheat remove( PreheatIdentifier identifier, IdentifiableObject object )
     {
-        Class<? extends IdentifiableObject> klass = HibernateProxyUtils.getRealClass( object );
-
-        if ( PreheatIdentifier.UID == identifier )
-        {
-            String key = PreheatIdentifier.UID.getIdentifier( object );
-
-            if ( containsKey( PreheatIdentifier.UID, klass, key ) )
-            {
-                map.get( PreheatIdentifier.UID ).get( klass ).remove( key );
-            }
-        }
-
-        if ( PreheatIdentifier.CODE == identifier )
-        {
-            String key = PreheatIdentifier.CODE.getIdentifier( object );
-
-            if ( containsKey( PreheatIdentifier.CODE, klass, key ) )
-            {
-                map.get( PreheatIdentifier.CODE ).get( klass ).remove( key );
-            }
-        }
-
-        return this;
+        return object == null
+            ? this
+            : remove( identifier, getObjectType( object ), identifier.getIdentifier( object ) );
     }
 
     public Preheat remove( PreheatIdentifier identifier, Class<? extends IdentifiableObject> klass,
         Collection<String> keys )
     {
-        for ( String key : keys )
+        Map<String, IdentifiableObject> byKey = getNullable( identifier, klass );
+        if ( byKey != null )
         {
-            remove( identifier, klass, key );
+            keys.forEach( byKey::remove );
         }
-
         return this;
-    }
-
-    public Map<PreheatIdentifier, Map<Class<? extends IdentifiableObject>, Map<String, IdentifiableObject>>> getMap()
-    {
-        return map;
     }
 
     public Map<Class<? extends IdentifiableObject>, IdentifiableObject> getDefaults()
@@ -542,8 +421,7 @@ public class Preheat
         this.uniqueAttributeValues = uniqueAttributeValues;
     }
 
-    @SuppressWarnings( { "rawtypes" } )
-    public static boolean isDefaultClass( Class klass )
+    public static boolean isDefaultClass( Class<?> klass )
     {
         return Category.class.isAssignableFrom( klass ) || CategoryOption.class.isAssignableFrom( klass )
             || CategoryCombo.class.isAssignableFrom( klass ) || CategoryOptionCombo.class.isAssignableFrom( klass );
@@ -561,16 +439,114 @@ public class Preheat
             return false;
         }
 
-        IdentifiableObject defaultObject = getDefaults().get( HibernateProxyUtils.getRealClass( object ) );
+        IdentifiableObject defaultObject = getDefaults().get( getObjectType( object ) );
 
         return defaultObject != null && defaultObject.getUid().equals( object.getUid() );
     }
 
-    private PreheatIdentifier getIdentifier( Class<? extends IdentifiableObject> klass, PreheatIdentifier identifier )
+    /**
+     * Get list of {@link Attribute} which the given klass has.
+     *
+     * @param klass Class to be used for querying.
+     * @return Set of {@link Attribute} belong to given klass.
+     */
+    public Set<Attribute> getAttributesByClass( Class<? extends IdentifiableObject> klass )
     {
-        return (klass == User.class || klass == UserCredentials.class
-            || klass == UserAuthorityGroup.class)
+        return attributesByTargetObjectType.get( klass );
+    }
+
+    /**
+     * Add given list of {@link Attribute} to map attributesByTargetObjectType.
+     *
+     * @param klass Class which has given list of {@link Attribute}.
+     * @param attributes List of {@link Attribute} to be added.
+     */
+    public void addClassAttributes( Class<? extends IdentifiableObject> klass, Set<Attribute> attributes )
+    {
+        attributesByTargetObjectType.put( klass, attributes );
+    }
+
+    /**
+     * Add given {@link Attribute} to map attributesByTargetObjectType.
+     *
+     * @param klass Class which has given list of {@link Attribute}.
+     * @param attribute {@link Attribute} to be added.
+     */
+    public void addClassAttribute( Class<? extends IdentifiableObject> klass, Attribute attribute )
+    {
+        if ( attributesByTargetObjectType.get( klass ) == null )
+        {
+            attributesByTargetObjectType.put( klass, Sets.newHashSet() );
+        }
+
+        attributesByTargetObjectType.get( klass ).add( attribute );
+    }
+
+    /**
+     * Get Set of all attribute ID of given klass which has given valueType.
+     *
+     * @param klass Class to be used for querying.
+     * @param valueType {@link ValueType} to be used for querying.
+     * @return Set of {@link Attribute} ID.
+     */
+    public Set<String> getAttributeIdsByValueType( Class<? extends IdentifiableObject> klass, ValueType valueType )
+    {
+        Set<Attribute> attributes = attributesByTargetObjectType.get( klass );
+
+        if ( CollectionUtils.isEmpty( attributes ) )
+        {
+            return emptySet();
+        }
+
+        return attributes.stream()
+            .filter( attribute -> attribute.getValueType() == valueType )
+            .map( attribute -> attribute.getUid() ).collect( Collectors.toUnmodifiableSet() );
+    }
+
+    /*
+     * For use in unit tests only (package private)
+     */
+
+    boolean hasKlassKeys( PreheatIdentifier identifier )
+    {
+        return getKlassKeyCount( identifier ) > 0;
+    }
+
+    int getKlassKeyCount( PreheatIdentifier identifier )
+    {
+        return map.get( identifier ).size();
+    }
+
+    int getIdentifierKeyCount( PreheatIdentifier identifier, Class<? extends IdentifiableObject> klass )
+    {
+        Map<String, IdentifiableObject> byKey = getNullable( identifier, klass );
+        return byKey == null ? 0 : byKey.size();
+    }
+
+    private Map<String, IdentifiableObject> getNullable( PreheatIdentifier identifier,
+        Class<? extends IdentifiableObject> klass )
+    {
+        return map.get( identifier ).get( klass );
+    }
+
+    private Map<String, IdentifiableObject> getOrCreate( PreheatIdentifier identifier,
+        Class<? extends IdentifiableObject> klass )
+    {
+        return map.get( identifier ).computeIfAbsent( klass, key -> new HashMap<>() );
+    }
+
+    private static PreheatIdentifier effectiveIdentifier( PreheatIdentifier identifier,
+        Class<? extends IdentifiableObject> klass )
+    {
+        return (klass == User.class
+            || klass == UserRole.class)
                 ? PreheatIdentifier.UID
                 : identifier;
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private <T extends IdentifiableObject> Class<? extends IdentifiableObject> getObjectType( T object )
+    {
+        return HibernateProxyUtils.getRealClass( object );
     }
 }

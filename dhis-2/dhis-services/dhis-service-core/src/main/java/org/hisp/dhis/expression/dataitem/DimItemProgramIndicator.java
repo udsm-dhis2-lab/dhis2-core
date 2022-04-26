@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,12 +47,5 @@ public class DimItemProgramIndicator
     {
         return new DimensionalItemId( PROGRAM_INDICATOR,
             ctx.uid0.getText() );
-    }
-
-    @Override
-    public String getId( ExprContext ctx, CommonExpressionVisitor visitor )
-    {
-        return ctx.uid0.getText() +
-            (visitor.getPeriodOffset() == 0 ? "" : "." + visitor.getPeriodOffset());
     }
 }

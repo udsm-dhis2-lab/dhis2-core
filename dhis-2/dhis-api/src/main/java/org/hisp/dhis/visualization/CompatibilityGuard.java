@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,14 +44,14 @@ public class CompatibilityGuard
 
     static void keepLegendReadingCompatibility( final Visualization visualization )
     {
-        if ( visualization.getLegend() != null && visualization.getLegend().getLabel() != null )
+        if ( visualization.getSeriesKey() != null && visualization.getSeriesKey().getLabel() != null )
         {
             if ( visualization.getFontStyle() == null )
             {
                 visualization.setFontStyle( new VisualizationFontStyle() );
             }
 
-            visualization.getFontStyle().setLegend( visualization.getLegend().getLabel().getFontStyle() );
+            visualization.getFontStyle().setLegend( visualization.getSeriesKey().getLabel().getFontStyle() );
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,8 +29,10 @@ package org.hisp.dhis.dxf2;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDateTime;
@@ -53,12 +55,14 @@ import org.hisp.dhis.category.CategoryCombo;
 import org.hisp.dhis.category.CategoryOptionCombo;
 import org.hisp.dhis.common.CodeGenerator;
 import org.hisp.dhis.common.IdentifiableObjectManager;
+import org.hisp.dhis.commons.util.RelationshipUtils;
 import org.hisp.dhis.dbms.DbmsManager;
 import org.hisp.dhis.dxf2.common.ImportOptions;
 import org.hisp.dhis.dxf2.events.enrollment.Enrollment;
 import org.hisp.dhis.dxf2.events.enrollment.EnrollmentService;
 import org.hisp.dhis.dxf2.events.enrollment.EnrollmentStatus;
 import org.hisp.dhis.dxf2.events.event.Event;
+import org.hisp.dhis.dxf2.events.event.EventService;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
 import org.hisp.dhis.event.EventStatus;
 import org.hisp.dhis.mock.MockCurrentUserService;
@@ -79,8 +83,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserAuthorityGroup;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.util.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,6 +97,7 @@ import com.google.common.collect.Sets;
  */
 public abstract class TrackerTest extends IntegrationTestBase
 {
+
     @Autowired
     protected IdentifiableObjectManager manager;
 
@@ -102,6 +106,9 @@ public abstract class TrackerTest extends IntegrationTestBase
 
     @Autowired
     private EnrollmentService enrollmentService;
+
+    @Autowired
+    private EventService eventService;
 
     @Autowired
     private TrackedEntityInstanceService trackedEntityInstanceService;
@@ -147,61 +154,44 @@ public abstract class TrackerTest extends IntegrationTestBase
         trackedEntityTypeA = createTrackedEntityType( 'A' );
         trackedEntityTypeA.setUid( CodeGenerator.generateUid() );
         trackedEntityTypeA.setName( "TrackedEntityTypeA" + trackedEntityTypeA.getUid() );
-
         organisationUnitA = createOrganisationUnit( 'A' );
         organisationUnitA.setUid( CodeGenerator.generateUid() );
         organisationUnitA.setCode( RandomStringUtils.randomAlphanumeric( 10 ) );
-
         organisationUnitB = createOrganisationUnit( 'B' );
         organisationUnitB.setUid( CodeGenerator.generateUid() );
         organisationUnitB.setCode( RandomStringUtils.randomAlphanumeric( 10 ) );
-
         categoryComboA = manager.getByName( CategoryCombo.class, "default" );
         categoryComboA.setUid( CodeGenerator.generateUid() );
         manager.update( categoryComboA );
-
         ProgramStage programStageA2;
-
-        programStageA1 = createProgramStage( programA, true );
-        programStageA2 = createProgramStage( programA, true );
-
         programA = createProgram( 'A', new HashSet<>(), organisationUnitA );
         programA.setProgramType( ProgramType.WITH_REGISTRATION );
         programA.setCategoryCombo( categoryComboA );
         programA.setUid( CodeGenerator.generateUid() );
         programA.setCode( RandomStringUtils.randomAlphanumeric( 10 ) );
-        programA.setProgramStages(
-            Stream.of( programStageA1, programStageA2 ).collect( Collectors.toCollection( HashSet::new ) ) );
-
         CategoryOptionCombo defaultCategoryOptionCombo = createCategoryOptionCombo( 'A' );
         defaultCategoryOptionCombo.setCategoryCombo( categoryComboA );
         defaultCategoryOptionCombo.setUid( DEF_COC_UID );
         defaultCategoryOptionCombo.setName( "default1" );
-
         relationshipType = new RelationshipType();
         relationshipType.setFromToName( RandomStringUtils.randomAlphanumeric( 5 ) );
         relationshipType.setToFromName( RandomStringUtils.randomAlphanumeric( 5 ) );
         relationshipType.setName( RandomStringUtils.randomAlphanumeric( 10 ) );
-
         // Tracker graph persistence
         doInTransaction( () -> {
-
             trackedEntityTypeService.addTrackedEntityType( trackedEntityTypeA );
-
             manager.save( organisationUnitA );
-
             manager.save( organisationUnitB );
-
             manager.save( categoryComboA );
-
             manager.save( programA );
-
             manager.save( relationshipType );
-
         } );
-
+        programStageA1 = createProgramStage( programA, true );
+        programStageA2 = createProgramStage( programA, true );
+        programA.setProgramStages(
+            Stream.of( programStageA1, programStageA2 ).collect( Collectors.toCollection( HashSet::new ) ) );
+        manager.update( programA );
         super.userService = this.userService;
-
         mockCurrentUserService();
     }
 
@@ -217,7 +207,6 @@ public abstract class TrackerTest extends IntegrationTestBase
     {
         TrackedEntityInstance entityInstance = createTrackedEntityInstance( organisationUnitA );
         entityInstance.setTrackedEntityType( trackedEntityTypeA );
-
         if ( teiValues != null && !teiValues.isEmpty() )
         {
             for ( String method : teiValues.keySet() )
@@ -232,21 +221,19 @@ public abstract class TrackerTest extends IntegrationTestBase
                 }
             }
         }
-
         trackedEntityInstanceService.addTrackedEntityInstance( entityInstance );
         return entityInstance;
     }
 
     private Relationship _persistRelationship( RelationshipItem from, RelationshipItem to )
     {
-
         Relationship relationship = new Relationship();
         relationship.setFrom( from );
         relationship.setTo( to );
         relationship.setRelationshipType( relationshipType );
-
+        relationship.setKey( RelationshipUtils.generateRelationshipKey( relationship ) );
+        relationship.setInvertedKey( RelationshipUtils.generateRelationshipInvertedKey( relationship ) );
         relationshipService.addRelationship( relationship );
-
         return relationship;
     }
 
@@ -254,10 +241,8 @@ public abstract class TrackerTest extends IntegrationTestBase
     {
         RelationshipItem from = new RelationshipItem();
         from.setTrackedEntityInstance( t1 );
-
         RelationshipItem to = new RelationshipItem();
         to.setTrackedEntityInstance( t2 );
-
         return _persistRelationship( from, to );
     }
 
@@ -265,10 +250,8 @@ public abstract class TrackerTest extends IntegrationTestBase
     {
         RelationshipItem from = new RelationshipItem();
         from.setTrackedEntityInstance( tei );
-
         RelationshipItem to = new RelationshipItem();
         to.setProgramInstance( pi );
-
         return _persistRelationship( from, to );
     }
 
@@ -276,10 +259,8 @@ public abstract class TrackerTest extends IntegrationTestBase
     {
         RelationshipItem from = new RelationshipItem();
         from.setTrackedEntityInstance( tei );
-
         RelationshipItem to = new RelationshipItem();
         to.setProgramStageInstance( psi );
-
         return _persistRelationship( from, to );
     }
 
@@ -299,19 +280,39 @@ public abstract class TrackerTest extends IntegrationTestBase
         return _persistTrackedEntityInstanceWithEnrollmentAndEvents( 5, enrollmentValues );
     }
 
+    public Enrollment deleteOneEnrollment(
+        org.hisp.dhis.dxf2.events.trackedentity.TrackedEntityInstance trackedEntityInstance )
+    {
+        List<Enrollment> enrollments = trackedEntityInstance.getEnrollments();
+        assertThat( enrollments, is( not( empty() ) ) );
+
+        Enrollment enrollment = enrollments.get( 0 );
+        ImportSummary importSummary = enrollmentService.deleteEnrollment( enrollment.getEnrollment() );
+        assertEquals( 0, importSummary.getConflictCount() );
+        return enrollment;
+
+    }
+
+    public Event deleteOneEvent( Enrollment enrollment )
+    {
+        List<Event> events = enrollment.getEvents();
+        assertThat( events, is( not( empty() ) ) );
+
+        Event event = events.get( 0 );
+        ImportSummary importSummary = eventService.deleteEvent( event.getEvent() );
+        assertEquals( 0, importSummary.getConflictCount() );
+        return event;
+    }
+
     private TrackedEntityInstance _persistTrackedEntityInstanceWithEnrollmentAndEvents( int eventSize,
         Map<String, Object> enrollmentValues )
     {
         TrackedEntityInstance entityInstance = persistTrackedEntityInstance();
-
         final ImportSummary importSummary = enrollmentService.addEnrollment(
             createEnrollmentWithEvents( this.programA, entityInstance, eventSize, enrollmentValues ),
             ImportOptions.getDefaultImportOptions() );
-
-        assertThat( importSummary.getConflicts(), hasSize( 0 ) );
-
+        assertEquals( 0, importSummary.getConflictCount() );
         assertThat( importSummary.getEvents().getImported(), is( eventSize ) );
-
         return entityInstance;
     }
 
@@ -328,13 +329,10 @@ public abstract class TrackerTest extends IntegrationTestBase
         enrollment.setIncidentDate( new Date() );
         enrollment.setCompletedDate( new Date() );
         enrollment.setCompletedBy( "hello-world" );
-
         if ( events > 0 )
         {
             List<Event> eventList = new ArrayList<>();
-
             String now = DateUtils.getIso8601NoTz( new Date() );
-
             for ( int i = 0; i < events; i++ )
             {
                 Event event1 = new Event();
@@ -351,10 +349,8 @@ public abstract class TrackerTest extends IntegrationTestBase
                 event1.setLastUpdatedAtClient( now );
                 event1.setCompletedDate( now );
                 event1.setCompletedBy( "[Unknown]" );
-
                 eventList.add( event1 );
             }
-
             enrollment.setEvents( eventList );
         }
         return enrollment;
@@ -364,7 +360,6 @@ public abstract class TrackerTest extends IntegrationTestBase
         int events, Map<String, Object> enrollmentValues )
     {
         Enrollment enrollment = createEnrollmentWithEvents( program, trackedEntityInstance, events );
-
         if ( enrollmentValues != null && !enrollmentValues.isEmpty() )
         {
             for ( String method : enrollmentValues.keySet() )
@@ -379,7 +374,6 @@ public abstract class TrackerTest extends IntegrationTestBase
                 }
             }
         }
-
         return enrollment;
     }
 
@@ -394,14 +388,11 @@ public abstract class TrackerTest extends IntegrationTestBase
         ProgramStage programStage = createProgramStage( '1', program );
         programStage.setUid( CodeGenerator.generateUid() );
         programStage.setRepeatable( true );
-
         if ( publicAccess )
         {
             programStage.setPublicAccess( AccessStringHelper.FULL );
         }
-
         doInTransaction( () -> manager.save( programStage ) );
-
         return programStage;
     }
 
@@ -409,11 +400,8 @@ public abstract class TrackerTest extends IntegrationTestBase
     {
         final int defaultPropagationBehaviour = txTemplate.getPropagationBehavior();
         txTemplate.setPropagationBehavior( TransactionDefinition.PROPAGATION_REQUIRES_NEW );
-
         txTemplate.execute( status -> {
-
             operation.run();
-
             return null;
         } );
         // restore original propagation behaviour
@@ -422,12 +410,11 @@ public abstract class TrackerTest extends IntegrationTestBase
 
     protected void makeUserSuper( User user )
     {
-        UserCredentials userCredentials = new UserCredentials();
-        UserAuthorityGroup userAuthorityGroup1Super = new UserAuthorityGroup();
-        userAuthorityGroup1Super.setUid( "uid4" );
-        userAuthorityGroup1Super
-            .setAuthorities( new HashSet<>( Arrays.asList( "z1", UserAuthorityGroup.AUTHORITY_ALL ) ) );
-        userCredentials.setUserAuthorityGroups( Sets.newHashSet( userAuthorityGroup1Super ) );
-        user.setUserCredentials( userCredentials );
+        UserRole group = new UserRole();
+        group.setName( "Super" );
+        group.setUid( "uid4" );
+        group
+            .setAuthorities( new HashSet<>( Arrays.asList( "z1", UserRole.AUTHORITY_ALL ) ) );
+        user.setUserRoles( Sets.newHashSet( group ) );
     }
 }

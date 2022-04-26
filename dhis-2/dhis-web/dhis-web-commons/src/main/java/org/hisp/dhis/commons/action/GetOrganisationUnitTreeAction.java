@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -263,7 +263,7 @@ public class GetOrganisationUnitTreeAction extends BaseAction
             }
         }
 
-        Collection<?> intersection = org.apache.commons.collections.CollectionUtils.intersection(
+        Collection<?> intersection = org.apache.commons.collections4.CollectionUtils.intersection(
             organisationUnitService.getRootOrganisationUnits(), rootOrganisationUnits );
 
         if ( intersection.size() > 0 )

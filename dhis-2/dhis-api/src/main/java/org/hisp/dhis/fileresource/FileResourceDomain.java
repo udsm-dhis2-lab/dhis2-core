@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,10 @@ public enum FileResourceDomain
      */
     private String containerName;
 
-    private static final Set<FileResourceDomain> DOMAIN_FOR_MULTIPLE_IMAGES = new ImmutableSet.Builder<FileResourceDomain>()
-        .add( DATA_VALUE, USER_AVATAR, ORG_UNIT ).build();
+    private static final ImmutableSet<FileResourceDomain> DOMAIN_FOR_MULTIPLE_IMAGES = ImmutableSet.of(
+        DATA_VALUE,
+        USER_AVATAR,
+        ORG_UNIT );
 
     FileResourceDomain( String containerName )
     {

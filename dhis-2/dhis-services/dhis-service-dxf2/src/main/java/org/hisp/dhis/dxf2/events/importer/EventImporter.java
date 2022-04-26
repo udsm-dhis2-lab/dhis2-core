@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -117,7 +117,7 @@ public class EventImporter
 
         if ( ERRORS == importOptions.getReportMode() && isNotEmpty( importSummaries.getImportSummaries() ) )
         {
-            importSummaries.getImportSummaries().removeIf( is -> is.getConflicts().isEmpty() );
+            importSummaries.getImportSummaries().removeIf( is -> !is.hasConflicts() );
         }
 
         return importSummaries;

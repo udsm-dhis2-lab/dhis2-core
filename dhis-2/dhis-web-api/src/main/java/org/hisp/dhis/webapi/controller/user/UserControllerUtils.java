@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,10 @@
  */
 package org.hisp.dhis.webapi.controller.user;
 
-import static org.hisp.dhis.dataapproval.DataApproval.*;
-import static org.hisp.dhis.user.UserAuthorityGroup.AUTHORITY_ALL;
+import static org.hisp.dhis.dataapproval.DataApproval.AUTH_ACCEPT_LOWER_LEVELS;
+import static org.hisp.dhis.dataapproval.DataApproval.AUTH_APPROVE;
+import static org.hisp.dhis.dataapproval.DataApproval.AUTH_APPROVE_LOWER_LEVELS;
+import static org.hisp.dhis.user.UserRole.AUTHORITY_ALL;
 
 import java.util.Comparator;
 import java.util.Set;
@@ -121,15 +123,15 @@ public class UserControllerUtils
      */
     private CollectionNode getWorkflowLevelNodes( User user, DataApprovalWorkflow workflow )
     {
-        Set<String> authorities = user.getUserCredentials().getAllAuthorities();
+        Set<String> authorities = user.getAllAuthorities();
 
         boolean canApprove = authorities.contains( AUTHORITY_ALL ) || authorities.contains( AUTH_APPROVE );
         boolean canApproveLowerLevels = authorities.contains( AUTHORITY_ALL )
             || authorities.contains( AUTH_APPROVE_LOWER_LEVELS );
         boolean canAccept = authorities.contains( AUTHORITY_ALL ) || authorities.contains( AUTH_ACCEPT_LOWER_LEVELS );
 
-        boolean acceptConfigured = (Boolean) systemSettingManager
-            .getSystemSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL );
+        boolean acceptConfigured = systemSettingManager
+            .getBoolSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL );
 
         int lowestUserOrgUnitLevel = getLowsetUserOrgUnitLevel( user );
 

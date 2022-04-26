@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,12 +46,6 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 @JacksonXmlRootElement( localName = "trackedEntityProgramOwner", namespace = DxfNamespaces.DXF_2_0 )
 public class TrackedEntityProgramOwner implements Serializable
 {
-
-    /**
-     *
-     */
-    private static final long serialVersionUID = 1L;
-
     private int id;
 
     private TrackedEntityInstance entityInstance;
@@ -69,6 +63,7 @@ public class TrackedEntityProgramOwner implements Serializable
     // -------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------
+
     public TrackedEntityProgramOwner()
     {
         this.createdBy = "internal";
@@ -247,5 +242,4 @@ public class TrackedEntityProgramOwner implements Serializable
         }
         this.lastUpdated = now;
     }
-
 }

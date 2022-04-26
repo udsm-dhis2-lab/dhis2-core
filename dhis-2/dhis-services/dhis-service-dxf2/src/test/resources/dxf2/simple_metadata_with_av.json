@@ -154,6 +154,8 @@
         "F_DASHBOARD_PUBLIC_ADD",
         "F_METADATA_IMPORT",
         "F_VISUALIZATION_PUBLIC_ADD",
+        "F_EVENT_VISUALIZATION_PUBLIC_ADD",
+        "F_EVENT_VISUALIZATION_EXTERNAL",
         "F_VIEW_UNAPPROVED_DATA",
         "F_VISUALIZATION_EXTERNAL",
         "F_USERGROUP_MANAGING_RELATIONSHIPS_VIEW",
@@ -362,17 +364,11 @@
         }
       ],
       "lastUpdated": "2016-02-17T06:14:12.250+0000",
-      "userCredentials": {
-        "id": "m3ww4DWJtMf",
         "cogsDimensionConstraints": [ ],
         "catDimensionConstraints": [ ],
         "invitation": false,
         "username": "admin",
         "selfRegistered": false,
-        "userInfo": {
-          "id": "ueKaFVdR8Fz"
-        },
-        "created": "2016-02-17T06:14:12.362+0000",
         "disabled": false,
         "passwordLastUpdated": "2016-02-17T06:14:12.274+0000",
         "externalAuth": false,
@@ -382,7 +378,6 @@
           }
         ],
         "lastLogin": "2016-02-17T06:14:12.274+0000"
-      }
     }
   ],
   "optionSets": [

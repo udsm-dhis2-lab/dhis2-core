@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,10 @@ import java.io.OutputStream;
 import java.io.Writer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.calendar.Calendar;
@@ -48,19 +48,18 @@ import org.hisp.dhis.common.IdScheme;
 import org.hisp.dhis.common.IdSchemes;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.datavalue.DataExportParams;
-import org.hisp.dhis.dxf2.datavalue.DataValue;
-import org.hisp.dhis.hibernate.jsonb.type.JsonbFunctions;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.query.JpaQueryUtils;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.system.util.CsvUtils;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.util.DateUtils;
 import org.hisp.staxwax.factory.XMLFactory;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 
 import com.google.common.base.Preconditions;
@@ -71,7 +70,7 @@ import com.google.common.base.Preconditions;
 @Slf4j
 @Repository( "org.hisp.dhis.dxf2.datavalueset.DataValueSetStore" )
 public class SpringDataValueSetStore
-    implements DataValueSetStore
+    implements DataValueSetStore, CurrentUserServiceTarget
 {
     private CurrentUserService currentUserService;
 
@@ -86,9 +85,7 @@ public class SpringDataValueSetStore
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * Use only for testing.
-     */
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -99,56 +96,54 @@ public class SpringDataValueSetStore
     // --------------------------------------------------------------------------
 
     @Override
-    public void writeDataValueSetXml( DataExportParams params, Date completeDate, OutputStream out )
+    public void exportDataValueSetXml( DataExportParams params, Date completeDate, OutputStream out )
     {
-        DataValueSet dataValueSet = new StreamingXmlDataValueSet( XMLFactory.getXMLWriter( out ) );
-
-        String sql = getDataValueSql( params );
-
-        writeDataValueSet( sql, params, completeDate, dataValueSet );
+        try ( DataValueSetWriter writer = new XmlDataValueSetWriter( XMLFactory.getXMLWriter( out ) ) )
+        {
+            exportDataValueSet( getDataValueSql( params ), params, completeDate, writer );
+        }
     }
 
     @Override
-    public void writeDataValueSetJson( DataExportParams params, Date completeDate, OutputStream out )
+    public void exportDataValueSetJson( DataExportParams params, Date completeDate, OutputStream out )
     {
-        DataValueSet dataValueSet = new StreamingJsonDataValueSet( out );
 
-        String sql = getDataValueSql( params );
-
-        writeDataValueSet( sql, params, completeDate, dataValueSet );
+        try ( DataValueSetWriter writer = new JsonDataValueSetWriter( out ) )
+        {
+            exportDataValueSet( getDataValueSql( params ), params, completeDate, writer );
+        }
     }
 
     @Override
-    public void writeDataValueSetCsv( DataExportParams params, Date completeDate, Writer writer )
+    public void exportDataValueSetCsv( DataExportParams params, Date completeDate, Writer out )
     {
-        DataValueSet dataValueSet = new StreamingCsvDataValueSet( CsvUtils.getWriter( writer ) );
-
-        String sql = getDataValueSql( params );
-
-        writeDataValueSet( sql, params, completeDate, dataValueSet );
+        try ( DataValueSetWriter writer = new CsvDataValueSetWriter( CsvUtils.getWriter( out ) ) )
+        {
+            exportDataValueSet( getDataValueSql( params ), params, completeDate, writer );
+        }
     }
 
     @Override
-    public void writeDataValueSetJson( Date lastUpdated, OutputStream outputStream, IdSchemes idSchemes )
+    public void exportDataValueSetJson( Date lastUpdated, OutputStream out, IdSchemes idSchemes )
     {
-        DataValueSet dataValueSet = new StreamingJsonDataValueSet( outputStream );
-
-        final String sql = buildDataValueSql( lastUpdated, idSchemes );
-
-        writeDataValueSet( sql, new DataExportParams(), null, dataValueSet );
+        try ( DataValueSetWriter writer = new JsonDataValueSetWriter( out ) )
+        {
+            exportDataValueSet( buildDataValueSql( lastUpdated, idSchemes ), new DataExportParams(), null, writer );
+        }
     }
 
     @Override
-    public void writeDataValueSetJson( Date lastUpdated, OutputStream outputStream, IdSchemes idSchemes, int pageSize,
+    public void exportDataValueSetJson( Date lastUpdated, OutputStream out, IdSchemes idSchemes, int pageSize,
         int page )
     {
-        DataValueSet dataValueSet = new StreamingJsonDataValueSet( outputStream );
+        try ( DataValueSetWriter writer = new JsonDataValueSetWriter( out ) )
+        {
+            final int offset = (page - 1) * pageSize;
+            final String sql = buildDataValueSql( lastUpdated, idSchemes )
+                + "order by pe.startdate asc, dv.created asc, deid asc limit " + pageSize + " offset " + offset;
 
-        final int offset = (page - 1) * pageSize;
-        final String sql = buildDataValueSql( lastUpdated, idSchemes ) +
-            "order by pe.startdate asc, dv.created asc, deid asc limit " + pageSize + " offset " + offset;
-
-        writeDataValueSet( sql, new DataExportParams(), null, dataValueSet );
+            exportDataValueSet( sql, new DataExportParams(), null, writer );
+        }
     }
 
     private String buildDataValueSql( Date lastUpdated, IdSchemes idSchemes )
@@ -156,10 +151,11 @@ public class SpringDataValueSetStore
         String deScheme = idSchemes.getDataElementIdScheme().getIdentifiableString().toLowerCase();
         String ouScheme = idSchemes.getOrgUnitIdScheme().getIdentifiableString().toLowerCase();
         String ocScheme = idSchemes.getCategoryOptionComboIdScheme().getIdentifiableString().toLowerCase();
+        String aocScheme = idSchemes.getAttributeOptionComboIdScheme().getIdentifiableString().toLowerCase();
 
         final String sql = "select de." + deScheme + " as deid, pe.startdate as pestart, pt.name as ptname, ou."
             + ouScheme + " as ouid, " +
-            "coc." + ocScheme + " as cocid, aoc." + ocScheme + " as aocid, " +
+            "coc." + ocScheme + " as cocid, aoc." + aocScheme + " as aocid, " +
             "dv.value, dv.storedby, dv.created, dv.lastupdated, dv.comment, dv.followup, dv.deleted " +
             "from datavalue dv " +
             "join dataelement de on (dv.dataelementid=de.dataelementid) " +
@@ -173,8 +169,8 @@ public class SpringDataValueSetStore
         return sql;
     }
 
-    private void writeDataValueSet( String sql, DataExportParams params, Date completeDate,
-        final DataValueSet dataValueSet )
+    private void exportDataValueSet( String sql, DataExportParams params, Date completeDate,
+        final DataValueSetWriter writer )
     {
         if ( params.isSingleDataValueSet() )
         {
@@ -182,46 +178,18 @@ public class SpringDataValueSetStore
             IdScheme ouScheme = idScheme.getOrgUnitIdScheme();
             IdScheme dataSetScheme = idScheme.getDataSetIdScheme();
 
-            dataValueSet.setDataSet( params.getFirstDataSet().getPropertyValue( dataSetScheme ) );
-            dataValueSet.setCompleteDate( getLongGmtDateString( completeDate ) );
-            dataValueSet.setPeriod( params.getFirstPeriod().getIsoDate() );
-            dataValueSet.setOrgUnit( params.getFirstOrganisationUnit().getPropertyValue( ouScheme ) );
+            writer.writeHeader( params.getFirstDataSet().getPropertyValue( dataSetScheme ),
+                getLongGmtDateString( completeDate ),
+                params.getFirstPeriod().getIsoDate(),
+                params.getFirstOrganisationUnit().getPropertyValue( ouScheme ) );
+        }
+        else
+        {
+            writer.writeHeader();
         }
 
         final Calendar calendar = PeriodType.getCalendar();
-
-        jdbcTemplate.query( sql, new RowCallbackHandler()
-        {
-            @Override
-            public void processRow( ResultSet rs )
-                throws SQLException
-            {
-                DataValue dataValue = dataValueSet.getDataValueInstance();
-                PeriodType pt = PeriodType.getPeriodTypeByName( rs.getString( "ptname" ) );
-                boolean deleted = rs.getBoolean( "deleted" );
-
-                dataValue.setDataElement( rs.getString( "deid" ) );
-                dataValue.setPeriod( pt.createPeriod( rs.getDate( "pestart" ), calendar ).getIsoDate() );
-                dataValue.setOrgUnit( rs.getString( "ouid" ) );
-                dataValue.setCategoryOptionCombo( rs.getString( "cocid" ) );
-                dataValue.setAttributeOptionCombo( rs.getString( "aocid" ) );
-                dataValue.setValue( rs.getString( "value" ) );
-                dataValue.setStoredBy( rs.getString( "storedby" ) );
-                dataValue.setCreated( getLongGmtDateString( rs.getTimestamp( "created" ) ) );
-                dataValue.setLastUpdated( getLongGmtDateString( rs.getTimestamp( "lastupdated" ) ) );
-                dataValue.setComment( rs.getString( "comment" ) );
-                dataValue.setFollowup( rs.getBoolean( "followup" ) );
-
-                if ( deleted )
-                {
-                    dataValue.setDeleted( deleted );
-                }
-
-                dataValue.close();
-            }
-        } );
-
-        dataValueSet.close();
+        jdbcTemplate.query( sql, ( ResultSet rs ) -> writer.writeValue( new ResultSetDataValueEntry( rs, calendar ) ) );
     }
 
     // --------------------------------------------------------------------------
@@ -239,10 +207,12 @@ public class SpringDataValueSetStore
         String deScheme = idScheme.getDataElementIdScheme().getIdentifiableString().toLowerCase();
         String ouScheme = idScheme.getOrgUnitIdScheme().getIdentifiableString().toLowerCase();
         String cocScheme = idScheme.getCategoryOptionComboIdScheme().getIdentifiableString().toLowerCase();
+        String aocScheme = idScheme.getAttributeOptionComboIdScheme().getIdentifiableString().toLowerCase();
 
         String dataElements = getCommaDelimitedString( getIdentifiers( params.getAllDataElements() ) );
         String orgUnits = getCommaDelimitedString( getIdentifiers( params.getOrganisationUnits() ) );
         String orgUnitGroups = getCommaDelimitedString( getIdentifiers( params.getOrganisationUnitGroups() ) );
+        String deGroups = getCommaDelimitedString( getIdentifiers( params.getDataElementGroups() ) );
 
         // ----------------------------------------------------------------------
         // Identifier schemes
@@ -262,10 +232,10 @@ public class SpringDataValueSetStore
                 + "\", \"value\" }'  as cocid"
             : "coc." + cocScheme + " as cocid";
 
-        String aocSql = idScheme.getCategoryOptionComboIdScheme().isAttribute()
-            ? "aoc.attributevalues #>> '{\"" + idScheme.getCategoryOptionComboIdScheme().getAttribute()
+        String aocSql = idScheme.getAttributeOptionComboIdScheme().isAttribute()
+            ? "aoc.attributevalues #>> '{\"" + idScheme.getAttributeOptionComboIdScheme().getAttribute()
                 + "\", \"value\" }'  as aocid"
-            : "aoc." + cocScheme + " as aocid";
+            : "aoc." + aocScheme + " as aocid";
 
         // ----------------------------------------------------------------------
         // Data values
@@ -291,9 +261,20 @@ public class SpringDataValueSetStore
             sql += "left join orgunitgroupmembers ougm on (ou.organisationunitid=ougm.organisationunitid) ";
         }
 
-        sql += "where de.dataelementid in (" + dataElements + ") ";
+        sql += "where ";
 
-        if ( params.isIncludeChildren() )
+        if ( !params.hasDataElementGroups() )
+        {
+            sql += "de.dataelementid in (" + dataElements + ") ";
+        }
+        else
+        {
+            sql += "dv.dataelementid in ("
+                + "select distinct degm.dataelementid from dataelementgroupmembers degm "
+                + "where degm.dataelementgroupid in (" + deGroups + ")) ";
+        }
+
+        if ( params.isIncludeDescendants() )
         {
             sql += "and (";
 
@@ -382,20 +363,6 @@ public class SpringDataValueSetStore
      */
     private String getAttributeOptionComboClause( User user )
     {
-        List<String> groupsIds = user.getGroups().stream().map( g -> g.getUid() )
-            .collect( Collectors.toList() );
-
-        String groupAccessCheck = groupsIds.size() > 0
-            ? " or ( " + JsonbFunctions.HAS_USER_GROUP_IDS + "( co.sharing, '{" + String.join( ",", groupsIds )
-                + "}' ) = true " +
-                "and " + JsonbFunctions.CHECK_USER_GROUPS_ACCESS + "( co.sharing, '__r%', '{"
-                + String.join( ",", groupsIds ) + "}' ) = true ) )"
-            : "";
-
-        String userAccessCheck = " or ( " + JsonbFunctions.HAS_USER_ID + "( co.sharing, '" + user.getUid()
-            + "' ) = true " +
-            " and " + JsonbFunctions.CHECK_USER_ACCESS + "( co.sharing, '__r%', '" + user.getUid() + "' ) = true ) )";
-
         return "and dv.attributeoptioncomboid not in (" +
             "select distinct(cocco.categoryoptioncomboid) " +
             "from categoryoptioncombos_categoryoptions as cocco " +
@@ -405,5 +372,140 @@ public class SpringDataValueSetStore
             "from dataelementcategoryoption co  " +
             " where "
             + JpaQueryUtils.generateSQlQueryForSharingCheck( "co.sharing", user, AclService.LIKE_READ_DATA ) + ") )";
+    }
+
+    @AllArgsConstructor
+    static final class ResultSetDataValueEntry implements DataValueEntry
+    {
+        private final ResultSet rs;
+
+        private final Calendar calendar;
+
+        @Override
+        public String getDataElement()
+        {
+            return getString( "deid" );
+        }
+
+        @Override
+        public String getPeriod()
+        {
+            PeriodType pt = PeriodType.getPeriodTypeByName( getString( "ptname" ) );
+            return pt.createPeriod( getDate( "pestart" ), calendar ).getIsoDate();
+        }
+
+        @Override
+        public String getOrgUnit()
+        {
+            return getString( "ouid" );
+        }
+
+        @Override
+        public String getCategoryOptionCombo()
+        {
+            return getString( "cocid" );
+        }
+
+        @Override
+        public String getAttributeOptionCombo()
+        {
+            return getString( "aocid" );
+        }
+
+        @Override
+        public String getValue()
+        {
+            return getString( "value" );
+        }
+
+        @Override
+        public String getStoredBy()
+        {
+            return getString( "storedby" );
+        }
+
+        @Override
+        public String getCreated()
+        {
+            return getLongGmtDateString( getTimestamp( "created" ) );
+        }
+
+        @Override
+        public String getLastUpdated()
+        {
+            return getLongGmtDateString( getTimestamp( "lastupdated" ) );
+        }
+
+        @Override
+        public String getComment()
+        {
+            return getString( "comment" );
+        }
+
+        @Override
+        public boolean getFollowup()
+        {
+            return getBoolean( "followup" );
+        }
+
+        @Override
+        public Boolean getDeleted()
+        {
+            boolean deleted = getBoolean( "deleted" );
+            return deleted ? true : null;
+        }
+
+        private String getString( String column )
+        {
+            try
+            {
+                return rs.getString( column );
+            }
+            catch ( SQLException ex )
+            {
+                throw toRuntimeException( column, ex );
+            }
+        }
+
+        private Date getDate( String column )
+        {
+            try
+            {
+                return rs.getDate( column );
+            }
+            catch ( SQLException ex )
+            {
+                throw toRuntimeException( column, ex );
+            }
+        }
+
+        private Timestamp getTimestamp( String column )
+        {
+            try
+            {
+                return rs.getTimestamp( column );
+            }
+            catch ( SQLException ex )
+            {
+                throw toRuntimeException( column, ex );
+            }
+        }
+
+        private boolean getBoolean( String column )
+        {
+            try
+            {
+                return rs.getBoolean( column );
+            }
+            catch ( SQLException ex )
+            {
+                throw toRuntimeException( column, ex );
+            }
+        }
+
+        private UncategorizedSQLException toRuntimeException( String column, SQLException ex )
+        {
+            return new UncategorizedSQLException( "Failed to read column " + column, null, ex );
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@ import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ExprContext
 
 import org.hisp.dhis.antlr.ParserExceptionWithoutContext;
 import org.hisp.dhis.common.DimensionalItemId;
+import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
 
 /**
@@ -54,29 +55,32 @@ public class DimItemDataElementAndOperand
                 ctx.uid0.getText(),
                 ctx.uid1 == null ? null : ctx.uid1.getText(),
                 ctx.uid2 == null ? null : ctx.uid2.getText(),
-                visitor.getPeriodOffset() );
+                ctx.getText(), visitor.getState().getQueryMods() );
         }
         else
         {
             return new DimensionalItemId( DATA_ELEMENT,
-                ctx.uid0.getText(), visitor.getPeriodOffset() );
+                ctx.uid0.getText(), visitor.getState().getQueryMods() );
         }
     }
 
     @Override
-    public String getId( ExprContext ctx, CommonExpressionVisitor visitor )
+    public Object getSql( ExprContext ctx, CommonExpressionVisitor visitor )
     {
-        if ( isDataElementOperandSyntax( ctx ) )
+        if ( !visitor.getState().isSqlForSubExpression() )
         {
-            return ctx.uid0.getText() + "." +
-                (ctx.uid1 == null ? "*" : ctx.uid1.getText()) +
-                (ctx.uid2 == null ? "" : "." + ctx.uid2.getText()) +
-                (visitor.getPeriodOffset() == 0 ? "" : "." + visitor.getPeriodOffset());
+            throw new ParserExceptionWithoutContext(
+                "Not valid to generate DataElement or DataElementOperand SQL here: " + ctx.getText() );
         }
-        else // Data element:
+
+        DataElement dataElement = visitor.getIdObjectManager().getNoAcl( DataElement.class, ctx.uid0.getText() );
+
+        if ( dataElement == null )
         {
-            return ctx.uid0.getText() + (visitor.getPeriodOffset() == 0 ? "" : "." + visitor.getPeriodOffset());
+            throw new ParserExceptionWithoutContext( "DataElement not found: " + ctx.uid0.getText() );
         }
+
+        return dataElement.getValueColumn();
     }
 
     // -------------------------------------------------------------------------

@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,7 @@ package org.hisp.dhis.actions;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions;
 
 import static io.restassured.RestAssured.oauth2;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -42,8 +41,8 @@ import io.restassured.RestAssured;
 public class LoginActions
 {
     /**
-     * Makes sure user with given name is logged in.
-     * Will throw assertion exception if authentication is not successful.
+     * Makes sure user with given name is logged in. Will throw assertion
+     * exception if authentication is not successful.
      *
      * @param username
      * @param password
@@ -53,33 +52,37 @@ public class LoginActions
         ApiResponse loggedInUser = getLoggedInUserInfo();
 
         if ( loggedInUser.getContentType().contains( "json" ) &&
-            loggedInUser.extract( "userCredentials.username" ) != null &&
-            loggedInUser.extract( "userCredentials.username" ).equals( username ) )
+            loggedInUser.extract( "username" ) != null &&
+            loggedInUser.extract( "username" ).equals( username ) )
         {
             return;
         }
 
         addAuthenticationHeader( username, password );
 
-        getLoggedInUserInfo().validate().statusCode( 200 ).body( "userCredentials.username", equalTo( username ) );
+        getLoggedInUserInfo().validate().statusCode( 200 ).body( "username", equalTo( username ) );
     }
 
     /**
-     * Makes sure user configured in env variables is logged in.
-     * Will throw assertion exception if authentication is not successful.
+     * Makes sure user configured in env variables is logged in. Will throw
+     * assertion exception if authentication is not successful.
      */
     public void loginAsSuperUser()
     {
-        loginAsUser( TestConfiguration.get().superUserUsername(), TestConfiguration.get().superUserPassword() );
+        String username = TestConfiguration.get().superUserUsername();
+        String password = TestConfiguration.get().superUserPassword();
+        loginAsUser( username, password );
     }
 
     /**
-     * Makes sure user admin:district is logged in.
-     * Will throw assertion exception if authentication is not successful.
+     * Makes sure user admin:district is logged in. Will throw assertion
+     * exception if authentication is not successful.
      */
     public void loginAsDefaultUser()
     {
-        loginAsUser( TestConfiguration.get().defaultUserUsername(), TestConfiguration.get().defaultUSerPassword() );
+        String username = TestConfiguration.get().defaultUserUsername();
+        String password = TestConfiguration.get().defaultUSerPassword();
+        loginAsUser( username, password );
     }
 
     public ApiResponse getLoggedInUserInfo()
@@ -113,6 +116,7 @@ public class LoginActions
 
     /**
      * Logs in with oAuth2 token
+     *
      * @param token
      */
     public void loginWithToken( String token )

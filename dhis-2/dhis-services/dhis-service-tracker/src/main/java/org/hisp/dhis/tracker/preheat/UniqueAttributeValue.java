@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.tracker.preheat;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
@@ -40,6 +41,7 @@ import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
  */
 @Getter
 @AllArgsConstructor
+@EqualsAndHashCode
 public class UniqueAttributeValue
 {
 

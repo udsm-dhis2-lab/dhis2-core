@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,34 @@
  */
 package org.hisp.dhis.cache;
 
+import static java.util.stream.Collectors.toList;
 import static org.hisp.dhis.utils.Assertions.assertContainsOnly;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * A test for the {@link CappedLocalCache}.
  *
  * @author Jan Bernitt
  */
-public class CappedLocalCacheTest
+class CappedLocalCacheTest
 {
+
     private final Sizeof sizeof = new GenericSizeof( 20L, obj -> obj );
 
     private final CappedLocalCache cache = new CappedLocalCache( sizeof, 0 );
 
-    private final Cache<String> testRegion = cache
-        .createRegion( new SimpleCacheBuilder<String>()
-            .forRegion( "test" )
-            .expireAfterWrite( 1, TimeUnit.MINUTES )
-            .forceInMemory() );
+    private final Cache<String> testRegion = cache.createRegion(
+        new SimpleCacheBuilder<String>().forRegion( "test" ).expireAfterWrite( 1, TimeUnit.MINUTES ).forceInMemory() );
 
     @Test
-    public void testSizeofCacheEntry()
+    void testSizeofCacheEntry()
     {
         // 20 object header of CacheEntry
         // + 4 ref region
@@ -69,7 +68,7 @@ public class CappedLocalCacheTest
     }
 
     @Test
-    public void testPut()
+    void testPut()
     {
         String value = "bar";
         testRegion.put( "foo", value );
@@ -77,7 +76,7 @@ public class CappedLocalCacheTest
     }
 
     @Test
-    public void testPutWithTTL()
+    void testPutWithTTL()
     {
         String value = "bar";
         testRegion.put( "foo", value, 2000L );
@@ -85,14 +84,14 @@ public class CappedLocalCacheTest
     }
 
     @Test
-    public void testGetExpired()
+    void testGetExpired()
     {
         testRegion.put( "foo", "bar", 0L );
         assertFalse( testRegion.get( "foo" ).isPresent() );
     }
 
     @Test
-    public void testInvalidateKey()
+    void testInvalidateKey()
     {
         testRegion.put( "x", "y" );
         testRegion.put( "a", "b" );
@@ -102,7 +101,7 @@ public class CappedLocalCacheTest
     }
 
     @Test
-    public void testInvalidateAll()
+    void testInvalidateAll()
     {
         testRegion.put( "x", "y" );
         testRegion.put( "a", "b" );
@@ -112,10 +111,10 @@ public class CappedLocalCacheTest
     }
 
     @Test
-    public void testGetAll()
+    void testGetAll()
     {
         testRegion.put( "x", "y" );
         testRegion.put( "a", "b" );
-        assertContainsOnly( testRegion.getAll(), "y", "b" );
+        assertContainsOnly( testRegion.getAll().collect( toList() ), "y", "b" );
     }
 }

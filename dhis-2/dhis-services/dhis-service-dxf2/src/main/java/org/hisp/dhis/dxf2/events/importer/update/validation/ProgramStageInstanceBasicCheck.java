@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,13 +33,14 @@ import static org.hisp.dhis.dxf2.importsummary.ImportSummary.success;
 import org.hisp.dhis.dxf2.events.importer.Checker;
 import org.hisp.dhis.dxf2.events.importer.context.WorkContext;
 import org.hisp.dhis.dxf2.events.importer.shared.ImmutableEvent;
-import org.hisp.dhis.dxf2.importsummary.ImportConflict;
 import org.hisp.dhis.dxf2.importsummary.ImportSummary;
 import org.hisp.dhis.program.ProgramStageInstance;
+import org.springframework.stereotype.Component;
 
 /**
  * @author maikel arabori
  */
+@Component
 public class ProgramStageInstanceBasicCheck implements Checker
 {
     @Override
@@ -51,7 +52,7 @@ public class ProgramStageInstanceBasicCheck implements Checker
         {
             final ImportSummary error = error( "Event ID " + event.getEvent() + " doesn't point to valid event",
                 event.getEvent() );
-            error.getConflicts().add( new ImportConflict( "Invalid Event ID", event.getEvent() ) );
+            error.addConflict( "Invalid Event ID", event.getEvent() );
 
             return error;
         }

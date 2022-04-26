@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,14 +30,13 @@ package org.hisp.dhis.interpretation.hibernate;
 import java.util.List;
 
 import org.hibernate.SessionFactory;
-import org.hibernate.query.Query;
 import org.hisp.dhis.common.hibernate.HibernateIdentifiableObjectStore;
+import org.hisp.dhis.eventvisualization.EventVisualization;
 import org.hisp.dhis.interpretation.Interpretation;
 import org.hisp.dhis.interpretation.InterpretationStore;
 import org.hisp.dhis.mapping.Map;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.CurrentUserService;
-import org.hisp.dhis.user.User;
 import org.hisp.dhis.visualization.Visualization;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -58,74 +57,27 @@ public class HibernateInterpretationStore
         super( sessionFactory, jdbcTemplate, publisher, Interpretation.class, currentUserService, aclService, false );
     }
 
-    public List<Interpretation> getInterpretations( User user )
-    {
-        String hql = "select distinct i from Interpretation i left join i.comments c " +
-            "where i.user = :user or c.user = :user order by i.lastUpdated desc";
-
-        Query<Interpretation> query = getQuery( hql )
-            .setParameter( "user", user )
-            .setCacheable( cacheable );
-
-        return query.list();
-    }
-
-    public List<Interpretation> getInterpretations( User user, int first, int max )
-    {
-        String hql = "select distinct i from Interpretation i left join i.comments c " +
-            "where i.user = :user or c.user = :user order by i.lastUpdated desc";
-
-        Query<Interpretation> query = getQuery( hql )
-            .setParameter( "user", user )
-            .setMaxResults( first )
-            .setMaxResults( max )
-            .setCacheable( cacheable );
-
-        return query.list();
-    }
-
-    @Override
-    public long countMapInterpretations( Map map )
-    {
-        Query<Long> query = getTypedQuery( "select count(distinct c) from " + clazz.getName() + " c where c.map=:map" );
-        query.setParameter( "map", map );
-        return query.uniqueResult();
-    }
-
     @Override
     public List<Interpretation> getInterpretations( Map map )
     {
-        Query<Interpretation> query = getTypedQuery(
-            "select distinct c from " + clazz.getName() + " c where c.map=:map" );
-        query.setParameter( "map", map );
-        return query.list();
+        return getQuery( "select distinct i from Interpretation i where i.map = :map" )
+            .setParameter( "map", map )
+            .list();
     }
 
     @Override
     public List<Interpretation> getInterpretations( Visualization visualization )
     {
-        Query<Interpretation> query = getTypedQuery(
-            "select distinct c from " + clazz.getName() + " c where c.visualization=:visualization" );
-        query.setParameter( "visualization", visualization );
-        return query.list();
+        return getQuery( "select distinct i from Interpretation i where i.visualization = :visualization" )
+            .setParameter( "visualization", visualization )
+            .list();
     }
 
     @Override
-    public long countVisualizationInterpretations( Visualization visualization )
+    public List<Interpretation> getInterpretations( EventVisualization eventVisualization )
     {
-        Query query = getQuery(
-            "select count(distinct c) from " + clazz.getName() + " c where c.visualization=:visualization" )
-                .setParameter( "visualization", visualization )
-                .setCacheable( cacheable );
-
-        return ((Long) query.uniqueResult()).intValue();
-    }
-
-    @Override
-    public Interpretation getByVisualizationId( long id )
-    {
-        String hql = "from Interpretation i where i.visualization.id = " + id;
-        Query<Interpretation> query = getQuery( hql );
-        return query.uniqueResult();
+        return getQuery( "select distinct i from Interpretation i where i.eventVisualization = :eventVisualization" )
+            .setParameter( "eventVisualization", eventVisualization )
+            .list();
     }
 }

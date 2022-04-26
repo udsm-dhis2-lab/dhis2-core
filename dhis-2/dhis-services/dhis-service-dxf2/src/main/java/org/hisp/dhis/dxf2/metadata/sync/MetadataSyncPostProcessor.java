@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,7 @@
  */
 package org.hisp.dhis.dxf2.metadata.sync;
 
-import java.util.Map;
-
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.hisp.dhis.dxf2.metadata.feedback.ImportReport;
@@ -38,11 +37,8 @@ import org.hisp.dhis.email.Email;
 import org.hisp.dhis.email.EmailService;
 import org.hisp.dhis.feedback.Stats;
 import org.hisp.dhis.feedback.Status;
-import org.hisp.dhis.feedback.TypeReport;
 import org.hisp.dhis.metadata.version.MetadataVersion;
 import org.hisp.dhis.metadata.version.VersionType;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 /**
@@ -51,12 +47,11 @@ import org.springframework.stereotype.Component;
  * @author aamerm
  */
 @Slf4j
-@Component( "metadataSyncPostProcessor" )
-@Scope( "prototype" )
+@Component
+@AllArgsConstructor
 public class MetadataSyncPostProcessor
 {
-    @Autowired
-    private EmailService emailService;
+    private final EmailService emailService;
 
     public boolean handleSyncNotificationsAndAbortStatus( MetadataSyncSummary metadataSyncSummary,
         MetadataRetryContext retryContext, MetadataVersion dataVersion )
@@ -116,47 +111,38 @@ public class MetadataSyncPostProcessor
                 .append( "Version Name: " + metadataSyncSummary.getMetadataVersion().getName() + "\n" )
                 .append( "Version Type: " + metadataSyncSummary.getMetadataVersion().getType() + "\n" );
 
-        Map<Class<?>, TypeReport> typeReportMap = importReport.getTypeReportMap();
-
-        if ( typeReportMap != null && typeReportMap.entrySet().size() == 0 )
+        if ( importReport.getTypeReportCount() == 0 )
         {
             text.append( "New Version created. It does not have any metadata changes. \n" );
         }
-        else if ( typeReportMap != null )
+        else
         {
             text.append( "Imported Object Details: \n" );
 
-            for ( Map.Entry<Class<?>, TypeReport> typeReportEntry : typeReportMap.entrySet() )
-            {
-                if ( typeReportEntry != null )
+            importReport.forEachTypeReport( typeReport -> {
+                Stats stats = typeReport.getStats();
+
+                text.append( "Metadata Object Type: " )
+                    .append( typeReport.getKlass() )
+                    .append( "\n" )
+                    .append( "Stats: \n" )
+                    .append( "total: " + stats.getTotal() + "\n" );
+
+                if ( stats.getCreated() > 0 )
                 {
-                    Class<?> key = typeReportEntry.getKey();
-                    TypeReport value = typeReportEntry.getValue();
-                    Stats stats = value.getStats();
-
-                    text.append( "Metadata Object Type: " )
-                        .append( key )
-                        .append( "\n" )
-                        .append( "Stats: \n" )
-                        .append( "total: " + stats.getTotal() + "\n" );
-
-                    if ( stats.getCreated() > 0 )
-                    {
-                        text.append( " created: " + stats.getCreated() + "\n" );
-                    }
-
-                    if ( stats.getUpdated() > 0 )
-                    {
-                        text.append( " updated: " + stats.getUpdated() + "\n" );
-                    }
-
-                    if ( stats.getIgnored() > 0 )
-                    {
-                        text.append( " ignored: " + stats.getIgnored() + "\n" );
-                    }
+                    text.append( " created: " + stats.getCreated() + "\n" );
                 }
 
-            }
+                if ( stats.getUpdated() > 0 )
+                {
+                    text.append( " updated: " + stats.getUpdated() + "\n" );
+                }
+
+                if ( stats.getIgnored() > 0 )
+                {
+                    text.append( " ignored: " + stats.getIgnored() + "\n" );
+                }
+            } );
 
             text.append( "\n\n" );
 

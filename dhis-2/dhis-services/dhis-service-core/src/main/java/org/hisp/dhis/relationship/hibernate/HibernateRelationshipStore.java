@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@ package org.hisp.dhis.relationship.hibernate;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.persistence.NoResultException;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -175,25 +176,37 @@ public class HibernateRelationshipStore
     }
 
     @Override
-    public Relationship getByRelationshipKey( String relationshipKeyAsString )
+    public List<String> getUidsByRelationshipKeys( List<String> relationshipKeyList )
     {
-        RelationshipKey relationshipKey = RelationshipKey.fromString( relationshipKeyAsString );
+        List<Object> c = getSession()
+            .createNativeQuery( new StringBuilder()
+                .append( "SELECT R.uid " )
+                .append( "FROM relationship R " )
+                .append( "INNER JOIN relationshiptype RT ON RT.relationshiptypeid = R.relationshiptypeid " )
+                .append( "WHERE R.key IN (:keys) " )
+                .append( "OR (R.inverted_key IN (:keys) AND RT.bidirectional = TRUE)" )
+                .toString() )
+            .setParameter( "keys", relationshipKeyList )
+            .getResultList();
 
+        return c.stream().map( String::valueOf ).collect( Collectors.toList() );
+    }
+
+    @Override
+    public List<Relationship> getByUids( List<String> uids )
+    {
         CriteriaBuilder criteriaBuilder = getCriteriaBuilder();
-        CriteriaQuery<Relationship> criteriaQuery = criteriaBuilder.createQuery( Relationship.class );
 
-        Root<Relationship> root = criteriaQuery.from( Relationship.class );
+        CriteriaQuery<Relationship> query = criteriaBuilder.createQuery( Relationship.class );
 
-        Pair<String, String> fromFieldValuePair = getFieldValuePair( relationshipKey.getFrom() );
-        Pair<String, String> toFieldValuePair = getFieldValuePair( relationshipKey.getTo() );
+        Root<Relationship> root = query.from( Relationship.class );
 
-        criteriaQuery.where( criteriaBuilder.or(
-            nonBidirectionalCriteria( criteriaBuilder, root, fromFieldValuePair, toFieldValuePair ),
-            bidirectionalCriteria( criteriaBuilder, root, fromFieldValuePair, toFieldValuePair ) ) );
+        query.where(
+            criteriaBuilder.in( root.get( "uid" ) ).value( uids ) );
 
         try
         {
-            return getSession().createQuery( criteriaQuery ).setMaxResults( 1 ).getSingleResult();
+            return getSession().createQuery( query ).getResultList();
         }
         catch ( NoResultException nre )
         {

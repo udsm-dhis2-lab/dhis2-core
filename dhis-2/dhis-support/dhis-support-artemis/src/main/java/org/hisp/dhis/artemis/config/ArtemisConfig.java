@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,10 +236,8 @@ public class ArtemisConfig
         artemisConfigData.setPassword( dhisConfig.getProperty( ConfigurationKey.ARTEMIS_PASSWORD ) );
 
         ArtemisEmbeddedConfig artemisEmbeddedConfig = new ArtemisEmbeddedConfig();
-        artemisEmbeddedConfig.setSecurity(
-            Boolean.parseBoolean( dhisConfig.getProperty( ConfigurationKey.ARTEMIS_EMBEDDED_SECURITY ) ) );
-        artemisEmbeddedConfig.setPersistence(
-            Boolean.parseBoolean( dhisConfig.getProperty( ConfigurationKey.ARTEMIS_EMBEDDED_PERSISTENCE ) ) );
+        artemisEmbeddedConfig.setSecurity( dhisConfig.isEnabled( ConfigurationKey.ARTEMIS_EMBEDDED_SECURITY ) );
+        artemisEmbeddedConfig.setPersistence( dhisConfig.isEnabled( ConfigurationKey.ARTEMIS_EMBEDDED_PERSISTENCE ) );
         artemisEmbeddedConfig.setNioRemotingThreads(
             Integer.parseInt( dhisConfig.getProperty( ConfigurationKey.ARTEMIS_EMBEDDED_THREADS ) ) );
 
@@ -268,8 +266,7 @@ public class ArtemisConfig
     public AuditProducerConfiguration producerConfiguration()
     {
         return AuditProducerConfiguration.builder()
-            .useQueue( dhisConfig.isEnabled( ConfigurationKey.AUDIT_USE_INMEMORY_QUEUE_ENABLED ) ||
-                dhisConfig.isEnabled( ConfigurationKey.AUDIT_USE_IN_MEMORY_QUEUE_ENABLED ) )
+            .useQueue( dhisConfig.isEnabled( ConfigurationKey.AUDIT_USE_IN_MEMORY_QUEUE_ENABLED ) )
             .build();
     }
 }

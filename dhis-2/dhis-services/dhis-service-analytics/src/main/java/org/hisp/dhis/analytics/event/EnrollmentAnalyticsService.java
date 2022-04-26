@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,14 @@ public interface EnrollmentAnalyticsService
 
     String ITEM_INCIDENT_DATE = "incidentdate";
 
+    String ITEM_STORED_BY = "storedby";
+
+    String ITEM_CREATED_BY_DISPLAY_NAME = "createdbydisplayname";
+
+    String ITEM_LAST_UPDATED_BY_DISPLAY_NAME = "lastupdatedbydisplayname";
+
+    String ITEM_LAST_UPDATED = "lastupdated";
+
     String ITEM_GEOMETRY = "geometry";
 
     String ITEM_LONGITUDE = "longitude";
@@ -55,7 +63,7 @@ public interface EnrollmentAnalyticsService
 
     String ITEM_ORG_UNIT_CODE = "oucode";
 
-    String ITEM_ORG_UNIT_ID = "ou";
+    String ITEM_PROGRAM_STATUS = "programstatus";
 
     /**
      * Returns a list of enrollments matching the given query.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 
     @Bean( "org.hisp.dhis.analytics.CompletenessTableService" )
@@ -61,7 +61,7 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 
     @Bean( "org.hisp.dhis.analytics.CompletenessTargetTableService" )
@@ -71,7 +71,7 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 
     @Bean( "org.hisp.dhis.analytics.OrgUnitTargetTableService" )
@@ -81,7 +81,7 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 
     @Bean( "org.hisp.dhis.analytics.EventAnalyticsTableService" )
@@ -91,7 +91,7 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 
     @Bean( "org.hisp.dhis.analytics.ValidationResultTableService" )
@@ -101,7 +101,7 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 
     @Bean( "org.hisp.dhis.analytics.EnrollmentAnalyticsTableService" )
@@ -111,6 +111,6 @@ public class ServiceConfig
         ResourceTableService resourceTableService, Notifier notifier, SystemSettingManager systemSettingManager )
     {
         return new DefaultAnalyticsTableService( tableManager, organisationUnitService, dataElementService,
-            resourceTableService, notifier, systemSettingManager );
+            resourceTableService, systemSettingManager );
     }
 }

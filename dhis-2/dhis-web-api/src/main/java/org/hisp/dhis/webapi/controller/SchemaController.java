@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,114 +27,89 @@
  */
 package org.hisp.dhis.webapi.controller;
 
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.errorReports;
+
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import lombok.RequiredArgsConstructor;
+
 import org.hisp.dhis.common.DhisApiVersion;
+import org.hisp.dhis.commons.jackson.domain.JsonRoot;
 import org.hisp.dhis.dxf2.webmessage.WebMessage;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.feedback.ErrorReport;
-import org.hisp.dhis.fieldfilter.FieldFilterParams;
-import org.hisp.dhis.fieldfilter.FieldFilterService;
-import org.hisp.dhis.node.NodeUtils;
-import org.hisp.dhis.node.types.CollectionNode;
-import org.hisp.dhis.node.types.RootNode;
-import org.hisp.dhis.render.RenderService;
+import org.hisp.dhis.fieldfiltering.FieldFilterParams;
+import org.hisp.dhis.fieldfiltering.FieldFilterService;
 import org.hisp.dhis.schema.Property;
 import org.hisp.dhis.schema.Schema;
 import org.hisp.dhis.schema.SchemaService;
-import org.hisp.dhis.schema.Schemas;
 import org.hisp.dhis.schema.validation.SchemaValidator;
 import org.hisp.dhis.webapi.mvc.annotation.ApiVersion;
-import org.hisp.dhis.webapi.service.ContextService;
 import org.hisp.dhis.webapi.service.LinkService;
-import org.hisp.dhis.webapi.service.WebMessageService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
 
-import com.google.common.collect.Lists;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
-@Controller
-@RequestMapping( value = "/schemas", method = RequestMethod.GET )
+@RestController
+@RequestMapping( "/schemas" )
 @ApiVersion( { DhisApiVersion.DEFAULT, DhisApiVersion.ALL } )
+@RequiredArgsConstructor
 public class SchemaController
 {
-    @Autowired
-    private SchemaService schemaService;
+    private final SchemaService schemaService;
 
-    @Autowired
-    private SchemaValidator schemaValidator;
+    private final SchemaValidator schemaValidator;
 
-    @Autowired
-    private RenderService renderService;
+    private final LinkService linkService;
 
-    @Autowired
-    private LinkService linkService;
+    private final FieldFilterService fieldFilterService;
 
-    @Autowired
-    private FieldFilterService fieldFilterService;
+    @Qualifier( "jsonMapper" )
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ContextService contextService;
-
-    @Autowired
-    private WebMessageService webMessageService;
-
-    @RequestMapping
-    public @ResponseBody RootNode getSchemas()
+    @GetMapping
+    public ResponseEntity<JsonRoot> getSchemas( @RequestParam( defaultValue = "*" ) List<String> fields )
     {
-        List<String> fields = Lists.newArrayList( contextService.getParameterValues( "fields" ) );
+        List<Schema> schemas = schemaService.getSortedSchemas();
+        linkService.generateSchemaLinks( schemas );
 
-        if ( fields.isEmpty() )
-        {
-            fields.add( "*" );
-        }
+        FieldFilterParams<Schema> params = FieldFilterParams.of( schemas, fields );
+        List<ObjectNode> objectNodes = fieldFilterService.toObjectNodes( params );
 
-        Schemas schemas = new Schemas( schemaService.getSortedSchemas() );
-        linkService.generateSchemaLinks( schemas.getSchemas() );
-
-        RootNode rootNode = NodeUtils.createRootNode( "schemas" );
-        CollectionNode collectionNode = fieldFilterService.toCollectionNode( Schema.class,
-            new FieldFilterParams( schemas.getSchemas(), fields ) );
-        collectionNode.setWrapping( false );
-        rootNode.addChild( collectionNode );
-
-        return rootNode;
+        return ResponseEntity.ok( JsonRoot.of( "schemas", objectNodes ) );
     }
 
-    @RequestMapping( value = "/{type}", method = RequestMethod.GET )
-    public @ResponseBody RootNode getSchema( @PathVariable String type )
+    @GetMapping( "/{type}" )
+    public ResponseEntity<ObjectNode> getSchema( @PathVariable String type,
+        @RequestParam( defaultValue = "*" ) List<String> fields )
     {
-        List<String> fields = Lists.newArrayList( contextService.getParameterValues( "fields" ) );
-
-        if ( fields.isEmpty() )
-        {
-            fields.add( "*" );
-        }
-
         Schema schema = getSchemaFromType( type );
 
         if ( schema != null )
         {
             linkService.generateSchemaLinks( schema );
 
-            CollectionNode collectionNode = fieldFilterService.toCollectionNode( Schema.class,
-                new FieldFilterParams( Collections.singletonList( schema ), fields ) );
-            return NodeUtils.createRootNode( collectionNode.getChildren().get( 0 ) );
+            FieldFilterParams<Schema> params = FieldFilterParams.of( schema, fields );
+            List<ObjectNode> objectNodes = fieldFilterService.toObjectNodes( params );
+
+            return ResponseEntity.ok( objectNodes.get( 0 ) );
         }
 
         throw new HttpClientErrorException( HttpStatus.NOT_FOUND, "Type " + type + " does not exist." );
@@ -142,7 +117,8 @@ public class SchemaController
 
     @RequestMapping( value = "/{type}", method = { RequestMethod.POST, RequestMethod.PUT }, consumes = {
         MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE } )
-    public void validateSchema( @PathVariable String type, HttpServletRequest request, HttpServletResponse response )
+    public WebMessage validateSchema( @PathVariable String type, HttpServletRequest request,
+        HttpServletResponse response )
         throws IOException
     {
         Schema schema = getSchemaFromType( type );
@@ -152,15 +128,14 @@ public class SchemaController
             throw new HttpClientErrorException( HttpStatus.NOT_FOUND, "Type " + type + " does not exist." );
         }
 
-        Object object = renderService.fromJson( request.getInputStream(), schema.getKlass() );
+        Object object = objectMapper.readValue( request.getInputStream(), schema.getKlass() );
         List<ErrorReport> validationViolations = schemaValidator.validate( object );
 
-        WebMessage webMessage = WebMessageUtils.errorReports( validationViolations );
-        webMessageService.send( webMessage, response, request );
+        return errorReports( validationViolations );
     }
 
-    @RequestMapping( value = "/{type}/{property}", method = RequestMethod.GET )
-    public @ResponseBody Property getSchemaProperty( @PathVariable String type, @PathVariable String property )
+    @GetMapping( "/{type}/{property}" )
+    public Property getSchemaProperty( @PathVariable String type, @PathVariable String property )
     {
         Schema schema = getSchemaFromType( type );
 

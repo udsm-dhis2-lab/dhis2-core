@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,17 +27,20 @@
  */
 package org.hisp.dhis.fileresource;
 
+import static java.util.stream.Collectors.toList;
+
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.hisp.dhis.common.DeleteNotAllowedException;
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
@@ -51,19 +54,14 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @AllArgsConstructor
-@Component( "fileResourceCleanUpJob" )
-public class FileResourceCleanUpJob
-    extends AbstractJob
+@Component
+public class FileResourceCleanUpJob implements Job
 {
     private final FileResourceService fileResourceService;
 
     private final SystemSettingManager systemSettingManager;
 
     private final FileResourceContentStore fileResourceContentStore;
-
-    // -------------------------------------------------------------------------
-    // Implementation
-    // -------------------------------------------------------------------------
 
     @Override
     public JobType getJobType()
@@ -72,28 +70,38 @@ public class FileResourceCleanUpJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
-        FileResourceRetentionStrategy retentionStrategy = (FileResourceRetentionStrategy) systemSettingManager
-            .getSystemSetting( SettingKey.FILE_RESOURCE_RETENTION_STRATEGY );
+        progress.startingProcess( "Clean-up file resources" );
+        FileResourceRetentionStrategy retentionStrategy = systemSettingManager
+            .getSystemSetting( SettingKey.FILE_RESOURCE_RETENTION_STRATEGY, FileResourceRetentionStrategy.class );
 
-        List<Pair<String, String>> deletedOrphans = new ArrayList<>();
-
-        List<Pair<String, String>> deletedAuditFiles = new ArrayList<>();
+        List<Entry<String, String>> deletedOrphans = new ArrayList<>();
+        List<Entry<String, String>> deletedAuditFiles = new ArrayList<>();
 
         // Delete expired FRs
         if ( !FileResourceRetentionStrategy.FOREVER.equals( retentionStrategy ) )
         {
             List<FileResource> expired = fileResourceService.getExpiredFileResources( retentionStrategy );
-            expired.forEach( this::safeDelete );
-            expired.forEach( fr -> deletedAuditFiles.add( ImmutablePair.of( fr.getName(), fr.getUid() ) ) );
+            progress.startingStage( "Deleting expired file resources", expired.size() );
+            progress.runStage( expired, FileResourceCleanUpJob::toIdentifier, fr -> {
+                if ( safeDelete( fr ) )
+                {
+                    deletedAuditFiles.add( new SimpleEntry<>( fr.getName(), fr.getUid() ) );
+                }
+            } );
         }
 
         // Delete failed uploads
-        fileResourceService.getOrphanedFileResources().stream()
-            .filter( fr -> !isFileStored( fr ) )
-            .filter( this::safeDelete )
-            .forEach( fr -> deletedOrphans.add( ImmutablePair.of( fr.getName(), fr.getUid() ) ) );
+        List<FileResource> orphanedFileResources = fileResourceService.getOrphanedFileResources().stream()
+            .filter( fr -> !isFileStored( fr ) ).collect( toList() );
+        progress.startingStage( "Deleting failed uploads", orphanedFileResources.size() );
+        progress.runStage( orphanedFileResources, FileResourceCleanUpJob::toIdentifier, fr -> {
+            if ( safeDelete( fr ) )
+            {
+                deletedOrphans.add( new SimpleEntry<>( fr.getName(), fr.getUid() ) );
+            }
+        } );
 
         if ( !deletedOrphans.isEmpty() )
         {
@@ -106,9 +114,15 @@ public class FileResourceCleanUpJob
             log.info( String.format( "Deleted %d expired FileResource audits: %s", deletedAuditFiles.size(),
                 prettyPrint( deletedAuditFiles ) ) );
         }
+        progress.completedProcess( null );
     }
 
-    private String prettyPrint( List<Pair<String, String>> list )
+    private static String toIdentifier( FileResource fr )
+    {
+        return fr.getUid() + ":" + fr.getName();
+    }
+
+    private String prettyPrint( List<Entry<String, String>> list )
     {
         if ( list.isEmpty() )
         {
@@ -118,7 +132,7 @@ public class FileResourceCleanUpJob
         StringBuilder sb = new StringBuilder( "[ " );
 
         list.forEach(
-            pair -> sb.append( pair.getLeft() ).append( " , uid: " ).append( pair.getRight() ).append( ", " ) );
+            pair -> sb.append( pair.getKey() ).append( " , uid: " ).append( pair.getValue() ).append( ", " ) );
 
         sb.deleteCharAt( sb.lastIndexOf( "," ) ).append( "]" );
 

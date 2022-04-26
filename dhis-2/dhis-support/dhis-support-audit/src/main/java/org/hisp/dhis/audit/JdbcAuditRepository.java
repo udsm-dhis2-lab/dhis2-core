@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package org.hisp.dhis.audit;
+
+import static org.hisp.dhis.system.util.SqlUtils.escapeSql;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -198,7 +200,7 @@ public class JdbcAuditRepository implements AuditRepository
     private String buildQuotedSet( Set<?> items )
     {
         return items.stream()
-            .map( s -> "'" + s.toString() + "'" )
+            .map( s -> "'" + escapeSql( s.toString() ) + "'" )
             .collect( Collectors.joining( ", " ) );
     }
 

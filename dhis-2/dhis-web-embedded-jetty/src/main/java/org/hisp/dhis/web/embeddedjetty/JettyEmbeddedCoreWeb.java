@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,13 @@ public class JettyEmbeddedCoreWeb extends EmbeddedJettyBase
 
         setDefaultPropertyValue( "jetty.host", SERVER_HOSTNAME_OR_IP );
         setDefaultPropertyValue( "jetty.http.port", String.valueOf( DEFAULT_HTTP_PORT ) );
+
+        /**
+         * This property is very import, this will instruct Spring to use
+         * special Spring config classes adapted to running in embedded Jetty.
+         *
+         * @see org.hisp.dhis.web.embeddedjetty.SpringConfiguration
+         */
         setDefaultPropertyValue( "spring.profiles.active", "embeddedJetty" );
 
         JettyEmbeddedCoreWeb jettyEmbeddedCoreWeb = new JettyEmbeddedCoreWeb();

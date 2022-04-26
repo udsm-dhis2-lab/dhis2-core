@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,29 +27,25 @@
  */
 package org.hisp.dhis.leader.election;
 
-import org.hisp.dhis.scheduling.AbstractJob;
+import lombok.AllArgsConstructor;
+
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.springframework.stereotype.Component;
 
 /**
  * Job that attempts to elect the current instance as the leader of the cluster.
  *
- * @author Ameen Mohamed
+ * @author Ameen Mohamed (original)
+ * @author Jan Bernitt (job progress tracking)
  */
 @Component
-public class LeaderElectionJob extends AbstractJob
+@AllArgsConstructor
+public class LeaderElectionJob implements Job
 {
-    private LeaderManager leaderManager;
-
-    public LeaderElectionJob( LeaderManager leaderManager )
-    {
-        this.leaderManager = leaderManager;
-    }
-
-    // -------------------------------------------------------------------------
-    // Implementation
-    // -------------------------------------------------------------------------
+    private final LeaderManager leaderManager;
 
     @Override
     public JobType getJobType()
@@ -58,8 +54,9 @@ public class LeaderElectionJob extends AbstractJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration jobConfiguration, JobProgress progress )
     {
-        leaderManager.electLeader();
+        progress.startingProcess( "Elect leader node" );
+        progress.endingProcess( progress.runStage( () -> leaderManager.electLeader( progress ) ) );
     }
 }

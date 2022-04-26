@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,8 @@ public class DefaultAclService implements AclService
         return object == null || canRead( user, object, HibernateProxyUtils.getRealClass( object ) );
     }
 
-    private <T extends IdentifiableObject> boolean canRead( User user, T object, Class<? extends T> objType )
+    @Override
+    public <T extends IdentifiableObject> boolean canRead( User user, T object, Class<? extends T> objType )
     {
         if ( readWriteCommonCheck( user, objType ) )
         {
@@ -686,7 +687,7 @@ public class DefaultAclService implements AclService
 
     private boolean haveAuthority( User user, Collection<String> anyAuthorities )
     {
-        return containsAny( user.getUserCredentials().getAllAuthorities(), anyAuthorities );
+        return containsAny( user.getAllAuthorities(), anyAuthorities );
     }
 
     /**

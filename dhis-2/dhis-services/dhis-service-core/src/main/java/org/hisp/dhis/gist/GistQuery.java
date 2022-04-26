@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.common.NamedParams;
+import org.hisp.dhis.common.PrimaryKeyObject;
 import org.hisp.dhis.schema.annotation.Gist.Transform;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Description of the gist query that should be run.
@@ -64,13 +66,12 @@ import org.hisp.dhis.schema.annotation.Gist.Transform;
 @RequiredArgsConstructor( access = AccessLevel.PRIVATE )
 public final class GistQuery
 {
-
     /**
      * Fields allow {@code property[sub,sub]} syntax where a comma occurs as
      * part of the property name. These commas need to be ignored when splitting
      * a {@code fields} parameter list.
      */
-    private static final String FIELD_SPLIT = ",(?![^\\[\\]]*\\])";
+    private static final String FIELD_SPLIT = ",(?![^\\[\\]]*\\]|[^\\(\\)]*\\))";
 
     /**
      * Query properties about the owner of the collection property.
@@ -84,7 +85,7 @@ public final class GistQuery
         /**
          * The object type that has the collection
          */
-        private final Class<? extends IdentifiableObject> type;
+        private final Class<? extends PrimaryKeyObject> type;
 
         /**
          * Id of the collection owner object.
@@ -105,15 +106,18 @@ public final class GistQuery
 
     private final Owner owner;
 
-    private final Class<? extends IdentifiableObject> elementType;
+    private final Class<? extends PrimaryKeyObject> elementType;
 
+    @JsonProperty
     private final int pageOffset;
 
+    @JsonProperty
     private final int pageSize;
 
     /**
      * Include total match count in pager? Default false.
      */
+    @JsonProperty
     private final boolean total;
 
     private final String contextRoot;
@@ -124,35 +128,57 @@ public final class GistQuery
      * Not the elements contained in the collection but those not contained
      * (yet). Default false.
      */
+    @JsonProperty
     private final boolean inverse;
 
     /**
      * Apply translations to translatable properties? Default true.
      */
+    @JsonProperty
     private final boolean translate;
 
     /**
      * Use absolute URLs when referring to other APIs in pager and
      * {@code apiEndpoints}? Default false.
      */
-    private final boolean absolute;
+    @JsonProperty
+    private final boolean absoluteUrls;
 
     /**
      * Return plain result list (without pager wrapper). Default false.
      */
+    @JsonProperty
     private final boolean headless;
 
     /**
      * Use OR instead of AND between filters so that any match for one of the
      * filters is a match. Default false.
      */
+    @JsonProperty
     private final boolean anyFilter;
 
+    /**
+     * Mode where no actual query is performed - instead the output and query is
+     * described similar to "SQL describe".
+     */
+    private final boolean describe;
+
+    /**
+     * Weather or not to include the API endpoints references
+     */
+    @JsonProperty
+    private final boolean references;
+
+    /**
+     * The extend to which fields are included by default
+     */
+    @JsonProperty( value = "auto" )
     private final GistAutoType autoType;
 
     /**
      * Names of those properties that should be included in the response.
      */
+    @JsonProperty
     @Builder.Default
     private final List<Field> fields = emptyList();
 
@@ -160,9 +186,11 @@ public final class GistQuery
      * List of filter property expressions. An expression has the format
      * {@code property:operator:value} or {@code property:operator}.
      */
+    @JsonProperty
     @Builder.Default
     private final List<Filter> filters = emptyList();
 
+    @JsonProperty
     @Builder.Default
     private final List<Order> orders = emptyList();
 
@@ -178,7 +206,17 @@ public final class GistQuery
 
     public String getEndpointRoot()
     {
-        return isAbsolute() ? getContextRoot() : "";
+        return isAbsoluteUrls() ? getContextRoot() : "";
+    }
+
+    public boolean hasFilterGroups()
+    {
+        if ( filters.size() <= 1 )
+        {
+            return false;
+        }
+        int group0 = filters.get( 0 ).group;
+        return filters.stream().anyMatch( f -> f.group != group0 );
     }
 
     public GistQuery with( NamedParams params )
@@ -189,8 +227,10 @@ public final class GistQuery
             .translate( params.getBoolean( "translate", true ) )
             .inverse( params.getBoolean( "inverse", false ) )
             .total( params.getBoolean( "total", false ) )
-            .absolute( params.getBoolean( "absoluteUrls", false ) )
+            .absoluteUrls( params.getBoolean( "absoluteUrls", false ) )
             .headless( params.getBoolean( "headless", false ) )
+            .describe( params.getBoolean( "describe", false ) )
+            .references( params.getBoolean( "references", true ) )
             .anyFilter( params.getString( "rootJunction", "AND" ).equalsIgnoreCase( "OR" ) )
             .fields( params.getStrings( "fields", FIELD_SPLIT ).stream()
                 .map( Field::parse ).collect( toList() ) )
@@ -249,6 +289,7 @@ public final class GistQuery
         NULL( "null" ),
         NOT_NULL( "!null" ),
         EQ( "eq" ),
+        IEQ( "ieq" ),
         NE( "!eq", "ne", "neq" ),
 
         // numeric comparison
@@ -316,12 +357,12 @@ public final class GistQuery
 
         public boolean isIdentityCompare()
         {
-            return this == NULL || this == NOT_NULL || this == EQ || this == NE;
+            return this == NULL || this == NOT_NULL || this == EQ || this == IEQ || this == NE;
         }
 
         public boolean isOrderCompare()
         {
-            return this == EQ || this == NE || isNumericCompare();
+            return this == EQ || this == IEQ || this == NE || isNumericCompare();
         }
 
         public boolean isNumericCompare()
@@ -331,10 +372,10 @@ public final class GistQuery
 
         public boolean isCollectionCompare()
         {
-            return isContainsCompare() || isSizeCompare();
+            return isContainsCompare() || isEmptinessCompare();
         }
 
-        public boolean isSizeCompare()
+        public boolean isEmptinessCompare()
         {
             return this == EMPTY || this == NOT_EMPTY;
         }
@@ -353,6 +394,11 @@ public final class GistQuery
         {
             return ordinal() >= CAN_READ.ordinal();
         }
+
+        public boolean isCaseInsensitive()
+        {
+            return this == IEQ || ordinal() >= ILIKE.ordinal() && ordinal() <= NOT_ENDS_WITH.ordinal();
+        }
     }
 
     @Getter
@@ -366,21 +412,30 @@ public final class GistQuery
 
         public static final Field ALL = new Field( ALL_PATH, Transform.NONE );
 
+        @JsonProperty
         private final String propertyPath;
 
+        @JsonProperty
         private final Transform transformation;
 
+        @JsonProperty
         private final String alias;
 
+        @JsonProperty
         private final String transformationArgument;
 
+        @JsonProperty
         private final boolean translate;
+
+        @JsonProperty
+        private final boolean attribute;
 
         public Field( String propertyPath, Transform transformation )
         {
-            this( propertyPath, transformation, "", null, false );
+            this( propertyPath, transformation, "", null, false, false );
         }
 
+        @JsonProperty
         public String getName()
         {
             return alias.isEmpty() ? propertyPath : alias;
@@ -406,10 +461,17 @@ public final class GistQuery
             return toBuilder().translate( true ).build();
         }
 
+        public Field asAttribute()
+        {
+            return toBuilder().attribute( true ).build();
+        }
+
         @Override
         public String toString()
         {
-            return propertyPath + "::" + transformation.name().toLowerCase().replace( '_', '-' );
+            return transformation == Transform.NONE
+                ? propertyPath
+                : propertyPath + "::" + transformation.name().toLowerCase().replace( '_', '-' );
         }
 
         public static Field parse( String field )
@@ -438,7 +500,7 @@ public final class GistQuery
                     }
                 }
             }
-            return new Field( parts[0], transform, alias, arg, false );
+            return new Field( parts[0], transform, alias, arg, false, false );
         }
 
         private static String parseArgument( String part )
@@ -452,8 +514,10 @@ public final class GistQuery
     @AllArgsConstructor
     public static final class Order
     {
+        @JsonProperty
         private final String propertyPath;
 
+        @JsonProperty
         @Builder.Default
         private final Direction direction = Direction.ASC;
 
@@ -479,19 +543,27 @@ public final class GistQuery
     }
 
     @Getter
+    @AllArgsConstructor( access = AccessLevel.PRIVATE )
     public static final class Filter
     {
+        @JsonProperty
+        private final int group;
+
+        @JsonProperty
         private final String propertyPath;
 
+        @JsonProperty
         private final Comparison operator;
 
+        @JsonProperty
         private final String[] value;
+
+        @JsonProperty
+        private final boolean attribute;
 
         public Filter( String propertyPath, Comparison operator, String... value )
         {
-            this.propertyPath = propertyPath;
-            this.operator = operator;
-            this.value = value;
+            this( 0, propertyPath, operator, value, false );
         }
 
         public Filter withPropertyPath( String path )
@@ -504,22 +576,43 @@ public final class GistQuery
             return new Filter( propertyPath, operator, value );
         }
 
+        public Filter asAttribute()
+        {
+            return new Filter( group, propertyPath, operator, value, true );
+        }
+
+        public Filter inGroup( int group )
+        {
+            return group == this.group ? this : new Filter( group, propertyPath, operator, value, attribute );
+        }
+
         public static Filter parse( String filter )
         {
             String[] parts = filter.split( "(?:::|:|~|@)" );
-            if ( parts.length == 2 )
+            int group = 0;
+            int nameIndex = 0;
+            int opIndex = 1;
+            int valueIndex = 2;
+            if ( parts[0].matches( "[0-9]" ) )
             {
-                return new Filter( parts[0], Comparison.parse( parts[1] ) );
+                nameIndex++;
+                opIndex++;
+                valueIndex++;
+                group = Integer.parseInt( parts[0] );
             }
-            if ( parts.length == 3 )
+            if ( parts.length == valueIndex )
             {
-                String value = parts[2];
+                return new Filter( parts[nameIndex], Comparison.parse( parts[opIndex] ) ).inGroup( group );
+            }
+            if ( parts.length == valueIndex + 1 )
+            {
+                String value = parts[valueIndex];
                 if ( value.startsWith( "[" ) && value.endsWith( "]" ) )
                 {
-                    return new Filter( parts[0], Comparison.parse( parts[1] ),
-                        value.substring( 1, value.length() - 1 ).split( "," ) );
+                    return new Filter( parts[nameIndex], Comparison.parse( parts[opIndex] ),
+                        value.substring( 1, value.length() - 1 ).split( "," ) ).inGroup( group );
                 }
-                return new Filter( parts[0], Comparison.parse( parts[1] ), value );
+                return new Filter( parts[nameIndex], Comparison.parse( parts[opIndex] ), value ).inGroup( group );
             }
             throw new IllegalArgumentException( "Not a valid filter expression: " + filter );
         }

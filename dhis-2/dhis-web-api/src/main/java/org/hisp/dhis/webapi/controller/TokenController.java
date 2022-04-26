@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,10 +28,10 @@
 package org.hisp.dhis.webapi.controller;
 
 import static org.hisp.dhis.webapi.utils.ContextUtils.setNoStore;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import javax.servlet.http.HttpServletResponse;
@@ -40,13 +40,12 @@ import org.hisp.dhis.cache.Cache;
 import org.hisp.dhis.cache.CacheProvider;
 import org.hisp.dhis.common.DhisApiVersion;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
 import org.hisp.dhis.external.conf.DhisConfigurationProvider;
 import org.hisp.dhis.external.conf.GoogleAccessToken;
 import org.hisp.dhis.webapi.mvc.annotation.ApiVersion;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
@@ -71,22 +70,15 @@ public class TokenController
         this.tokenCache = cacheProvider.createGoogleAccessTokenCache();
     }
 
-    @RequestMapping( value = "/google", method = RequestMethod.GET, produces = "application/json" )
+    @GetMapping( value = "/google", produces = APPLICATION_JSON_VALUE )
     public @ResponseBody GoogleAccessToken getEarthEngineToken( HttpServletResponse response )
         throws WebMessageException,
         ExecutionException
     {
         setNoStore( response );
 
-        Optional<GoogleAccessToken> tokenOptional = tokenCache.get( TOKEN_CACHE_KEY,
+        GoogleAccessToken token = tokenCache.get( TOKEN_CACHE_KEY,
             c -> config.getGoogleAccessToken().get() );
-
-        if ( !tokenOptional.isPresent() )
-        {
-            throw new WebMessageException( WebMessageUtils.conflict( "Token not available" ) );
-        }
-
-        GoogleAccessToken token = tokenOptional.get();
 
         token.setExpiresInSeconds( ChronoUnit.SECONDS.between( LocalDateTime.now(), token.getExpiresOn() ) );
 

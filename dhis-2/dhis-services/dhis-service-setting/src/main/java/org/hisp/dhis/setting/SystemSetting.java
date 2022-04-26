@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,8 @@ import java.util.StringJoiner;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.StringEscapeUtils;
-import org.hisp.dhis.commons.config.JacksonObjectMapperConfig;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.hisp.dhis.commons.jackson.config.JacksonObjectMapperConfig;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

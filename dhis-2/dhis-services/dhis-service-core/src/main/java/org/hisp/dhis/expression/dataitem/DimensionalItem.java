@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,11 @@ import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.ExprContext
 import org.hisp.dhis.antlr.ParserExceptionWithoutContext;
 import org.hisp.dhis.common.DimensionalItemId;
 import org.hisp.dhis.common.DimensionalItemObject;
+import org.hisp.dhis.common.ValueType;
+import org.hisp.dhis.common.ValueTypedDimensionalItemObject;
 import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
 import org.hisp.dhis.parser.expression.ExpressionItem;
+import org.hisp.dhis.system.util.ValidationUtils;
 
 /**
  * Parsed dimensional item as handled by the expression service.
@@ -45,7 +48,7 @@ public abstract class DimensionalItem
     implements ExpressionItem
 {
     @Override
-    public final Object getDescription( ExprContext ctx, CommonExpressionVisitor visitor )
+    public Object getDescription( ExprContext ctx, CommonExpressionVisitor visitor )
     {
         DimensionalItemId itemId = getDimensionalItemId( ctx, visitor );
 
@@ -59,48 +62,52 @@ public abstract class DimensionalItem
 
         visitor.getItemDescriptions().put( ctx.getText(), item.getDisplayName() );
 
-        return DOUBLE_VALUE_IF_NULL;
+        return ValidationUtils.getNullReplacementValue( getItemValueType( item ) );
     }
 
     @Override
-    public final Object getItemId( ExprContext ctx, CommonExpressionVisitor visitor )
+    public final Object getExpressionInfo( ExprContext ctx, CommonExpressionVisitor visitor )
     {
-        visitor.getItemIds().add( getDimensionalItemId( ctx, visitor ) );
+        visitor.getInfo().getItemIds().add( getDimensionalItemId( ctx, visitor ) );
 
-        return DOUBLE_VALUE_IF_NULL;
-    }
-
-    @Override
-    public final Object getOrgUnitGroup( ExprContext ctx, CommonExpressionVisitor visitor )
-    {
         return DOUBLE_VALUE_IF_NULL;
     }
 
     @Override
     public final Object evaluate( ExprContext ctx, CommonExpressionVisitor visitor )
     {
-        Double value = visitor.getItemValueMap().get( getId( ctx, visitor ) );
+        DimensionalItemId itemId = getDimensionalItemId( ctx, visitor );
 
-        return visitor.handleNulls( value );
+        DimensionalItemObject item = visitor.getParams().getItemMap().get( itemId );
+
+        Object value = (item != null)
+            ? visitor.getParams().getValueMap().get( item )
+            : null;
+
+        return visitor.getState().handleNulls( value, getItemValueType( item ) );
     }
 
     /**
      * Constructs the DimensionalItemId object for this item.
      *
      * @param ctx the parser item context
-     * @param visitor
+     * @param visitor the tree visitor
      * @return the DimensionalItemId object for this item
      */
     public abstract DimensionalItemId getDimensionalItemId( ExprContext ctx,
         CommonExpressionVisitor visitor );
 
+    // -------------------------------------------------------------------------
+    // Supportive methods
+    // -------------------------------------------------------------------------
+
     /**
-     * Returns the id for this item.
-     * <p/>
-     * For example, uid, or uid0.uid1, etc.
-     *
-     * @param ctx the parser item context
-     * @return the id for this item
+     * Returns the value type of this item.
      */
-    public abstract String getId( ExprContext ctx, CommonExpressionVisitor visitor );
+    private ValueType getItemValueType( DimensionalItemObject item )
+    {
+        return (item instanceof ValueTypedDimensionalItemObject)
+            ? ((ValueTypedDimensionalItemObject) item).getValueType()
+            : ValueType.NUMBER;
+    }
 }

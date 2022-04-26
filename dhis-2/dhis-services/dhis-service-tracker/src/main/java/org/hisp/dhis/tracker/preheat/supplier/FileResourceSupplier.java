@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,11 @@ import lombok.RequiredArgsConstructor;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.common.BaseIdentifiableObject;
-import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.fileresource.FileResource;
 import org.hisp.dhis.fileresource.FileResourceService;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
-import org.hisp.dhis.tracker.TrackerIdentifier;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.domain.Attribute;
 import org.hisp.dhis.tracker.domain.DataValue;
@@ -65,14 +64,14 @@ public class FileResourceSupplier extends AbstractPreheatSupplier
         List<TrackedEntityAttribute> attributes = preheat.getAll( TrackedEntityAttribute.class );
 
         List<String> fileResourceAttributes = attributes.stream()
-            .filter( at -> at.getValueType() == ValueType.FILE_RESOURCE )
+            .filter( at -> at.getValueType().isFile() )
             .map( BaseIdentifiableObject::getUid )
             .collect( Collectors.toList() );
 
         List<DataElement> dataElements = preheat.getAll( DataElement.class );
 
         List<String> fileResourceDataElements = dataElements.stream()
-            .filter( at -> at.getValueType() == ValueType.FILE_RESOURCE )
+            .filter( at -> at.getValueType().isFile() )
             .map( BaseIdentifiableObject::getUid )
             .collect( Collectors.toList() );
 
@@ -86,7 +85,7 @@ public class FileResourceSupplier extends AbstractPreheatSupplier
             .forEach( en -> collectResourceIds( fileResourceDataElements, fileResourceIds, en.getDataValues() ) );
 
         List<FileResource> fileResources = fileResourceService.getFileResources( fileResourceIds );
-        preheat.put( TrackerIdentifier.UID, fileResources );
+        preheat.put( TrackerIdSchemeParam.UID, fileResources );
     }
 
     private void collectResourceIds( List<String> fileResourceAttributes, List<String> fileResourceIds,

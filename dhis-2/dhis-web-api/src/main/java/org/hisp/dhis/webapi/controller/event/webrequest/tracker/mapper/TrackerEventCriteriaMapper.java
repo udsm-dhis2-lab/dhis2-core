@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,5 +49,6 @@ public interface TrackerEventCriteriaMapper
     @Mapping( source = "updatedAfter", target = "lastUpdatedStartDate" )
     @Mapping( source = "updatedBefore", target = "lastUpdatedEndDate" )
     @Mapping( source = "updatedWithin", target = "lastUpdatedDuration" )
+    @Mapping( source = "enrollments", target = "programInstances" )
     EventCriteria toEventCriteria( TrackerEventCriteria from );
 }

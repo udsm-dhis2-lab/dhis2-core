@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.validation.ValidationResult;
 import org.hisp.dhis.validation.ValidationResultStore;
@@ -70,7 +71,7 @@ import org.springframework.stereotype.Repository;
 @Repository( "org.hisp.dhis.validation.ValidationResultStore" )
 public class HibernateValidationResultStore
     extends HibernateGenericStore<ValidationResult>
-    implements ValidationResultStore
+    implements ValidationResultStore, CurrentUserServiceTarget
 {
     protected CurrentUserService currentUserService;
 
@@ -149,9 +150,7 @@ public class HibernateValidationResultStore
         query.executeUpdate();
     }
 
-    /**
-     * Allows injection (e.g. by a unit test)
-     */
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -343,7 +342,7 @@ public class HibernateValidationResultStore
         // Restrict by the user's category dimension constraints, if any
         // ---------------------------------------------------------------------
 
-        Set<Category> categories = user.getUserCredentials().getCatDimensionConstraints();
+        Set<Category> categories = user.getCatDimensionConstraints();
 
         if ( !isEmpty( categories ) )
         {
@@ -362,7 +361,7 @@ public class HibernateValidationResultStore
         // Restrict by the user's cat option group dimension constraints, if any
         // ---------------------------------------------------------------------
 
-        Set<CategoryOptionGroupSet> cogsets = user.getUserCredentials().getCogsDimensionConstraints();
+        Set<CategoryOptionGroupSet> cogsets = user.getCogsDimensionConstraints();
 
         if ( !isEmpty( cogsets ) )
         {

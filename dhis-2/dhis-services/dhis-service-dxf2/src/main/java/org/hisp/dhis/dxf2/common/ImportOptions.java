@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -455,6 +455,12 @@ public class ImportOptions
         return this;
     }
 
+    public ImportOptions setCategoryIdScheme( String idScheme )
+    {
+        idSchemes.setCategoryIdScheme( idScheme );
+        return this;
+    }
+
     public ImportOptions setOrgUnitIdScheme( String idScheme )
     {
         idSchemes.setOrgUnitIdScheme( idScheme );
@@ -482,6 +488,12 @@ public class ImportOptions
     public ImportOptions setTrackedEntityAttributeIdScheme( String idScheme )
     {
         idSchemes.setTrackedEntityAttributeIdScheme( idScheme );
+        return this;
+    }
+
+    public ImportOptions setDataSetIdScheme( String idScheme )
+    {
+        idSchemes.setDataSetIdScheme( idScheme );
         return this;
     }
 

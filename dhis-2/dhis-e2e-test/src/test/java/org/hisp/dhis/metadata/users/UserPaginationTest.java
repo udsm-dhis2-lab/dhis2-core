@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata.users;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,13 @@ package org.hisp.dhis.metadata.users;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.metadata.users;
+
+import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FIELDS;
+import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FILTER;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
@@ -36,12 +41,6 @@ import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.utils.DataGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FIELDS;
-import static org.hisp.dhis.actions.metadata.MetadataPaginationActions.DEFAULT_METADATA_FILTER;
 
 /**
  * @author Viet Nguyen <viet@dhis2.org>
@@ -72,7 +71,8 @@ public class UserPaginationTest
         for ( int i = 0; i < total; i++ )
         {
             userActions
-                .addUser( DataGenerator.randomString() + i, DataGenerator.randomString() + i, DataGenerator.randomString() + i,
+                .addUserFull( DataGenerator.randomString() + i, DataGenerator.randomString() + i,
+                    (DataGenerator.randomString() + i).toLowerCase(),
                     DataGenerator.randomString() + "Abcd1234!" + i );
         }
     }
@@ -80,10 +80,14 @@ public class UserPaginationTest
     @Test
     public void checkPaginationResultsForcingInMemoryPagination()
     {
-        // this test forces the metadata query engine to execute an "in memory" sorting and pagination
-        // since the sort ("order") value is set to 'displayName' that is a "virtual" field (that is, not a database column)
-        // The metadata query engine can not execute a sql query using this field, since it does not exist
-        // on the table. Therefore, the engine loads the entire content of the table in memory and
+        // this test forces the metadata query engine to execute an "in memory"
+        // sorting and pagination
+        // since the sort ("order") value is set to 'displayName' that is a
+        // "virtual" field (that is, not a database column)
+        // The metadata query engine can not execute a sql query using this
+        // field, since it does not exist
+        // on the table. Therefore, the engine loads the entire content of the
+        // table in memory and
         // executes a sort + pagination "in memory"
 
         ApiResponse response = paginationActions.getPaginated( startPage, pageSize );
@@ -107,8 +111,10 @@ public class UserPaginationTest
     @Test
     public void checkPaginationResultsForcingDatabaseOnlyPagination()
     {
-        // this test forces the metadata query engine to execute the query (including pagination) on the database only.
-        // The sort ("order") value is set to 'id' that is mapped to a DB column.
+        // this test forces the metadata query engine to execute the query
+        // (including pagination) on the database only.
+        // The sort ("order") value is set to 'id' that is mapped to a DB
+        // column.
 
         ApiResponse response = paginationActions.getPaginated(
             Arrays.asList( DEFAULT_METADATA_FILTER.split( "," ) ),

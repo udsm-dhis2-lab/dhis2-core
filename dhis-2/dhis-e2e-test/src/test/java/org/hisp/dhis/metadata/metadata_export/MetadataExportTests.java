@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,21 +25,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.metadata.metadata_export;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.emptyArray;
+import static org.hamcrest.Matchers.not;
+
 import org.hisp.dhis.ApiTest;
+import org.hisp.dhis.Constants;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.UserActions;
 import org.hisp.dhis.actions.metadata.MetadataActions;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.utils.DataGenerator;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.Matchers.emptyArray;
-import static org.hamcrest.Matchers.not;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -47,9 +48,9 @@ import static org.hamcrest.Matchers.not;
 public class MetadataExportTests
     extends ApiTest
 {
-    private String userWithoutAccessUsername = "MetadataExportTestsUser" + DataGenerator.randomString();
+    private String userWithoutAccessUsername = ("MetadataExportTestsUser" + DataGenerator.randomString()).toLowerCase();
 
-    private String userWithoutAccessPassword = "Test1212?";
+    private String userWithoutAccessPassword = Constants.USER_PASSWORD;
 
     private MetadataActions metadataActions;
 
@@ -75,12 +76,14 @@ public class MetadataExportTests
         metadataActions.get().validate()
             .statusCode( 409 )
             .body( "message",
-                equalTo( "Unfiltered access to metadata export requires super user or 'F_METADATA_EXPORT' authority." ) );
+                equalTo(
+                    "Unfiltered access to metadata export requires super user or 'F_METADATA_EXPORT' authority." ) );
     }
 
     @Test
     public void shouldNotExportUserMetadataWithoutAuthority()
     {
+
         loginActions.loginAsUser( userWithoutAccessUsername, userWithoutAccessPassword );
 
         metadataActions.get( "", new QueryParamsBuilder().add( "users=true" ) )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,16 @@ import java.util.Date;
 
 import org.hisp.dhis.analytics.AggregationType;
 import org.hisp.dhis.dataelement.DataElement;
+import org.hisp.dhis.hibernate.HibernateProxyUtils;
+import org.hisp.dhis.indicator.Indicator;
+import org.hisp.dhis.indicator.IndicatorType;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * Item part of meta data analytics response.
@@ -66,6 +70,8 @@ public class MetadataItem
     private AggregationType aggregationType;
 
     private TotalAggregationType totalAggregationType;
+
+    private IndicatorType indicatorType;
 
     private Date startDate;
 
@@ -172,6 +178,16 @@ public class MetadataItem
             Period period = (Period) dimensionalItemObject;
             this.startDate = period.getStartDate();
             this.endDate = period.getEndDate();
+        }
+
+        if ( dimensionalItemObject instanceof Indicator )
+        {
+            Indicator indicator = (Indicator) dimensionalItemObject;
+
+            if ( indicator.getIndicatorType() != null )
+            {
+                this.indicatorType = HibernateProxyUtils.unproxy( indicator.getIndicatorType() );
+            }
         }
     }
 
@@ -290,6 +306,18 @@ public class MetadataItem
     public void setAggregationType( AggregationType itemSpecificType )
     {
         this.aggregationType = itemSpecificType;
+    }
+
+    @JsonProperty
+    @JsonSerialize( using = IndicatorTypeSerializer.class )
+    public IndicatorType getIndicatorType()
+    {
+        return indicatorType;
+    }
+
+    public void setIndicatorType( IndicatorType indicatorType )
+    {
+        this.indicatorType = HibernateProxyUtils.unproxy( indicatorType );
     }
 
     @JsonProperty

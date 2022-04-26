@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,10 @@
 package org.hisp.dhis.system.util;
 
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+import static org.hisp.dhis.system.util.MathUtils.parseDouble;
 
 import java.awt.geom.Point2D;
+import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -52,7 +54,6 @@ import org.hisp.dhis.fileresource.FileResource;
 import org.hisp.dhis.render.ObjectValueTypeRenderingOption;
 import org.hisp.dhis.render.StaticRenderingConfiguration;
 import org.hisp.dhis.render.type.ValueTypeRenderingType;
-import org.hisp.dhis.user.UserCredentials;
 import org.hisp.dhis.util.DateUtils;
 
 import com.google.common.collect.ImmutableSet;
@@ -63,6 +64,8 @@ import com.google.common.collect.Sets;
  */
 public class ValidationUtils
 {
+    private static final Pattern USERNAME_PATTERN = Pattern.compile(
+        "^(?=.{4,255}$)(?![_.@])(?!.*[_.@]{2})[a-z0-9._@]+(?<![_.@])$" );
 
     private static final String NUM_PAT = "((-?[0-9]+)(\\.[0-9]+)?)";
 
@@ -76,14 +79,16 @@ public class ValidationUtils
 
     private static final Pattern TIME_OF_DAY_PATTERN = Pattern.compile( "^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$" );
 
-    private static final Pattern BBOX_PATTERN = Pattern
-        .compile( "^" + NUM_PAT + ",\\s*?" + NUM_PAT + ",\\s*?" + NUM_PAT + ",\\s*?" + NUM_PAT + "$" );
+    private static final Pattern BBOX_PATTERN = Pattern.compile(
+        "^" + NUM_PAT + ",\\s*?" + NUM_PAT + ",\\s*?" + NUM_PAT + ",\\s*?" + NUM_PAT + "$" );
 
     private static final Pattern INTERNATIONAL_PHONE_PATTERN = Pattern.compile( "^\\+(?:[0-9].?){4,14}[0-9]$" );
 
     public static final String NOT_VALID_VALUE_TYPE_CLASS = "not_valid_value_type_class";
 
     public static final String NOT_VALID_VALUE_TYPE_OPTION_CLASS = "not_valid_value_type_option_class";
+
+    public static final int MAX_PASSWORD_LENGTH = 35;
 
     private static Set<String> BOOL_FALSE_VARIANTS = Sets.newHashSet( "false", "False", "FALSE", "f", "F", "0" );
 
@@ -111,6 +116,7 @@ public class ValidationUtils
      * injection attempts.
      *
      * @param filter the filter string.
+     *
      * @return true if the filter string is valid, false otherwise.
      */
     public static boolean expressionIsValidSQl( String filter )
@@ -142,6 +148,7 @@ public class ValidationUtils
      * Validates whether an email string is valid.
      *
      * @param email the email string.
+     *
      * @return true if the email string is valid, false otherwise.
      */
     public static boolean emailIsValid( String email )
@@ -154,6 +161,7 @@ public class ValidationUtils
      *
      * @param date the date string.
      * @param locale the Locale
+     *
      * @return true if the date string is valid, false otherwise.
      */
     public static boolean dateIsValid( String date, Locale locale )
@@ -165,6 +173,7 @@ public class ValidationUtils
      * Validates whether a date string is valid for the default Locale.
      *
      * @param date the date string.
+     *
      * @return true if the date string is valid, false otherwise.
      */
     public static boolean dateIsValid( String date )
@@ -176,7 +185,8 @@ public class ValidationUtils
      * Validates whether a string is valid for the HH:mm time format.
      *
      * @param time the time string
-     * @return true if the time string is valid, false otherwise
+     *
+     * @return true if the time string is valid, false otherwise.
      */
     public static boolean timeIsValid( String time )
     {
@@ -187,6 +197,7 @@ public class ValidationUtils
      * Validates whether an URL string is valid.
      *
      * @param url the URL string.
+     *
      * @return true if the URL string is valid, false otherwise.
      */
     public static boolean urlIsValid( String url )
@@ -198,6 +209,7 @@ public class ValidationUtils
      * Validates whether a UUID is valid.
      *
      * @param uuid the UUID as string.
+     *
      * @return true if the UUID is valid, false otherwise.
      */
     public static boolean uuidIsValid( String uuid )
@@ -217,11 +229,17 @@ public class ValidationUtils
      * Validates whether a username is valid.
      *
      * @param username the username.
+     *
      * @return true if the username is valid, false otherwise.
      */
     public static boolean usernameIsValid( String username )
     {
-        return username != null && username.length() <= UserCredentials.USERNAME_MAX_LENGTH;
+        if ( username == null )
+        {
+            return false;
+        }
+        Matcher matcher = USERNAME_PATTERN.matcher( username );
+        return matcher.matches();
     }
 
     /**
@@ -234,11 +252,12 @@ public class ValidationUtils
      * </ul>
      *
      * @param password the password.
+     *
      * @return true if the password is valid, false otherwise.
      */
     public static boolean passwordIsValid( String password )
     {
-        if ( password == null || password.trim().length() < 8 || password.trim().length() > 35 )
+        if ( password == null || password.trim().length() < 8 || password.trim().length() > MAX_PASSWORD_LENGTH )
         {
             return false;
         }
@@ -287,6 +306,7 @@ public class ValidationUtils
      * <code>min longitude, min latitude, max longitude, max latitude</code>
      *
      * @param bbox the bbox string.
+     *
      * @return true if the bbox string is valid.
      */
     public static boolean bboxIsValid( String bbox )
@@ -327,6 +347,7 @@ public class ValidationUtils
      * latitude.
      *
      * @param coordinate the coordinate string.
+     *
      * @return the longitude.
      */
     public static String getLongitude( String coordinate )
@@ -347,6 +368,7 @@ public class ValidationUtils
      * latitude.
      *
      * @param coordinate the coordinate string.
+     *
      * @return the latitude.
      */
     public static String getLatitude( String coordinate )
@@ -365,6 +387,7 @@ public class ValidationUtils
      * Returns the longitude and latitude from the given coordinate.
      *
      * @param coordinate the coordinate string.
+     *
      * @return Point2D of the coordinate.
      */
     public static Point2D getCoordinatePoint2D( String coordinate )
@@ -391,6 +414,7 @@ public class ValidationUtils
      *
      * @param longitude the longitude string.
      * @param latitude the latitude string.
+     *
      * @return a coordinate string.
      */
     public static String getCoordinate( String longitude, String latitude )
@@ -462,6 +486,7 @@ public class ValidationUtils
      *
      * @param value the data value.
      * @param dataElement the data element.
+     *
      * @return null if the value is valid, a string if not.
      */
     public static String dataValueIsValid( String value, DataElement dataElement )
@@ -480,6 +505,7 @@ public class ValidationUtils
      *
      * @param value the data value.
      * @param valueType the {@link ValueType}.
+     *
      * @return null if the value is valid, a string if not.
      */
     public static String dataValueIsValid( String value, ValueType valueType )
@@ -586,6 +612,7 @@ public class ValidationUtils
      * </ul>
      *
      * @param comment the comment.
+     *
      * @return null if the comment is valid, a string if not.
      */
     public static String commentIsValid( String comment )
@@ -612,6 +639,7 @@ public class ValidationUtils
      * </ul>
      *
      * @param storedBy the stored by value.
+     *
      * @return null if the stored by value is valid, a string if not.
      */
     public static String storedByIsValid( String storedBy )
@@ -634,6 +662,7 @@ public class ValidationUtils
      * #xxxxxx, xxx, xxxxxx).
      *
      * @param value Value to check against
+     *
      * @return true if value is a hex color string, false otherwise
      */
     public static boolean isValidHexColor( String value )
@@ -642,24 +671,29 @@ public class ValidationUtils
     }
 
     /**
-     * Returns a value useful for substitution.
+     * Returns a typed value that can substitute for a null.
      *
      * @param valueType the value type.
-     * @return the object.
+     *
+     * @return the null replacement value.
      */
-    public static Object getSubstitutionValue( ValueType valueType )
+    public static Object getNullReplacementValue( ValueType valueType )
     {
-        if ( valueType.isNumeric() || valueType.isBoolean() )
+        if ( valueType.isNumeric() )
         {
-            return 1d;
+            return 0d;
+        }
+        else if ( valueType.isBoolean() )
+        {
+            return false;
         }
         else if ( valueType.isDate() )
         {
-            return "2000-01-01";
+            return new Date();
         }
         else
         {
-            return "A";
+            return "";
         }
     }
 
@@ -669,6 +703,7 @@ public class ValidationUtils
      *
      * @param bool input value
      * @param valueType type of value. Return boolean value if type is boolean.
+     *
      * @return normalized boolean value.
      */
     public static String normalizeBoolean( String bool, ValueType valueType )
@@ -689,6 +724,39 @@ public class ValidationUtils
     }
 
     /**
+     * Returns the value of a datavalue as an Object, if it is numeric, boolean,
+     * text, or date. (Date returns as String.) Otherwise returns null.
+     * <p>
+     * Other object types (e.g. File, Geo) return null for now rather than as a
+     * String, in case we decide to support them in the future as a different
+     * object type (or return a file's contents as a String).
+     *
+     * @param value the string value.
+     *
+     * @return the Object value.
+     */
+    public static Object getObjectValue( String value, ValueType valueType )
+    {
+        if ( value != null )
+        {
+            if ( valueType.isNumeric() )
+            {
+                return parseDouble( value );
+            }
+            else if ( valueType.isBoolean() )
+            {
+                return Boolean.parseBoolean( value );
+            }
+            else if ( valueType.isText() || valueType.isDate() )
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Validates that the clazz and valueType or optionSet combination supports
      * the given RenderingType set.
      *
@@ -696,6 +764,7 @@ public class ValidationUtils
      * @param valueType the valuetype to validate
      * @param optionSet is the class an optionset?
      * @param type the RenderingType to validate
+     *
      * @return true if RenderingType is supported, false if not.
      */
     public static boolean validateRenderingType( Class<?> clazz, ValueType valueType, boolean optionSet,
@@ -721,6 +790,7 @@ public class ValidationUtils
      * Validates a whatsapp handle
      *
      * @param whatsapp
+     *
      * @return
      */
     public static boolean validateWhatsapp( String whatsapp )
@@ -733,6 +803,7 @@ public class ValidationUtils
      * Validate an international phone number
      *
      * @param phoneNumber
+     *
      * @return
      */
     public static boolean validateInternationalPhoneNumber( String phoneNumber )

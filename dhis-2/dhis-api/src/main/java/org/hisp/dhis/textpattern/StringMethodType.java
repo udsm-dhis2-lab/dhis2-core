@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@ package org.hisp.dhis.textpattern;
 
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * @author Stian Sandvold
  */
@@ -56,7 +58,7 @@ public class StringMethodType
     @Override
     public boolean validateText( String format, String text )
     {
-        if ( format.isEmpty() )
+        if ( StringUtils.isEmpty( format ) )
         {
             return true;
         }
@@ -67,7 +69,7 @@ public class StringMethodType
     @Override
     public String getFormattedText( String format, String value )
     {
-        if ( format.isEmpty() )
+        if ( StringUtils.isEmpty( format ) )
         {
             return value;
         }

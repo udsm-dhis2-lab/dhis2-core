@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.setting;
 
+import static java.util.stream.Collectors.toSet;
+
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -35,7 +37,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang3.LocaleUtils;
 import org.hisp.dhis.analytics.AnalyticsCacheTtlMode;
@@ -51,7 +53,6 @@ import org.hisp.dhis.period.RelativePeriodEnum;
 import org.hisp.dhis.sms.config.SmsConfiguration;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 
 /**
  * @author Lars Helge Overland
@@ -73,6 +74,7 @@ public enum SettingKey
     FLAG( "keyFlag", "dhis2", String.class ),
     FLAG_IMAGE( "keyFlagImage" ),
     START_MODULE( "startModule", "dhis-web-dashboard", String.class ),
+    START_MODULE_ENABLE_LIGHT_WEIGHT( "startModuleEnableLightweight", Boolean.FALSE, Boolean.class ),
     FACTOR_OF_DEVIATION( "factorDeviation", 2d, Double.class ),
     EMAIL_HOST_NAME( "keyEmailHostName" ),
     EMAIL_PORT( "keyEmailPort", 587, Integer.class ),
@@ -83,6 +85,11 @@ public enum SettingKey
     MIN_PASSWORD_LENGTH( "minPasswordLength", 8, Integer.class ),
     MAX_PASSWORD_LENGTH( "maxPasswordLength", 40, Integer.class ),
     SMS_CONFIG( "keySmsSetting", new SmsConfiguration(), SmsConfiguration.class ),
+    /**
+     * Max SMS text message length, default 7 * 153 ( 7 parts , 153 is message
+     * length for multi parts )
+     **/
+    SMS_MAX_LENGTH( "keySmsMaxLength", 1071, Integer.class ),
     CACHE_STRATEGY( "keyCacheStrategy", CacheStrategy.CACHE_1_MINUTE, CacheStrategy.class ),
     CACHEABILITY( "keyCacheability", Cacheability.PUBLIC, Cacheability.class ),
     ANALYTICS_FINANCIAL_YEAR_START( "analyticsFinancialYearStart",
@@ -95,12 +102,15 @@ public enum SettingKey
     GOOGLE_ANALYTICS_UA( "googleAnalyticsUA" ),
     CREDENTIALS_EXPIRES( "credentialsExpires", 0, Integer.class ),
     CREDENTIALS_EXPIRY_ALERT( "credentialsExpiryAlert", false, Boolean.class ),
+    ACCOUNT_EXPIRES_IN_DAYS( "accountExpiresInDays", 7, Integer.class ),
+    ACCOUNT_EXPIRY_ALERT( "accountExpiryAlert", false, Boolean.class ),
     SELF_REGISTRATION_NO_RECAPTCHA( "keySelfRegistrationNoRecaptcha", Boolean.FALSE, Boolean.class ),
     RECAPTCHA_SECRET( "recaptchaSecret", "6LcVwT0UAAAAAAtMWnPoerWwLx_DSwrcEncHCiWu", String.class, true, false ),
     RECAPTCHA_SITE( "recaptchaSite", "6LcVwT0UAAAAAAkO_EGPiYOiymIszZUeHfqWIYX5", String.class, true, false ),
-    CAN_GRANT_OWN_USER_AUTHORITY_GROUPS( "keyCanGrantOwnUserAuthorityGroups", Boolean.FALSE, Boolean.class ),
+    CAN_GRANT_OWN_USER_ROLES( "keyCanGrantOwnUserAuthorityGroups", Boolean.FALSE, Boolean.class ),
     IGNORE_ANALYTICS_APPROVAL_YEAR_THRESHOLD( "keyIgnoreAnalyticsApprovalYearThreshold", -1, Integer.class ),
     ANALYTICS_MAX_LIMIT( "keyAnalyticsMaxLimit", 100000, Integer.class ),
+    INCLUDE_ZERO_VALUES_IN_ANALYTICS( "keyIncludeZeroValuesInAnalytics", Boolean.FALSE, Boolean.class ),
     SQL_VIEW_MAX_LIMIT( "keySqlViewMaxLimit", -1, Integer.class ),
     RESPECT_META_DATA_START_END_DATES_IN_ANALYTICS_TABLE_EXPORT(
         "keyRespectMetaDataStartEndDatesInAnalyticsTableExport", Boolean.FALSE, Boolean.class ),
@@ -191,6 +201,7 @@ public enum SettingKey
         "keyDashboardContextMenuItemShowInterpretationsAndDetails", Boolean.TRUE, Boolean.class ),
     DASHBOARD_CONTEXT_MENU_ITEM_VIEW_FULLSCREEN( "keyDashboardContextMenuItemViewFullscreen", Boolean.TRUE,
         Boolean.class ),
+    DEFAULT_BASE_MAP( "keyDefaultBaseMap" ),
     RULE_ENGINE_ASSIGN_OVERWRITE( "ruleEngineAssignOverwrite", Boolean.FALSE, Boolean.class ),
 
     /**
@@ -208,11 +219,11 @@ public enum SettingKey
 
     private final Serializable defaultValue;
 
-    private final Class<?> clazz;
+    private final Class<? extends Serializable> clazz;
 
-    private boolean confidential;
+    private final boolean confidential;
 
-    private boolean translatable;
+    private final boolean translatable;
 
     private static final ImmutableSet<String> NAMES = getNameSet();
 
@@ -222,41 +233,26 @@ public enum SettingKey
 
     SettingKey( String name )
     {
-        this.name = name;
-        this.defaultValue = null;
-        this.clazz = String.class;
-        this.confidential = false;
-        this.translatable = false;
+        this( name, null, String.class, false, false );
     }
 
     SettingKey( String name, boolean translatable )
     {
-        this.name = name;
-        this.defaultValue = null;
-        this.clazz = String.class;
-        this.confidential = false;
-        this.translatable = translatable;
+        this( name, null, String.class, false, translatable );
     }
 
-    SettingKey( String name, Class<?> clazz )
+    SettingKey( String name, Class<? extends Serializable> clazz )
     {
-        this.name = name;
-        this.defaultValue = null;
-        this.clazz = clazz;
-        this.confidential = false;
-        this.translatable = false;
+        this( name, null, clazz, false, false );
     }
 
-    SettingKey( String name, Serializable defaultValue, Class<?> clazz )
+    <T extends Serializable> SettingKey( String name, T defaultValue, Class<T> clazz )
     {
-        this.name = name;
-        this.defaultValue = defaultValue;
-        this.clazz = clazz;
-        this.confidential = false;
-        this.translatable = false;
+        this( name, defaultValue, clazz, false, false );
     }
 
-    SettingKey( String name, Serializable defaultValue, Class<?> clazz, boolean confidential, boolean translatable )
+    <T extends Serializable> SettingKey( String name, T defaultValue, Class<T> clazz, boolean confidential,
+        boolean translatable )
     {
         this.name = name;
         this.defaultValue = defaultValue;
@@ -353,9 +349,9 @@ public enum SettingKey
 
     private static ImmutableSet<String> getNameSet()
     {
-        return ImmutableSet.copyOf( Sets.newHashSet( SettingKey.values() ).stream()
-            .map( s -> s.getName() )
-            .collect( Collectors.toSet() ) );
+        return ImmutableSet.copyOf( Stream.of( SettingKey.values() )
+            .map( SettingKey::getName )
+            .collect( toSet() ) );
     }
 
     // -------------------------------------------------------------------------
@@ -372,7 +368,7 @@ public enum SettingKey
         return defaultValue;
     }
 
-    public Class<?> getClazz()
+    public Class<? extends Serializable> getClazz()
     {
         return clazz;
     }

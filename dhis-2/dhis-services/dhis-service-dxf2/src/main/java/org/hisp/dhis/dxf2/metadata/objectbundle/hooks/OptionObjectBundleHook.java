@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,6 @@ package org.hisp.dhis.dxf2.metadata.objectbundle.hooks;
 import java.util.function.Consumer;
 
 import org.apache.commons.lang3.ObjectUtils;
-import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundle;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.feedback.ErrorReport;
@@ -42,21 +41,12 @@ import org.springframework.stereotype.Component;
  * @author Volker Schmidt
  */
 @Component
-public class OptionObjectBundleHook
-    extends AbstractObjectBundleHook
+public class OptionObjectBundleHook extends AbstractObjectBundleHook<Option>
 {
-
     @Override
-    public <T extends IdentifiableObject> void validate( T object, ObjectBundle bundle,
+    public void validate( Option option, ObjectBundle bundle,
         Consumer<ErrorReport> addReports )
     {
-        if ( !(object instanceof Option) )
-        {
-            return;
-        }
-
-        final Option option = (Option) object;
-
         if ( option.getOptionSet() != null )
         {
             OptionSet optionSet = bundle.getPreheat().get( bundle.getPreheatIdentifier(), OptionSet.class,
@@ -67,28 +57,22 @@ public class OptionObjectBundleHook
     }
 
     @Override
-    public <T extends IdentifiableObject> void preCreate( T object, ObjectBundle bundle )
+    public void preCreate( Option option, ObjectBundle bundle )
     {
-        if ( !(object instanceof Option) )
+        if ( option.getOptionSet() == null )
         {
             return;
         }
 
-        final Option option = (Option) object;
+        // If OptionSet doesn't contains Option but Option has reference to
+        // OptionSet
+        // then we need to update OptionSet.options collection.
+        OptionSet optionSet = bundle.getPreheat().get( bundle.getPreheatIdentifier(), OptionSet.class,
+            option.getOptionSet().getUid() );
 
-        // if the bundle contains also the option set there is no need to add
-        // the option here
-        // (will be done automatically later and option set may contain raw
-        // value already)
-        if ( option.getOptionSet() != null && !bundle.containsObject( option.getOptionSet() ) )
+        if ( optionSet != null && optionSet.getOptionByUid( option.getUid() ) == null )
         {
-            OptionSet optionSet = bundle.getPreheat().get( bundle.getPreheatIdentifier(), OptionSet.class,
-                option.getOptionSet() );
-
-            if ( optionSet != null )
-            {
-                optionSet.addOption( option );
-            }
+            optionSet.addOption( option );
         }
     }
 

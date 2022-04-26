@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -237,5 +237,15 @@ public class DataSetNotificationTemplate
     public void setNotifyParentOrganisationUnitOnly( Boolean notifyParentOrganisationUnitOnly )
     {
         this.notifyParentOrganisationUnitOnly = notifyParentOrganisationUnitOnly;
+    }
+
+    @Override
+    public void setAutoFields()
+    {
+        super.setAutoFields();
+        if ( sendStrategy == null )
+        {
+            sendStrategy = SendStrategy.SINGLE_NOTIFICATION;
+        }
     }
 }

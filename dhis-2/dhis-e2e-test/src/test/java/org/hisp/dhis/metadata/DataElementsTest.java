@@ -1,7 +1,5 @@
-package org.hisp.dhis.metadata;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +25,14 @@ package org.hisp.dhis.metadata;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import com.google.gson.JsonObject;
+package org.hisp.dhis.metadata;
 
 import java.util.stream.Stream;
 
 import org.hisp.dhis.ApiTest;
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.RestApiActions;
+import org.hisp.dhis.actions.metadata.DataElementActions;
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.helpers.ResponseValidationHelper;
 import org.hisp.dhis.utils.DataGenerator;
@@ -43,13 +41,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.google.gson.JsonObject;
+
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
  */
 public class DataElementsTest
     extends ApiTest
 {
-    private RestApiActions dataElementActions;
+    private DataElementActions dataElementActions;
 
     private RestApiActions categoryComboActions;
 
@@ -67,7 +67,7 @@ public class DataElementsTest
     @BeforeAll
     public void beforeAll()
     {
-        dataElementActions = new RestApiActions( "/dataElements" );
+        dataElementActions = new DataElementActions();
         categoryComboActions = new RestApiActions( "/categoryCombos" );
         loginActions = new LoginActions();
 
@@ -80,10 +80,7 @@ public class DataElementsTest
         String categoryComboDimensionType )
     {
         // arrange
-        JsonObject body = generateBaseBody();
-        body.addProperty( "domainType", domainType );
-        body.addProperty( "valueType", valueType );
-        body.addProperty( "aggregationType", aggregationType );
+        JsonObject body = dataElementActions.body( aggregationType, domainType, valueType );
 
         if ( withCategoryCombo )
         {
@@ -100,15 +97,6 @@ public class DataElementsTest
 
         // assert
         ResponseValidationHelper.validateObjectCreation( response );
-    }
-
-    private JsonObject generateBaseBody()
-    {
-        JsonObject object = new JsonObject();
-        object.addProperty( "name", DataGenerator.randomEntityName() );
-        object.addProperty( "shortName", DataGenerator.randomEntityName() );
-
-        return object;
     }
 
     public String createCategoryCombo( String dimensionType )

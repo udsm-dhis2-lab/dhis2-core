@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ class ResponseHandler
             // Counting and summing up the results for each entity.
             count.addAndGet( pageCountingCache.get(
                 createPageCountingCacheKey( currentUser, targetEntities, filters, options ),
-                p -> countEntityRowsTotal( targetEntities, options, paramsMap ) ).orElse( 0L ) );
+                p -> countEntityRowsTotal( targetEntities, options, paramsMap ) ) );
 
             final Pager pager = new Pager( options.getPage(), count.get(), options.getPageSize() );
 

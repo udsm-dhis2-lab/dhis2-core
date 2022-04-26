@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,6 @@ public class ObjectDeletionRequestedEvent
      */
     public static boolean shouldSkip( Class<?> type )
     {
-        return UserAccess.class.isAssignableFrom( type ) || UserGroupAccess.class.isAssignableFrom( type ) ? true
-            : false;
+        return UserAccess.class.isAssignableFrom( type ) || UserGroupAccess.class.isAssignableFrom( type );
     }
 }

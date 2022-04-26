@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.tracker.preheat.supplier;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,8 +41,10 @@ import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.domain.Attribute;
+import org.hisp.dhis.tracker.preheat.DetachUtils;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.tracker.preheat.mappers.UserMapper;
+import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.springframework.stereotype.Component;
 
@@ -74,12 +77,9 @@ public class UsernameValueTypeSupplier extends AbstractPreheatSupplier
         params.getEnrollments()
             .forEach( en -> collectResourceIds( usernameAttributes, usernames, en.getAttributes() ) );
 
-        List<UserCredentials> users = userService.getUserCredentialsByUsernames( usernames );
+        List<User> users = userService.getUsersByUsernames( usernames );
 
-        List<String> validUsernames = users
-            .stream().map( UserCredentials::getUsername ).collect( Collectors.toList() );
-
-        preheat.setUsernames( validUsernames );
+        preheat.addUsers( new HashSet<>( DetachUtils.detach( UserMapper.INSTANCE, users ) ) );
     }
 
     private void collectResourceIds( List<String> usernameAttributes, List<String> usernames,

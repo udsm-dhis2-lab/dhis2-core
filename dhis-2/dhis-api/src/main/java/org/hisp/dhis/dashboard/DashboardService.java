@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,13 +30,12 @@ package org.hisp.dhis.dashboard;
 import java.util.List;
 import java.util.Set;
 
-import org.hisp.dhis.chart.Chart;
 import org.hisp.dhis.document.Document;
 import org.hisp.dhis.eventchart.EventChart;
 import org.hisp.dhis.eventreport.EventReport;
+import org.hisp.dhis.eventvisualization.EventVisualization;
 import org.hisp.dhis.mapping.Map;
 import org.hisp.dhis.report.Report;
-import org.hisp.dhis.reporttable.ReportTable;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.visualization.Visualization;
 
@@ -91,9 +90,7 @@ public interface DashboardService
 
     List<DashboardItem> getVisualizationDashboardItems( Visualization visualization );
 
-    List<DashboardItem> getReportTableDashboardItems( ReportTable reportTable );
-
-    List<DashboardItem> getChartDashboardItems( Chart chart );
+    List<DashboardItem> getEventVisualizationDashboardItems( EventVisualization eventVisualization );
 
     List<DashboardItem> getEventChartDashboardItems( EventChart eventChart );
 

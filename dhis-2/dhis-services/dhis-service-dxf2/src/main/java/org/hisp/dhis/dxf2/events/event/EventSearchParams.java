@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -153,6 +153,8 @@ public class EventSearchParams
 
     private boolean skipPaging;
 
+    private boolean includeRelationships;
+
     private List<OrderParam> orders;
 
     private List<OrderParam> gridOrders;
@@ -189,6 +191,8 @@ public class EventSearchParams
      * synchronized
      */
     private Date skipChangedBefore;
+
+    private Set<String> programInstances;
 
     // -------------------------------------------------------------------------
     // Constructors
@@ -723,6 +727,17 @@ public class EventSearchParams
         return this;
     }
 
+    public Set<String> getProgramInstances()
+    {
+        return programInstances;
+    }
+
+    public EventSearchParams setProgramInstances( Set<String> programInstances )
+    {
+        this.programInstances = programInstances;
+        return this;
+    }
+
     public void handleCurrentUserSelectionMode( User currentUser )
     {
         if ( AssignedUserSelectionMode.CURRENT.equals( this.assignedUserSelectionMode ) && currentUser != null )
@@ -745,5 +760,27 @@ public class EventSearchParams
     public boolean isIncludeOnlyAssignedEvents()
     {
         return AssignedUserSelectionMode.ANY.equals( this.assignedUserSelectionMode );
+    }
+
+    public boolean isIncludeRelationships()
+    {
+        return includeRelationships;
+    }
+
+    public EventSearchParams setIncludeRelationships( boolean includeRelationships )
+    {
+        this.includeRelationships = includeRelationships;
+        return this;
+    }
+
+    public boolean isOrganisationUnitMode( OrganisationUnitSelectionMode mode )
+    {
+        return orgUnitSelectionMode != null && orgUnitSelectionMode.equals( mode );
+    }
+
+    public boolean isPathOrganisationUnitMode()
+    {
+        return orgUnitSelectionMode != null && (orgUnitSelectionMode.equals( OrganisationUnitSelectionMode.DESCENDANTS )
+            || orgUnitSelectionMode.equals( OrganisationUnitSelectionMode.CHILDREN ));
     }
 }

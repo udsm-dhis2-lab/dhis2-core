@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,14 @@ import static org.hisp.dhis.analytics.DataQueryParams.NUMERATOR_ID;
 import static org.hisp.dhis.analytics.DataQueryParams.VALUE_HEADER_NAME;
 import static org.hisp.dhis.analytics.DataQueryParams.VALUE_ID;
 import static org.hisp.dhis.analytics.util.AnalyticsUtils.throwIllegalQueryEx;
+import static org.hisp.dhis.common.DimensionalObject.CATEGORYOPTIONCOMBO_DIM_ID;
+import static org.hisp.dhis.common.DimensionalObject.DATA_X_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
 import static org.hisp.dhis.common.ValueType.BOOLEAN;
 import static org.hisp.dhis.common.ValueType.DATE;
 import static org.hisp.dhis.common.ValueType.NUMBER;
 import static org.hisp.dhis.common.ValueType.TEXT;
-import static org.hisp.dhis.reporttable.ReportTable.COLUMN_NAMES;
-import static org.hisp.dhis.reporttable.ReportTable.DASH_PRETTY_SEPARATOR;
-import static org.hisp.dhis.reporttable.ReportTable.SPACE;
-import static org.hisp.dhis.reporttable.ReportTable.TOTAL_COLUMN_PRETTY_NAME;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,6 +64,7 @@ import org.hisp.dhis.analytics.DataQueryParams;
 import org.hisp.dhis.analytics.EventAnalyticsDimensionalItem;
 import org.hisp.dhis.analytics.Rectangle;
 import org.hisp.dhis.analytics.cache.AnalyticsCache;
+import org.hisp.dhis.analytics.data.handler.SchemaIdResponseMapper;
 import org.hisp.dhis.analytics.event.EnrollmentAnalyticsManager;
 import org.hisp.dhis.analytics.event.EventAnalyticsManager;
 import org.hisp.dhis.analytics.event.EventAnalyticsService;
@@ -77,6 +76,7 @@ import org.hisp.dhis.analytics.event.EventQueryValidator;
 import org.hisp.dhis.analytics.util.AnalyticsUtils;
 import org.hisp.dhis.common.AnalyticalObject;
 import org.hisp.dhis.common.DimensionalObject;
+import org.hisp.dhis.common.DimensionalObjectUtils;
 import org.hisp.dhis.common.EventAnalyticalObject;
 import org.hisp.dhis.common.Grid;
 import org.hisp.dhis.common.GridHeader;
@@ -106,6 +106,18 @@ public class DefaultEventAnalyticsService
     extends AbstractAnalyticsService
     implements EventAnalyticsService
 {
+    private static final String DASH_PRETTY_SEPARATOR = " - ";
+
+    private static final String SPACE = " ";
+
+    private static final String TOTAL_COLUMN_PRETTY_NAME = "Total";
+
+    private static final Map<String, String> COLUMN_NAMES = DimensionalObjectUtils.asMap(
+        DATA_X_DIM_ID, "data",
+        CATEGORYOPTIONCOMBO_DIM_ID, "categoryoptioncombo",
+        PERIOD_DIM_ID, "period",
+        ORGUNIT_DIM_ID, "organisationunit" );
+
     private static final String NAME_EVENT = "Event";
 
     private static final String NAME_TRACKED_ENTITY_INSTANCE = "Tracked entity instance";
@@ -115,6 +127,16 @@ public class DefaultEventAnalyticsService
     private static final String NAME_PROGRAM_STAGE = "Program stage";
 
     private static final String NAME_EVENT_DATE = "Event date";
+
+    private static final String NAME_STORED_BY = "Stored by";
+
+    private static final String NAME_CREATED_BY_DISPLAY_NAME = "Created by (display name)";
+
+    private static final String NAME_LAST_UPDATED_BY_DISPLAY_NAME = "Last updated by (display name)";
+
+    private static final String NAME_LAST_UPDATED = "Last Updated";
+
+    private static final String NAME_SCHEDULED_DATE = "Scheduled date";
 
     private static final String NAME_ENROLLMENT_DATE = "Enrollment date";
 
@@ -138,6 +160,10 @@ public class DefaultEventAnalyticsService
 
     private static final String NAME_POINTS = "Points";
 
+    private static final String NAME_PROGRAM_STATUS = "Program status";
+
+    private static final String NAME_EVENT_STATUS = "Event status";
+
     private static final Option OPT_TRUE = new Option( "Yes", "1" );
 
     private static final Option OPT_FALSE = new Option( "No", "0" );
@@ -158,13 +184,16 @@ public class DefaultEventAnalyticsService
 
     private final AnalyticsCache analyticsCache;
 
+    final SchemaIdResponseMapper schemaIdResponseMapper;
+
     public DefaultEventAnalyticsService( DataElementService dataElementService,
         TrackedEntityAttributeService trackedEntityAttributeService, EventAnalyticsManager eventAnalyticsManager,
         EventDataQueryService eventDataQueryService, AnalyticsSecurityManager securityManager,
         EventQueryPlanner queryPlanner, EventQueryValidator queryValidator, DatabaseInfo databaseInfo,
-        AnalyticsCache analyticsCache, EnrollmentAnalyticsManager enrollmentAnalyticsManager )
+        AnalyticsCache analyticsCache, EnrollmentAnalyticsManager enrollmentAnalyticsManager,
+        SchemaIdResponseMapper schemaIdResponseMapper )
     {
-        super( securityManager, queryValidator );
+        super( securityManager, queryValidator, schemaIdResponseMapper );
 
         checkNotNull( dataElementService );
         checkNotNull( trackedEntityAttributeService );
@@ -173,6 +202,7 @@ public class DefaultEventAnalyticsService
         checkNotNull( queryPlanner );
         checkNotNull( databaseInfo );
         checkNotNull( analyticsCache );
+        checkNotNull( schemaIdResponseMapper );
 
         this.dataElementService = dataElementService;
         this.trackedEntityAttributeService = trackedEntityAttributeService;
@@ -182,6 +212,7 @@ public class DefaultEventAnalyticsService
         this.databaseInfo = databaseInfo;
         this.analyticsCache = analyticsCache;
         this.enrollmentAnalyticsManager = enrollmentAnalyticsManager;
+        this.schemaIdResponseMapper = schemaIdResponseMapper;
     }
 
     // -------------------------------------------------------------------------
@@ -196,7 +227,7 @@ public class DefaultEventAnalyticsService
     public Grid getAggregatedEventData( EventQueryParams params, List<String> columns, List<String> rows )
     {
         return AnalyticsUtils.isTableLayout( columns, rows )
-            ? getAggregatedEventDataTableLayout( params, columns, rows )
+            ? getMaybeAggregatedEventDataTableLayout( params, columns, rows )
             : getAggregatedEventData( params );
     }
 
@@ -216,10 +247,11 @@ public class DefaultEventAnalyticsService
         // ---------------------------------------------------------------------
 
         securityManager.decideAccessEventQuery( params );
+        params = securityManager.withUserConstraints( params );
 
         queryValidator.validate( params );
 
-        if ( analyticsCache.isEnabled() )
+        if ( analyticsCache.isEnabled() && !params.analyzeOnly() )
         {
             final EventQueryParams immutableParams = new EventQueryParams.Builder( params ).build();
             return analyticsCache.getOrFetch( params, p -> getAggregatedEventDataGrid( immutableParams ) );
@@ -242,7 +274,8 @@ public class DefaultEventAnalyticsService
      * @param rows the identifiers of the dimensions to use as rows.
      * @return aggregated data as a Grid object.
      */
-    private Grid getAggregatedEventDataTableLayout( EventQueryParams params, List<String> columns, List<String> rows )
+    private Grid getMaybeAggregatedEventDataTableLayout( EventQueryParams params, List<String> columns,
+        List<String> rows )
     {
         params.removeProgramIndicatorItems();
 
@@ -275,6 +308,7 @@ public class DefaultEventAnalyticsService
 
         List<Map<String, EventAnalyticsDimensionalItem>> rowPermutations = EventAnalyticsUtils
             .generateEventDataPermutations( tableRows );
+
         List<Map<String, EventAnalyticsDimensionalItem>> columnPermutations = EventAnalyticsUtils
             .generateEventDataPermutations( tableColumns );
 
@@ -358,13 +392,35 @@ public class DefaultEventAnalyticsService
                 fillDisplayList = false;
             }
 
-            rowDimensions.forEach( dimension -> outputGrid
-                .addValue( displayObjects.get( dimension ).getDisplayProperty( params.getDisplayProperty() ) ) );
+            maybeAddValuesInOutputGrid( rowDimensions, outputGrid, displayObjects, params );
 
             EventAnalyticsUtils.addValues( ids, grid, outputGrid );
         }
 
-        return outputGrid;
+        return getGridWithRows( grid, outputGrid );
+    }
+
+    /**
+     * return valid grid. Valid grid is first output grid with rows or the basic
+     * one
+     */
+    private static Grid getGridWithRows( Grid grid, Grid outputGrid )
+    {
+        return outputGrid.getRows().isEmpty() ? grid : outputGrid;
+    }
+
+    /**
+     * add values in output grid. Display objects are not empty if columns and
+     * rows are not epmty
+     */
+    private static void maybeAddValuesInOutputGrid( List<String> rowDimensions, Grid outputGrid,
+        Map<String, EventAnalyticsDimensionalItem> displayObjects, EventQueryParams params )
+    {
+        if ( !displayObjects.isEmpty() )
+        {
+            rowDimensions.forEach( dimension -> outputGrid
+                .addValue( displayObjects.get( dimension ).getDisplayProperty( params.getDisplayProperty() ) ) );
+        }
     }
 
     /**
@@ -481,7 +537,7 @@ public class DefaultEventAnalyticsService
         // Headers and data
         // ---------------------------------------------------------------------
 
-        if ( !params.isSkipData() )
+        if ( !params.isSkipData() || params.analyzeOnly() )
         {
             // -----------------------------------------------------------------
             // Headers
@@ -566,6 +622,8 @@ public class DefaultEventAnalyticsService
                 grid.limitGrid( params.getLimit() );
             }
         }
+
+        maybeApplyIdScheme( params, grid );
 
         // ---------------------------------------------------------------------
         // Meta-data
@@ -662,7 +720,19 @@ public class DefaultEventAnalyticsService
             .addHeader( new GridHeader( ITEM_EVENT, NAME_EVENT, TEXT, false, true ) )
             .addHeader( new GridHeader( ITEM_PROGRAM_STAGE, NAME_PROGRAM_STAGE, TEXT, false, true ) )
             .addHeader( new GridHeader( ITEM_EVENT_DATE,
-                LabelMapper.getEventDateLabel( params.getProgramStage(), NAME_EVENT_DATE ), DATE, false, true ) );
+                LabelMapper.getEventDateLabel( params.getProgramStage(), NAME_EVENT_DATE ), DATE, false, true ) )
+            .addHeader( new GridHeader( ITEM_STORED_BY, NAME_STORED_BY, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_CREATED_BY_DISPLAY_NAME, NAME_CREATED_BY_DISPLAY_NAME, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_LAST_UPDATED_BY_DISPLAY_NAME, NAME_LAST_UPDATED_BY_DISPLAY_NAME, TEXT, false, true ) )
+            .addHeader( new GridHeader( ITEM_LAST_UPDATED, NAME_LAST_UPDATED, DATE, false, true ) );
+
+        if ( params.containsScheduledDatePeriod() )
+        {
+            grid.addHeader( new GridHeader(
+                ITEM_SCHEDULED_DATE, NAME_SCHEDULED_DATE, DATE, false, true ) );
+        }
 
         if ( params.getProgram().isRegistration() )
         {
@@ -691,7 +761,11 @@ public class DefaultEventAnalyticsService
             .addHeader( new GridHeader(
                 ITEM_ORG_UNIT_NAME, NAME_ORG_UNIT_NAME, TEXT, false, true ) )
             .addHeader( new GridHeader(
-                ITEM_ORG_UNIT_CODE, NAME_ORG_UNIT_CODE, TEXT, false, true ) );
+                ITEM_ORG_UNIT_CODE, NAME_ORG_UNIT_CODE, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_PROGRAM_STATUS, NAME_PROGRAM_STATUS, TEXT, false, true ) )
+            .addHeader( new GridHeader(
+                ITEM_EVENT_STATUS, NAME_EVENT_STATUS, TEXT, false, true ) );
 
         return grid;
     }
@@ -715,14 +789,14 @@ public class DefaultEventAnalyticsService
 
         long count = 0;
 
-        if ( params.getPartitions().hasAny() )
+        if ( params.getPartitions().hasAny() || params.isSkipPartitioning() )
         {
-            if ( params.isPaging() )
-            {
-                count += eventAnalyticsManager.getEventCount( params );
-            }
-
             eventAnalyticsManager.getEvents( params, grid, queryValidator.getMaxLimit() );
+
+            if ( params.isPaging() && params.isTotalPages() )
+            {
+                count = eventAnalyticsManager.getEventCount( params );
+            }
 
             timer.getTime( "Got events " + grid.getHeight() );
         }

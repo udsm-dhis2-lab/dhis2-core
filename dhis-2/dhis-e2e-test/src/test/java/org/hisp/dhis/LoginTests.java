@@ -1,7 +1,5 @@
-package org.hisp.dhis;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +25,10 @@ package org.hisp.dhis;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import static org.hamcrest.Matchers.*;
+
 import org.hisp.dhis.actions.LoginActions;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.actions.UaaActions;
@@ -41,7 +40,8 @@ import org.hisp.dhis.utils.DataGenerator;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -61,9 +61,9 @@ public class LoginTests
 
     private String secret = "1e6db50c-0fee-11e5-98d0-3c15c2c6caf6";
 
-    private String userName = "LoginTestsUser" + DataGenerator.randomString();
+    private String userName = ("LoginTestsUser" + DataGenerator.randomString()).toLowerCase();
 
-    private String password = "Test1212?";
+    private String password = Constants.USER_PASSWORD;
 
     @BeforeAll
     public void preconditions()
@@ -100,7 +100,7 @@ public class LoginTests
 
         loginActions.getLoggedInUserInfo().validate()
             .statusCode( 200 )
-            .body( "userCredentials.username", equalTo( userName ) );
+            .body( "username", equalTo( userName ) );
     }
 
     @Test
@@ -119,7 +119,8 @@ public class LoginTests
 
         loginActions.addAuthenticationHeader( oauthClientId, secret );
         ApiResponse refreshTokenResponse = uaaActions.post( "oauth/token", new JsonObject(), new QueryParamsBuilder()
-            .addAll( "grant_type=refresh_token", "refresh_token=" + passwordGrantTypeResponse.extractString( "refresh_token" ) ) );
+            .addAll( "grant_type=refresh_token",
+                "refresh_token=" + passwordGrantTypeResponse.extractString( "refresh_token" ) ) );
 
         refreshTokenResponse.validate().statusCode( 200 )
             .body( "access_token", notNullValue() )

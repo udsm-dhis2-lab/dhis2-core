@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,10 +35,8 @@ import org.hisp.dhis.analytics.AnalyticsTableType;
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.feedback.ErrorReport;
 import org.hisp.dhis.scheduling.JobParameters;
-import org.hisp.dhis.scheduling.parameters.jackson.AnalyticsJobParametersDeserializer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
@@ -47,7 +45,6 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
  * @author Henning Håkonsen
  */
 @JacksonXmlRootElement( localName = "jobParameters", namespace = DxfNamespaces.DXF_2_0 )
-@JsonDeserialize( using = AnalyticsJobParametersDeserializer.class )
 public class AnalyticsJobParameters
     implements JobParameters
 {
@@ -57,6 +54,8 @@ public class AnalyticsJobParameters
 
     private Set<AnalyticsTableType> skipTableTypes = new HashSet<>();
 
+    private Set<String> skipPrograms = new HashSet<>();
+
     private boolean skipResourceTables = false;
 
     public AnalyticsJobParameters()
@@ -64,10 +63,11 @@ public class AnalyticsJobParameters
     }
 
     public AnalyticsJobParameters( Integer lastYears, Set<AnalyticsTableType> skipTableTypes,
-        boolean skipResourceTables )
+        Set<String> skipPrograms, boolean skipResourceTables )
     {
         this.lastYears = lastYears;
         this.skipTableTypes = skipTableTypes;
+        this.skipPrograms = skipPrograms;
         this.skipResourceTables = skipResourceTables;
     }
 
@@ -91,9 +91,22 @@ public class AnalyticsJobParameters
         return skipTableTypes;
     }
 
+    @JsonProperty
+    @JacksonXmlElementWrapper( localName = "skipPrograms", namespace = DxfNamespaces.DXF_2_0 )
+    @JacksonXmlProperty( localName = "skipProgram", namespace = DxfNamespaces.DXF_2_0 )
+    public Set<String> getSkipPrograms()
+    {
+        return skipPrograms;
+    }
+
     public void setSkipTableTypes( Set<AnalyticsTableType> skipTableTypes )
     {
         this.skipTableTypes = skipTableTypes;
+    }
+
+    public void setSkipPrograms( Set<String> skipPrograms )
+    {
+        this.skipPrograms = skipPrograms;
     }
 
     @JsonProperty

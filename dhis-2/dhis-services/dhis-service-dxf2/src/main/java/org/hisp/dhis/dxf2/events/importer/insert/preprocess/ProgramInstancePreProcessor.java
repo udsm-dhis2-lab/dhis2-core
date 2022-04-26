@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ import org.hisp.dhis.program.ProgramInstanceStore;
 import org.hisp.dhis.program.ProgramStatus;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
 
 /**
  * The goal of this Pre-processor is to assign a Program Instance (Enrollment)
@@ -49,6 +50,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *
  * @author Luciano Fiandesio
  */
+@Component
 public class ProgramInstancePreProcessor implements Processor
 {
     @Override

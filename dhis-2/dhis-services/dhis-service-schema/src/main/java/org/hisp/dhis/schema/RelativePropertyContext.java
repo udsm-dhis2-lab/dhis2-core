@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@ import static java.util.Collections.singletonList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -177,9 +176,9 @@ public final class RelativePropertyContext
         return tail;
     }
 
-    private NoSuchElementException createNoSuchPath( String path )
+    private SchemaPathException createNoSuchPath( String path )
     {
-        return new NoSuchElementException(
+        return new SchemaPathException(
             String.format( "Property `%s` does not exist in %s", path, homeSchema.getSingular() ) );
     }
 }

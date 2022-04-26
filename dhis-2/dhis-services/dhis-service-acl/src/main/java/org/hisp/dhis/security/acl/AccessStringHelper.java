@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,7 +238,10 @@ public class AccessStringHelper
 
     public static String disableDataSharing( String access )
     {
-        return AccessStringHelper.newInstance( access.toCharArray() ).disable( Permission.DATA_READ )
-            .disable( Permission.DATA_WRITE ).toString();
+        return access == null
+            ? null
+            : AccessStringHelper.newInstance( access.toCharArray() )
+                .disable( Permission.DATA_READ )
+                .disable( Permission.DATA_WRITE ).toString();
     }
 }

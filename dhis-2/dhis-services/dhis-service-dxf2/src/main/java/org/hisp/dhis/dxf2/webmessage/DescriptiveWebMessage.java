@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,12 @@
  */
 package org.hisp.dhis.dxf2.webmessage;
 
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+
+import org.hisp.dhis.feedback.Status;
+import org.springframework.http.HttpStatus;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -37,9 +43,17 @@ public class DescriptiveWebMessage
 {
     private String description;
 
+    /**
+     * Only for deserialisation
+     */
     public DescriptiveWebMessage()
     {
         super();
+    }
+
+    public DescriptiveWebMessage( Status status, HttpStatus httpStatus )
+    {
+        super( status, httpStatus );
     }
 
     @JsonProperty
@@ -48,8 +62,14 @@ public class DescriptiveWebMessage
         return description;
     }
 
-    public void setDescription( String description )
+    public DescriptiveWebMessage setDescription( String description )
     {
         this.description = description;
+        return this;
+    }
+
+    public DescriptiveWebMessage setDescription( BooleanSupplier when, Supplier<String> thenValue )
+    {
+        return when.getAsBoolean() ? setDescription( thenValue.get() ) : this;
     }
 }

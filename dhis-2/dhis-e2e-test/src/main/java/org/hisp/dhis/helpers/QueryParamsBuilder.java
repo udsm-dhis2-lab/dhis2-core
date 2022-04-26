@@ -1,7 +1,5 @@
-package org.hisp.dhis.helpers;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +25,7 @@ package org.hisp.dhis.helpers;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.helpers;
 
 import org.apache.commons.lang3.tuple.MutablePair;
 
@@ -45,9 +44,13 @@ public class QueryParamsBuilder
         queryParams = new ArrayList<>();
     }
 
+    public QueryParamsBuilder add( String param, String value )
+    {
+        return this.add( param + "=" + value );
+    }
+
     /**
-     * Adds or updates the query param.
-     * Format: key=value
+     * Adds or updates the query param. Format: key=value
      *
      * @param param
      * @return
@@ -57,7 +60,7 @@ public class QueryParamsBuilder
         String[] split = param.split( "=" );
         MutablePair pair = getByKey( split[0] );
 
-        if ( pair != null && !pair.getKey().equals( "filter") )
+        if ( pair != null && !pair.getKey().equals( "filter" ) )
         {
             pair.setRight( split[1] );
             return this;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,9 @@ import org.testcontainers.utility.DockerImageName;
 public class DhisPostgisContainerProvider
     extends PostgisContainerProvider
 {
-    private static final String DEFAULT_TAG = "10";
+    private static final String DEFAULT_TAG = "10-2.5-alpine";
 
-    private static final String DEFAULT_IMAGE = "mdillon/postgis";
+    private static final String DEFAULT_IMAGE = "postgis/postgis";
 
     @Override
     public JdbcDatabaseContainer newInstance()

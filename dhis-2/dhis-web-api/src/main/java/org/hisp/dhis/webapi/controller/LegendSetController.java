@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,11 @@ package org.hisp.dhis.webapi.controller;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.hisp.dhis.dxf2.webmessage.WebMessage;
 import org.hisp.dhis.legend.LegendSet;
 import org.hisp.dhis.schema.descriptors.LegendSetSchemaDescriptor;
+import org.hisp.dhis.user.CurrentUser;
+import org.hisp.dhis.user.User;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,25 +50,27 @@ public class LegendSetController
 {
     @Override
     @PreAuthorize( "hasRole('F_LEGEND_SET_PUBLIC_ADD') or hasRole('F_LEGEND_SET_PRIVATE_ADD') or hasRole('ALL')" )
-    public void postJsonObject( HttpServletRequest request, HttpServletResponse response )
+    public WebMessage postJsonObject( HttpServletRequest request )
         throws Exception
     {
-        super.postJsonObject( request, response );
+        return super.postJsonObject( request );
     }
 
     @Override
     @PreAuthorize( "hasRole('F_LEGEND_SET_PUBLIC_ADD') or hasRole('F_LEGEND_SET_PRIVATE_ADD')  or hasRole('ALL')" )
-    public void putJsonObject( @PathVariable String uid, HttpServletRequest request, HttpServletResponse response )
+    public WebMessage putJsonObject( @PathVariable String uid, @CurrentUser User currentUser,
+        HttpServletRequest request )
         throws Exception
     {
-        super.putJsonObject( uid, request, response );
+        return super.putJsonObject( uid, currentUser, request );
     }
 
     @Override
     @PreAuthorize( "hasRole('F_LEGEND_SET_DELETE') or hasRole('ALL')" )
-    public void deleteObject( @PathVariable String uid, HttpServletRequest request, HttpServletResponse response )
+    public WebMessage deleteObject( @PathVariable String uid, @CurrentUser User currentUser, HttpServletRequest request,
+        HttpServletResponse response )
         throws Exception
     {
-        super.deleteObject( uid, request, response );
+        return super.deleteObject( uid, currentUser, request, response );
     }
 }

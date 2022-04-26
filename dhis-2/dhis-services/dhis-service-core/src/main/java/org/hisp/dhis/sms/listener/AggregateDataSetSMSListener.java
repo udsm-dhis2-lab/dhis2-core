@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,7 @@ public class AggregateDataSetSMSListener
             throw new SMSProcessingException( SmsResponse.OU_NOTIN_DATASET.set( ouid, dsid ) );
         }
 
-        if ( dataSetService.isLocked( null, dataSet, period, orgUnit, aoc, null ) )
+        if ( !dataSetService.getLockStatus( null, dataSet, period, orgUnit, aoc, null ).isOpen() )
         {
             throw new SMSProcessingException( SmsResponse.DATASET_LOCKED.set( dsid, per ) );
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -132,7 +132,7 @@ public class GetDataSetsAction
         {
             User user = currentUserService.getCurrentUser();
 
-            if ( user != null && user.getUserCredentials() != null )
+            if ( user != null )
             {
                 dataSets.retainAll( dataSetService.getUserDataWrite( user ) );
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,13 @@
  */
 package org.hisp.dhis.dxf2.metadata;
 
+import static org.hisp.dhis.dxf2.metadata.objectbundle.EventReportCompatibilityGuard.handleDeprecationIfEventReport;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
@@ -49,9 +52,7 @@ import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleValidationService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.feedback.ObjectBundleCommitReport;
 import org.hisp.dhis.dxf2.metadata.objectbundle.feedback.ObjectBundleValidationReport;
-import org.hisp.dhis.feedback.ErrorReport;
 import org.hisp.dhis.feedback.Status;
-import org.hisp.dhis.feedback.TypeReport;
 import org.hisp.dhis.importexport.ImportStrategy;
 import org.hisp.dhis.preheat.PreheatIdentifier;
 import org.hisp.dhis.preheat.PreheatMode;
@@ -62,37 +63,30 @@ import org.hisp.dhis.system.notification.NotificationLevel;
 import org.hisp.dhis.system.notification.Notifier;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.google.common.base.Enums;
-import com.google.common.collect.Lists;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
 @Slf4j
+@AllArgsConstructor
 @Service( "org.hisp.dhis.dxf2.metadata.MetadataImportService" )
 public class DefaultMetadataImportService implements MetadataImportService
 {
-    @Autowired
-    private CurrentUserService currentUserService;
+    private final CurrentUserService currentUserService;
 
-    @Autowired
-    private ObjectBundleService objectBundleService;
+    private final ObjectBundleService objectBundleService;
 
-    @Autowired
-    private ObjectBundleValidationService objectBundleValidationService;
+    private final ObjectBundleValidationService objectBundleValidationService;
 
-    @Autowired
-    private IdentifiableObjectManager manager;
+    private final IdentifiableObjectManager manager;
 
-    @Autowired
-    private AclService aclService;
+    private final AclService aclService;
 
-    @Autowired
-    private Notifier notifier;
+    private final Notifier notifier;
 
     @Override
     @Transactional
@@ -125,23 +119,22 @@ public class DefaultMetadataImportService implements MetadataImportService
         preCreateBundle( params );
 
         ObjectBundleParams bundleParams = params.toObjectBundleParams();
+        handleDeprecationIfEventReport( bundleParams );
         ObjectBundle bundle = objectBundleService.create( bundleParams );
 
         postCreateBundle( bundle, bundleParams );
 
         ObjectBundleValidationReport validationReport = objectBundleValidationService.validate( bundle );
-        importReport.addTypeReports( validationReport.getTypeReportMap() );
+        importReport.addTypeReports( validationReport );
 
-        List<ErrorReport> errorReports = validationReport.getErrorReports();
-
-        if ( errorReports.isEmpty() || AtomicMode.NONE == bundle.getAtomicMode() )
+        if ( !validationReport.hasErrorReports() || AtomicMode.NONE == bundle.getAtomicMode() )
         {
             Timer commitTimer = new SystemTimer().start();
 
             ObjectBundleCommitReport commitReport = objectBundleService.commit( bundle );
-            importReport.addTypeReports( commitReport.getTypeReportMap() );
+            importReport.addTypeReports( commitReport );
 
-            if ( !importReport.getErrorReports().isEmpty() )
+            if ( importReport.hasErrorReports() )
             {
                 importReport.setStatus( Status.WARNING );
             }
@@ -171,26 +164,14 @@ public class DefaultMetadataImportService implements MetadataImportService
             return importReport;
         }
 
-        Lists.newArrayList( importReport.getTypeReportMap().keySet() ).forEach( typeReportKey -> {
-            if ( importReport.getTypeReportMap().get( typeReportKey ).getStats().getTotal() == 0 )
+        importReport.clean();
+        importReport.forEachTypeReport( typeReport -> {
+            ImportReportMode mode = params.getImportReportMode();
+            if ( ImportReportMode.ERRORS == mode )
             {
-                importReport.getTypeReportMap().remove( typeReportKey );
-                return;
+                typeReport.clean();
             }
-
-            TypeReport typeReport = importReport.getTypeReportMap().get( typeReportKey );
-
-            if ( ImportReportMode.ERRORS == params.getImportReportMode() )
-            {
-                Lists.newArrayList( typeReport.getObjectReportMap().keySet() ).forEach( objectReportKey -> {
-                    if ( typeReport.getObjectReportMap().get( objectReportKey ).getErrorReportsByCode().isEmpty() )
-                    {
-                        typeReport.getObjectReportMap().remove( objectReportKey );
-                    }
-                } );
-            }
-
-            if ( ImportReportMode.DEBUG != params.getImportReportMode() )
+            if ( ImportReportMode.DEBUG != mode )
             {
                 typeReport.getObjectReports().forEach( objectReport -> objectReport.setDisplayName( null ) );
             }
@@ -342,14 +323,10 @@ public class DefaultMetadataImportService implements MetadataImportService
             return;
         }
 
-        for ( Class<? extends IdentifiableObject> klass : bundle.getObjectMap().keySet() )
-        {
-            bundle.getObjectMap().get( klass )
-                .forEach( o -> postCreateBundleObject( (BaseIdentifiableObject) o, bundle, params ) );
-        }
+        bundle.forEach( object -> postCreateBundleObject( object, bundle, params ) );
     }
 
-    private void postCreateBundleObject( BaseIdentifiableObject object, ObjectBundle bundle, ObjectBundleParams params )
+    private void postCreateBundleObject( IdentifiableObject object, ObjectBundle bundle, ObjectBundleParams params )
     {
         IdentifiableObject userByReference = bundle.getPreheat().get( params.getPreheatIdentifier(),
             User.class, params.getPreheatIdentifier().getIdentifier( object.getCreatedBy() ) );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ public interface ProgramRuleStore
      * @param programStageIds
      * @return ProgramRule list
      */
-    List<ProgramRule> getByProgramStage( Set<String> programStageIds );
+    List<ProgramRule> getProgramRulesLinkedToTeaOrDe();
 
     /**
      * Get validation by {@link Program}

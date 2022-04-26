@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@ import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.programrule.ProgramRuleIssue;
 import org.hisp.dhis.tracker.programrule.RuleActionImplementer;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -60,14 +59,12 @@ public class EnrollmentRuleValidationHook
     @Override
     public void validateEnrollment( ValidationErrorReporter reporter, Enrollment enrollment )
     {
-        TrackerImportValidationContext context = reporter.getValidationContext();
-
         List<ProgramRuleIssue> programRuleIssues = validators
             .stream()
-            .flatMap( v -> v.validateEnrollments( context.getBundle() )
+            .flatMap( v -> v.validateEnrollments( reporter.getBundle() )
                 .getOrDefault( enrollment.getEnrollment(), Lists.newArrayList() ).stream() )
             .collect( Collectors.toList() );
 
-        addIssuesToReporter( reporter, programRuleIssues );
+        addIssuesToReporter( reporter, enrollment, programRuleIssues );
     }
 }

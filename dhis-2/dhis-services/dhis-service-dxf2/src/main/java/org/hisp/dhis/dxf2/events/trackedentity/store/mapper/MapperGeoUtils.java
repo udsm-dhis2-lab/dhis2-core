@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,9 @@ package org.hisp.dhis.dxf2.events.trackedentity.store.mapper;
 
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.geotools.geometry.jts.WKBReader;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
@@ -39,10 +39,9 @@ import org.locationtech.jts.io.ParseException;
 /**
  * @author Luciano Fiandesio
  */
+@Slf4j
 public class MapperGeoUtils
 {
-    private static final Log log = LogFactory.getLog( MapperGeoUtils.class );
-
     public static Optional<Geometry> resolveGeometry( byte[] geometry )
     {
         if ( ObjectUtils.isEmpty( geometry ) )

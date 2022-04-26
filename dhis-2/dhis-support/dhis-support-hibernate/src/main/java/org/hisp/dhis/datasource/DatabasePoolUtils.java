@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,6 +127,7 @@ public class DatabasePoolUtils
             .parseLong( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_VALIDATION_TIMEOUT ) );
         final int maxPoolSize = Integer.parseInt( MoreObjects.firstNonNull( config.getMaxPoolSize(),
             dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_MAX_SIZE ) ) );
+        final String connectionTestQuery = dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_TEST_QUERY );
 
         HikariConfig hc = new HikariConfig();
         hc.setPoolName( "HikariDataSource_" + CodeGenerator.generateCode( 10 ) );
@@ -137,6 +138,7 @@ public class DatabasePoolUtils
         hc.addDataSourceProperty( "cachePrepStmts", "true" );
         hc.addDataSourceProperty( "prepStmtCacheSize", "250" );
         hc.addDataSourceProperty( "prepStmtCacheSqlLimit", "2048" );
+        hc.setConnectionTestQuery( connectionTestQuery );
 
         HikariDataSource ds = new HikariDataSource( hc );
         ds.setConnectionTimeout( connectionTimeout );
@@ -171,14 +173,15 @@ public class DatabasePoolUtils
         final int minPoolSize = Integer.parseInt( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_MIN_SIZE ) );
         final int initialSize = Integer
             .parseInt( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_INITIAL_SIZE ) );
-        boolean testOnCheckIn = Boolean
-            .parseBoolean( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_TEST_ON_CHECKIN ) );
-        boolean testOnCheckOut = Boolean
-            .parseBoolean( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_TEST_ON_CHECKOUT ) );
+        boolean testOnCheckIn = dhisConfig.isEnabled( ConfigurationKey.CONNECTION_POOL_TEST_ON_CHECKIN );
+        boolean testOnCheckOut = dhisConfig.isEnabled( ConfigurationKey.CONNECTION_POOL_TEST_ON_CHECKOUT );
         final int maxIdleTimeExcessConnections = Integer
             .parseInt( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_MAX_IDLE_TIME_EXCESS_CON ) );
         final int idleConnectionTestPeriod = Integer
             .parseInt( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_IDLE_CON_TEST_PERIOD ) );
+        final String preferredTestQuery = dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_TEST_QUERY );
+        final int numHelperThreads = Integer
+            .parseInt( dhisConfig.getProperty( ConfigurationKey.CONNECTION_POOL_NUM_THREADS ) );
 
         ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setDriverClass( driverClassName );
@@ -194,6 +197,8 @@ public class DatabasePoolUtils
         dataSource.setTestConnectionOnCheckout( testOnCheckOut );
         dataSource.setMaxIdleTimeExcessConnections( maxIdleTimeExcessConnections );
         dataSource.setIdleConnectionTestPeriod( idleConnectionTestPeriod );
+        dataSource.setPreferredTestQuery( preferredTestQuery );
+        dataSource.setNumHelperThreads( numHelperThreads );
 
         testConnection( dataSource );
 

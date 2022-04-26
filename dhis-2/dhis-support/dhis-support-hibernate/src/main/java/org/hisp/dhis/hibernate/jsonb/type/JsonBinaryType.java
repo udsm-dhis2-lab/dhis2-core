@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@ import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.usertype.ParameterizedType;
 import org.hibernate.usertype.UserType;
-import org.hisp.dhis.commons.config.jackson.EmptyStringToNullStdDeserializer;
-import org.hisp.dhis.commons.config.jackson.ParseDateStdDeserializer;
-import org.hisp.dhis.commons.config.jackson.WriteDateStdSerializer;
+import org.hisp.dhis.commons.jackson.config.EmptyStringToNullStdDeserializer;
+import org.hisp.dhis.commons.jackson.config.ParseDateStdDeserializer;
+import org.hisp.dhis.commons.jackson.config.WriteDateStdSerializer;
 import org.postgresql.util.PGobject;
 
 import com.bedatadriven.jackson.datatype.jts.JtsModule;
@@ -52,6 +52,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -82,6 +83,7 @@ public class JsonBinaryType implements UserType, ParameterizedType
         module.addSerializer( Date.class, new WriteDateStdSerializer() );
 
         MAPPER.registerModules( module, new JtsModule(), new JavaTimeModule(), new Jdk8Module() );
+        MAPPER.disable( DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES );
 
         MAPPER.setSerializationInclusion( JsonInclude.Include.NON_NULL );
         MAPPER.disable( SerializationFeature.WRITE_DATES_AS_TIMESTAMPS );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,14 +28,18 @@
 package org.hisp.dhis.startup;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
 import static org.hisp.dhis.scheduling.JobStatus.FAILED;
 import static org.hisp.dhis.scheduling.JobStatus.SCHEDULED;
-import static org.hisp.dhis.scheduling.JobType.*;
+import static org.hisp.dhis.scheduling.JobType.FILE_RESOURCE_CLEANUP;
+import static org.hisp.dhis.scheduling.JobType.REMOVE_USED_OR_EXPIRED_RESERVED_VALUES;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,6 +47,7 @@ import org.hisp.dhis.message.MessageService;
 import org.hisp.dhis.scheduling.JobConfiguration;
 import org.hisp.dhis.scheduling.JobConfigurationService;
 import org.hisp.dhis.scheduling.JobStatus;
+import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.scheduling.SchedulingManager;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
@@ -57,45 +62,63 @@ import org.hisp.dhis.system.startup.AbstractStartupRoutine;
 @Slf4j
 public class SchedulerStart extends AbstractStartupRoutine
 {
-    private final String CRON_HOURLY = "0 0 * ? * *";
 
-    private final String CRON_DAILY_2AM = "0 0 2 ? * *";
+    // Execute at 3-5AM every night and, use a random min/sec, so we don't have
+    // all servers in the world
+    // requesting at the same time.
+    private static final String CRON_DAILY_3AM_RANDOM_MIN_SEC = String.format( "%d %d %d ? * *",
+        ThreadLocalRandom.current().nextInt( 59 + 1 ),
+        ThreadLocalRandom.current().nextInt( 59 + 1 ),
+        ThreadLocalRandom.current().nextInt( 3, 5 + 1 ) );
 
-    private final String CRON_DAILY_7AM = "0 0 7 ? * *";
+    private static final String CRON_DAILY_2AM = "0 0 2 ? * *";
 
-    private final String LEADER_JOB_CRON_FORMAT = "0 0/%s * * * *";
+    private static final String CRON_DAILY_7AM = "0 0 7 ? * *";
 
-    private final String DEFAULT_FILE_RESOURCE_CLEANUP_UID = "pd6O228pqr0";
+    private static final String LEADER_JOB_CRON_FORMAT = "0 0/%s * * * *";
 
-    private final String DEFAULT_FILE_RESOURCE_CLEANUP = "File resource clean up";
+    enum SystemJob
+    {
+        SYSTEM_VERSION_UPDATE_CHECK( CRON_DAILY_3AM_RANDOM_MIN_SEC, "vt21671bgno", JobType.SYSTEM_VERSION_UPDATE_CHECK,
+            "System version update check notification" ),
 
-    private final String DEFAULT_DATA_STATISTICS_UID = "BFa3jDsbtdO";
+        FILE_RESOURCE( CRON_DAILY_2AM, "pd6O228pqr0", FILE_RESOURCE_CLEANUP,
+            "File resource clean up" ),
+        DATA_STATISTICS( CRON_DAILY_2AM, "BFa3jDsbtdO", JobType.DATA_STATISTICS,
+            "Data statistics" ),
+        VALIDATION_RESULTS_NOTIFICATION( CRON_DAILY_7AM, "Js3vHn2AVuG", JobType.VALIDATION_RESULTS_NOTIFICATION,
+            "Validation result notification" ),
+        CREDENTIALS_EXPIRY_ALERT( CRON_DAILY_2AM, "sHMedQF7VYa", JobType.CREDENTIALS_EXPIRY_ALERT,
+            "Credentials expiry alert" ),
+        ACCOUNT_EXPIRY_ALERT( CRON_DAILY_2AM, "fUWM1At1TUx", JobType.ACCOUNT_EXPIRY_ALERT,
+            "User account expiry alert" ),
+        DATA_SET_NOTIFICATION( CRON_DAILY_2AM, "YvAwAmrqAtN", JobType.DATA_SET_NOTIFICATION,
+            "Dataset notification" ),
+        REMOVE_EXPIRED_OR_USED_RESERVED_VALUES( CRON_DAILY_2AM, "uwWCT2BMmlq", REMOVE_USED_OR_EXPIRED_RESERVED_VALUES,
+            "Remove expired or used reserved values" ),
+        LEADER_ELECTION( LEADER_JOB_CRON_FORMAT, "MoUd5BTQ3lY", JobType.LEADER_ELECTION,
+            "Leader election in cluster" );
 
-    private final String DEFAULT_DATA_STATISTICS = "Data statistics";
+        final String cron;
 
-    private final String DEFAULT_VALIDATION_RESULTS_NOTIFICATION_UID = "Js3vHn2AVuG";
+        final String uid;
 
-    private final String DEFAULT_VALIDATION_RESULTS_NOTIFICATION = "Validation result notification";
+        final JobType type;
 
-    private final String DEFAULT_CREDENTIALS_EXPIRY_ALERT_UID = "sHMedQF7VYa";
+        final String name;
 
-    private final String DEFAULT_CREDENTIALS_EXPIRY_ALERT = "Credentials expiry alert";
-
-    private final String DEFAULT_DATA_SET_NOTIFICATION_UID = "YvAwAmrqAtN";
-
-    private final String DEFAULT_DATA_SET_NOTIFICATION = "Dataset notification";
-
-    private final String DEFAULT_REMOVE_EXPIRED_RESERVED_VALUES_UID = "uwWCT2BMmlq";
-
-    private final String DEFAULT_REMOVE_EXPIRED_RESERVED_VALUES = "Remove expired reserved values";
-
-    private final String DEFAULT_LEADER_ELECTION_UID = "MoUd5BTQ3lY";
-
-    private final String DEFAULT_LEADER_ELECTION = "Leader election in cluster";
+        SystemJob( final String cron, String uid, JobType type, String name )
+        {
+            this.type = type;
+            this.uid = uid;
+            this.cron = cron;
+            this.name = name;
+        }
+    }
 
     private final SystemSettingManager systemSettingManager;
 
-    private final String redisEnabled;
+    private final boolean redisEnabled;
 
     private final String leaderElectionTime;
 
@@ -105,7 +128,7 @@ public class SchedulerStart extends AbstractStartupRoutine
 
     private final MessageService messageService;
 
-    public SchedulerStart( SystemSettingManager systemSettingManager, String redisEnabled, String leaderElectionTime,
+    public SchedulerStart( SystemSettingManager systemSettingManager, boolean redisEnabled, String leaderElectionTime,
         JobConfigurationService jobConfigurationService, SchedulingManager schedulingManager,
         MessageService messageService )
     {
@@ -151,11 +174,11 @@ public class SchedulerStart extends AbstractStartupRoutine
                         + oldExecutionTime );
                 }
 
-                schedulingManager.scheduleJob( jobConfig );
+                schedulingManager.schedule( jobConfig );
             }
         }) );
 
-        if ( unexecutedJobs.size() > 0 )
+        if ( !unexecutedJobs.isEmpty() )
         {
             StringBuilder jobs = new StringBuilder();
 
@@ -172,68 +195,24 @@ public class SchedulerStart extends AbstractStartupRoutine
     private void addDefaultJobs( List<JobConfiguration> jobConfigurations )
     {
         log.info( "Setting up default jobs." );
-        if ( verifyNoJobExist( DEFAULT_FILE_RESOURCE_CLEANUP, jobConfigurations ) )
-        {
-            JobConfiguration fileResourceCleanUp = new JobConfiguration( DEFAULT_FILE_RESOURCE_CLEANUP,
-                FILE_RESOURCE_CLEANUP, CRON_DAILY_2AM, null );
-            fileResourceCleanUp.setUid( DEFAULT_FILE_RESOURCE_CLEANUP_UID );
-            fileResourceCleanUp.setLeaderOnlyJob( true );
-            addAndScheduleJob( fileResourceCleanUp );
-        }
+        addDefaultJob( SystemJob.FILE_RESOURCE, jobConfigurations );
+        addDefaultJob( SystemJob.DATA_STATISTICS, jobConfigurations,
+            config -> portJob( config, SettingKey.LAST_SUCCESSFUL_DATA_STATISTICS ) );
+        addDefaultJob( SystemJob.VALIDATION_RESULTS_NOTIFICATION, jobConfigurations );
+        addDefaultJob( SystemJob.CREDENTIALS_EXPIRY_ALERT, jobConfigurations );
+        addDefaultJob( SystemJob.ACCOUNT_EXPIRY_ALERT, jobConfigurations );
+        addDefaultJob( SystemJob.DATA_SET_NOTIFICATION, jobConfigurations );
+        addDefaultJob( SystemJob.REMOVE_EXPIRED_OR_USED_RESERVED_VALUES, jobConfigurations );
+        addDefaultJob( SystemJob.SYSTEM_VERSION_UPDATE_CHECK, jobConfigurations );
 
-        if ( verifyNoJobExist( DEFAULT_DATA_STATISTICS, jobConfigurations ) )
+        if ( redisEnabled && verifyNoJobExist( SystemJob.LEADER_ELECTION.name, jobConfigurations ) )
         {
-            JobConfiguration dataStatistics = new JobConfiguration( DEFAULT_DATA_STATISTICS, DATA_STATISTICS,
-                CRON_DAILY_2AM, null );
-            portJob( systemSettingManager, dataStatistics, SettingKey.LAST_SUCCESSFUL_DATA_STATISTICS );
-            dataStatistics.setLeaderOnlyJob( true );
-            dataStatistics.setUid( DEFAULT_DATA_STATISTICS_UID );
-            addAndScheduleJob( dataStatistics );
-        }
-
-        if ( verifyNoJobExist( DEFAULT_VALIDATION_RESULTS_NOTIFICATION, jobConfigurations ) )
-        {
-            JobConfiguration validationResultNotification = new JobConfiguration(
-                DEFAULT_VALIDATION_RESULTS_NOTIFICATION,
-                VALIDATION_RESULTS_NOTIFICATION, CRON_DAILY_7AM, null );
-            validationResultNotification.setLeaderOnlyJob( true );
-            validationResultNotification.setUid( DEFAULT_VALIDATION_RESULTS_NOTIFICATION_UID );
-            addAndScheduleJob( validationResultNotification );
-        }
-
-        if ( verifyNoJobExist( DEFAULT_CREDENTIALS_EXPIRY_ALERT, jobConfigurations ) )
-        {
-            JobConfiguration credentialsExpiryAlert = new JobConfiguration( DEFAULT_CREDENTIALS_EXPIRY_ALERT,
-                CREDENTIALS_EXPIRY_ALERT, CRON_DAILY_2AM, null );
-            credentialsExpiryAlert.setLeaderOnlyJob( true );
-            credentialsExpiryAlert.setUid( DEFAULT_CREDENTIALS_EXPIRY_ALERT_UID );
-            addAndScheduleJob( credentialsExpiryAlert );
-        }
-
-        if ( verifyNoJobExist( DEFAULT_DATA_SET_NOTIFICATION, jobConfigurations ) )
-        {
-            JobConfiguration dataSetNotification = new JobConfiguration( DEFAULT_DATA_SET_NOTIFICATION,
-                DATA_SET_NOTIFICATION, CRON_DAILY_2AM, null );
-            dataSetNotification.setLeaderOnlyJob( true );
-            dataSetNotification.setUid( DEFAULT_DATA_SET_NOTIFICATION_UID );
-            addAndScheduleJob( dataSetNotification );
-        }
-
-        if ( verifyNoJobExist( DEFAULT_REMOVE_EXPIRED_RESERVED_VALUES, jobConfigurations ) )
-        {
-            JobConfiguration removeExpiredReservedValues = new JobConfiguration( DEFAULT_REMOVE_EXPIRED_RESERVED_VALUES,
-                REMOVE_EXPIRED_RESERVED_VALUES, CRON_HOURLY, null );
-            removeExpiredReservedValues.setLeaderOnlyJob( true );
-            removeExpiredReservedValues.setUid( DEFAULT_REMOVE_EXPIRED_RESERVED_VALUES_UID );
-            addAndScheduleJob( removeExpiredReservedValues );
-        }
-
-        if ( verifyNoJobExist( DEFAULT_LEADER_ELECTION, jobConfigurations ) && "true".equalsIgnoreCase( redisEnabled ) )
-        {
-            JobConfiguration leaderElectionJobConfiguration = new JobConfiguration( DEFAULT_LEADER_ELECTION,
-                LEADER_ELECTION, String.format( LEADER_JOB_CRON_FORMAT, leaderElectionTime ), null );
+            JobConfiguration leaderElectionJobConfiguration = new JobConfiguration(
+                SystemJob.LEADER_ELECTION.name,
+                SystemJob.LEADER_ELECTION.type,
+                format( SystemJob.LEADER_ELECTION.cron, leaderElectionTime ), null );
             leaderElectionJobConfiguration.setLeaderOnlyJob( false );
-            leaderElectionJobConfiguration.setUid( DEFAULT_LEADER_ELECTION_UID );
+            leaderElectionJobConfiguration.setUid( SystemJob.LEADER_ELECTION.uid );
             addAndScheduleJob( leaderElectionJobConfiguration );
         }
         else
@@ -242,24 +221,37 @@ public class SchedulerStart extends AbstractStartupRoutine
         }
     }
 
+    private void addDefaultJob( SystemJob job, List<JobConfiguration> jobConfigurations )
+    {
+        addDefaultJob( job, jobConfigurations, null );
+    }
+
+    private void addDefaultJob( SystemJob job, List<JobConfiguration> jobConfigurations,
+        Consumer<JobConfiguration> init )
+    {
+        if ( verifyNoJobExist( job.name, jobConfigurations ) )
+        {
+            JobConfiguration configuration = new JobConfiguration( job.name,
+                job.type, job.cron, null );
+            if ( init != null )
+                init.accept( configuration );
+            configuration.setUid( job.uid );
+            configuration.setLeaderOnlyJob( true );
+            addAndScheduleJob( configuration );
+        }
+    }
+
     private void checkLeaderElectionJobConfiguration( List<JobConfiguration> jobConfigurations )
     {
-        Optional<JobConfiguration> leaderElectionJobConfigurationOptional = jobConfigurations.stream()
-            .filter( jobConfiguration -> jobConfiguration.getName().equals( DEFAULT_LEADER_ELECTION ) ).findFirst();
-        if ( leaderElectionJobConfigurationOptional.isPresent() )
+        Optional<JobConfiguration> maybeLeaderElection = jobConfigurations.stream()
+            .filter( configuration -> configuration.getName().equals( SystemJob.LEADER_ELECTION.name ) )
+            .findFirst();
+        if ( maybeLeaderElection.isPresent() )
         {
-            JobConfiguration leaderElectionJobConfiguration = leaderElectionJobConfigurationOptional.get();
-            leaderElectionJobConfiguration
-                .setCronExpression( String.format( LEADER_JOB_CRON_FORMAT, leaderElectionTime ) );
-            if ( "true".equalsIgnoreCase( redisEnabled ) )
-            {
-                leaderElectionJobConfiguration.setEnabled( true );
-            }
-            else
-            {
-                leaderElectionJobConfiguration.setEnabled( false );
-            }
-            jobConfigurationService.updateJobConfiguration( leaderElectionJobConfiguration );
+            JobConfiguration leaderElection = maybeLeaderElection.get();
+            leaderElection.setCronExpression( format( LEADER_JOB_CRON_FORMAT, leaderElectionTime ) );
+            leaderElection.setEnabled( redisEnabled );
+            jobConfigurationService.updateJobConfiguration( leaderElection );
         }
     }
 
@@ -271,13 +263,12 @@ public class SchedulerStart extends AbstractStartupRoutine
     private void addAndScheduleJob( JobConfiguration jobConfiguration )
     {
         jobConfigurationService.addJobConfiguration( jobConfiguration );
-        schedulingManager.scheduleJob( jobConfiguration );
+        schedulingManager.schedule( jobConfiguration );
     }
 
-    private static void portJob( SystemSettingManager systemSettingManager, JobConfiguration jobConfiguration,
-        SettingKey systemKey )
+    private void portJob( JobConfiguration jobConfiguration, SettingKey systemKey )
     {
-        Date lastSuccessfulRun = (Date) systemSettingManager.getSystemSetting( systemKey );
+        Date lastSuccessfulRun = systemSettingManager.getDateSetting( systemKey );
 
         if ( lastSuccessfulRun != null )
         {

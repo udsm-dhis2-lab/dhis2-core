@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,9 +105,9 @@ public class DefaultProgramRuleService
 
     @Override
     @Transactional( readOnly = true )
-    public List<ProgramRule> getProgramRuleByProgramStage( Set<String> programStages )
+    public List<ProgramRule> getProgramRulesLinkedToTeaOrDe()
     {
-        return programRuleStore.getByProgramStage( programStages );
+        return programRuleStore.getProgramRulesLinkedToTeaOrDe();
     }
 
     @Override

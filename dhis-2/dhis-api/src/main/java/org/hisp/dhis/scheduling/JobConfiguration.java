@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.common.SecondaryMetadataObject;
 import org.hisp.dhis.scheduling.parameters.AnalyticsJobParameters;
 import org.hisp.dhis.scheduling.parameters.ContinuousAnalyticsJobParameters;
+import org.hisp.dhis.scheduling.parameters.DataIntegrityJobParameters;
 import org.hisp.dhis.scheduling.parameters.DataSynchronizationJobParameters;
 import org.hisp.dhis.scheduling.parameters.DisableInactiveUsersJobParameters;
 import org.hisp.dhis.scheduling.parameters.EventProgramsDataSynchronizationJobParameters;
@@ -49,6 +50,7 @@ import org.hisp.dhis.scheduling.parameters.PredictorJobParameters;
 import org.hisp.dhis.scheduling.parameters.PushAnalysisJobParameters;
 import org.hisp.dhis.scheduling.parameters.SmsJobParameters;
 import org.hisp.dhis.scheduling.parameters.TrackerProgramsDataSynchronizationJobParameters;
+import org.hisp.dhis.scheduling.parameters.TrackerTrigramIndexJobParameters;
 import org.hisp.dhis.scheduling.parameters.jackson.JobConfigurationSanitizer;
 import org.hisp.dhis.schema.PropertyType;
 import org.hisp.dhis.schema.annotation.Property;
@@ -57,7 +59,6 @@ import org.springframework.scheduling.support.SimpleTriggerContext;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeId;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
@@ -278,7 +279,6 @@ public class JobConfiguration
 
     @JacksonXmlProperty
     @JsonProperty
-    @JsonTypeId
     public JobType getJobType()
     {
         return jobType;
@@ -332,7 +332,9 @@ public class JobConfiguration
         @JsonSubTypes.Type( value = EventProgramsDataSynchronizationJobParameters.class, name = "EVENT_PROGRAMS_DATA_SYNC" ),
         @JsonSubTypes.Type( value = TrackerProgramsDataSynchronizationJobParameters.class, name = "TRACKER_PROGRAMS_DATA_SYNC" ),
         @JsonSubTypes.Type( value = DataSynchronizationJobParameters.class, name = "DATA_SYNC" ),
-        @JsonSubTypes.Type( value = DisableInactiveUsersJobParameters.class, name = "DISABLE_INACTIVE_USERS" )
+        @JsonSubTypes.Type( value = DisableInactiveUsersJobParameters.class, name = "DISABLE_INACTIVE_USERS" ),
+        @JsonSubTypes.Type( value = TrackerTrigramIndexJobParameters.class, name = "TRACKER_SEARCH_OPTIMIZATION" ),
+        @JsonSubTypes.Type( value = DataIntegrityJobParameters.class, name = "DATA_INTEGRITY" )
     } )
     public JobParameters getJobParameters()
     {

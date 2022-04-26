@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.analytics;
 
+import org.hisp.dhis.scheduling.JobProgress;
+
 /**
  * Service for analytics table generation and analysis.
  *
@@ -46,8 +48,9 @@ public interface AnalyticsTableService
      * Rebuilds the analytics tables.
      *
      * @param params the {@link AnalyticsTableUpdateParams}.
+     * @param progress job progress tracking and control flow
      */
-    void update( AnalyticsTableUpdateParams params );
+    void update( AnalyticsTableUpdateParams params, JobProgress progress );
 
     /**
      * Drops main and temporary analytics tables.

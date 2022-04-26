@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  * @author Lars Helge Overland
  */
 public interface IdentifiableObject
-    extends LinkableObject, Comparable<IdentifiableObject>, Serializable
+    extends PrimaryKeyObject, LinkableObject, Comparable<IdentifiableObject>, Serializable
 {
-    long getId();
-
-    String getUid();
-
     String getCode();
 
     String getName();
@@ -133,4 +129,5 @@ public interface IdentifiableObject
 
     @JsonIgnore
     String getPropertyValue( IdScheme idScheme );
+
 }

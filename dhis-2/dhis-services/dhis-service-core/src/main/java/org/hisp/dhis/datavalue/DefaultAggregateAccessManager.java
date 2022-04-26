@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 package org.hisp.dhis.datavalue;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Collections.emptyList;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -144,15 +145,13 @@ public class DefaultAggregateAccessManager
     @Override
     public List<String> canWrite( User user, CategoryOptionCombo optionCombo )
     {
-        List<String> errors = new ArrayList<>();
-
         if ( user == null || user.isSuper() )
         {
-            return errors;
+            return emptyList();
         }
 
         Set<CategoryOption> options = optionCombo.getCategoryOptions();
-
+        List<String> errors = new ArrayList<>();
         options.forEach( attrOption -> {
             if ( !aclService.canDataWrite( user, attrOption ) )
             {
@@ -168,7 +167,7 @@ public class DefaultAggregateAccessManager
     {
         String cacheKey = user.getUid() + "-" + optionCombo.getUid();
 
-        return canDataWriteCocCache.get( cacheKey, key -> canWrite( user, optionCombo ) ).orElse( null );
+        return canDataWriteCocCache.get( cacheKey, key -> canWrite( user, optionCombo ) );
     }
 
     @Override

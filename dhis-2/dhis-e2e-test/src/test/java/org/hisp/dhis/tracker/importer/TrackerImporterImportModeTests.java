@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.tracker.importer;
+
+import static org.hamcrest.Matchers.*;
+
+import java.io.File;
 
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.tracker.TrackerNtiApiTest;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.io.File;
-
-import static org.hamcrest.Matchers.*;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -53,7 +52,8 @@ public class TrackerImporterImportModeTests
     @Test
     public void shouldNotCommitWhenImportModeIsValidate()
     {
-        ApiResponse response = trackerActions.postAndGetJobReport( new File( "src/test/resources/tracker/importer/teis/tei.json" ),
+        ApiResponse response = trackerActions.postAndGetJobReport(
+            new File( "src/test/resources/tracker/importer/teis/tei.json" ),
             new QueryParamsBuilder().add( "importMode=VALIDATE" ) );
 
         response.validate()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,10 @@
  */
 package org.hisp.dhis.cache;
 
+import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hisp.dhis.commons.util.SystemUtils.isTestRun;
 
 import java.time.Duration;
@@ -86,7 +88,6 @@ public class DefaultCacheProvider
     private enum Region
     {
         analyticsResponse,
-        appCache,
         defaultObjectCache,
         isDataApproved,
         allConstantsCache,
@@ -116,7 +117,22 @@ public class DefaultCacheProvider
         userGroupNameCache,
         userDisplayNameCache,
         programWebHookNotificationTemplateCache,
-        programStageWebHookNotificationTemplateCache
+        programStageWebHookNotificationTemplateCache,
+        pgmOrgUnitAssocCache,
+        catOptOrgUnitAssocCache,
+        dataSetOrgUnitAssocCache,
+        apiTokensCache,
+        programCache,
+        teiAttributesCache,
+        programTeiAttributesCache,
+        userGroupUIDCache,
+        securityCache,
+        runningJobsInfo,
+        completedJobsInfo,
+        jobCancelRequested,
+        dataIntegritySummaryCache,
+        dataIntegrityDetailsCache,
+        subExpressionCache
     }
 
     private final Map<String, Cache<?>> allCaches = new ConcurrentHashMap<>();
@@ -142,6 +158,13 @@ public class DefaultCacheProvider
         return (long) Math.max( this.cacheFactor * size, 1 );
     }
 
+    @EventListener
+    @Override
+    public void handleApplicationCachesCleared( ApplicationCacheClearedEvent event )
+    {
+        allCaches.values().forEach( Cache::invalidateAll );
+    }
+
     @Override
     public <V> Cache<V> createAnalyticsResponseCache( Duration initialExpirationTime )
     {
@@ -152,10 +175,12 @@ public class DefaultCacheProvider
     }
 
     @Override
-    public <V> Cache<V> createAppCache()
+    public <V> Cache<V> createAnalyticsCache()
     {
         return registerCache( this.<V> newBuilder()
-            .forRegion( Region.appCache.name() ) );
+            .forRegion( Region.analyticsResponse.name() )
+            .expireAfterWrite( 12, TimeUnit.HOURS )
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_10K ) ) ) );
     }
 
     /**
@@ -435,13 +460,6 @@ public class DefaultCacheProvider
             .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_1K ) ) ) );
     }
 
-    @EventListener
-    @Override
-    public void handleApplicationCachesCleared( ApplicationCacheClearedEvent event )
-    {
-        allCaches.values().forEach( Cache::invalidateAll );
-    }
-
     @Override
     public <V> Cache<V> createUserGroupNameCache()
     {
@@ -484,5 +502,148 @@ public class DefaultCacheProvider
             .withInitialCapacity( (int) getActualSize( 20 ) )
             .forceInMemory()
             .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_500 ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createProgramOrgUnitAssociationCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.pgmOrgUnitAssocCache.name() )
+            .expireAfterWrite( 1, TimeUnit.HOURS )
+            .withInitialCapacity( (int) getActualSize( 20 ) )
+            .withMaximumSize( orZeroInTestRun( SIZE_1K ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createCatOptOrgUnitAssociationCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.catOptOrgUnitAssocCache.name() )
+            .expireAfterWrite( 1, TimeUnit.HOURS )
+            .withInitialCapacity( (int) getActualSize( 20 ) )
+            .withMaximumSize( orZeroInTestRun( SIZE_1K ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createDataSetOrgUnitAssociationCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.dataSetOrgUnitAssocCache.name() )
+            .expireAfterWrite( 1, TimeUnit.HOURS )
+            .withInitialCapacity( (int) getActualSize( 20 ) )
+            .withMaximumSize( orZeroInTestRun( SIZE_1K ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createApiKeyCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.apiTokensCache.name() )
+            .expireAfterWrite( 1, TimeUnit.HOURS )
+            .withInitialCapacity( (int) getActualSize( SIZE_1K ) )
+            .forceInMemory()
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_10K ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createProgramCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.programCache.name() )
+            .expireAfterWrite( 1, TimeUnit.MINUTES )
+            .withInitialCapacity( (int) getActualSize( SIZE_1K ) )
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_10K ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createTeiAttributesCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.teiAttributesCache.name() )
+            .expireAfterWrite( 10, TimeUnit.MINUTES )
+            .withInitialCapacity( (int) getActualSize( SIZE_1 ) )
+            .forceInMemory()
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_1 ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createProgramTeiAttributesCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.programTeiAttributesCache.name() )
+            .expireAfterWrite( 10, TimeUnit.MINUTES )
+            .withInitialCapacity( (int) getActualSize( SIZE_1 ) )
+            .forceInMemory()
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_1 ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createUserGroupUIDCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.userGroupUIDCache.name() )
+            .expireAfterWrite( 10, TimeUnit.MINUTES )
+            .withInitialCapacity( (int) getActualSize( SIZE_100 ) )
+            .forceInMemory()
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_1K ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createSecurityCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.securityCache.name() )
+            .expireAfterWrite( 10, TimeUnit.MINUTES )
+            .withInitialCapacity( (int) getActualSize( SIZE_100 ) )
+            .forceInMemory()
+            .withMaximumSize( orZeroInTestRun( getActualSize( SIZE_1K ) ) ) );
+    }
+
+    @Override
+    public <V> Cache<V> createRunningJobsInfoCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.runningJobsInfo.name() )
+            .expireAfterWrite( 60, SECONDS ) );
+    }
+
+    @Override
+    public <V> Cache<V> createCompletedJobsInfoCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.completedJobsInfo.name() )
+            .expireAfterWrite( 60, SECONDS ) );
+    }
+
+    @Override
+    public <V> Cache<V> createJobCancelRequestedCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.jobCancelRequested.name() )
+            .expireAfterWrite( 60, SECONDS ) );
+    }
+
+    @Override
+    public <V> Cache<V> createDataIntegritySummaryCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.dataIntegritySummaryCache.name() )
+            .expireAfterWrite( 1, HOURS ) );
+    }
+
+    @Override
+    public <V> Cache<V> createDataIntegrityDetailsCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.dataIntegrityDetailsCache.name() )
+            .expireAfterWrite( 1, HOURS ) );
+    }
+
+    @Override
+    public <V> Cache<V> createSubExpressionCache()
+    {
+        return registerCache( this.<V> newBuilder()
+            .forRegion( Region.subExpressionCache.name() )
+            .expireAfterWrite( 5, TimeUnit.MINUTES ) );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,23 +27,25 @@
  */
 package org.hisp.dhis.webapi.controller.category;
 
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.notFound;
+
 import java.io.IOException;
 
 import org.hisp.dhis.category.CategoryCombo;
 import org.hisp.dhis.category.CategoryService;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
-import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
-import org.hisp.dhis.node.types.RootNode;
 import org.hisp.dhis.schema.descriptors.CategoryComboSchemaDescriptor;
 import org.hisp.dhis.webapi.controller.AbstractCrudController;
 import org.hisp.dhis.webapi.controller.metadata.MetadataExportControllerUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
@@ -56,8 +58,8 @@ public class CategoryComboController
     @Autowired
     private CategoryService categoryService;
 
-    @RequestMapping( value = "/{uid}/metadata", method = RequestMethod.GET )
-    public ResponseEntity<RootNode> getDataSetWithDependencies( @PathVariable( "uid" ) String pvUid,
+    @GetMapping( "/{uid}/metadata" )
+    public ResponseEntity<JsonNode> getDataSetWithDependencies( @PathVariable( "uid" ) String pvUid,
         @RequestParam( required = false, defaultValue = "false" ) boolean download )
         throws WebMessageException,
         IOException
@@ -66,7 +68,7 @@ public class CategoryComboController
 
         if ( categoryCombo == null )
         {
-            throw new WebMessageException( WebMessageUtils.notFound( "CategoryCombo not found for uid: " + pvUid ) );
+            throw new WebMessageException( notFound( "CategoryCombo not found for uid: " + pvUid ) );
         }
 
         return MetadataExportControllerUtils.getWithDependencies( contextService, exportService, categoryCombo,

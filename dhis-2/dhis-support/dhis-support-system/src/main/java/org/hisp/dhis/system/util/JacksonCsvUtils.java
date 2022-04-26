@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@ package org.hisp.dhis.system.util;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import org.hisp.dhis.commons.config.JacksonObjectMapperConfig;
+import org.hisp.dhis.commons.jackson.config.JacksonObjectMapperConfig;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;

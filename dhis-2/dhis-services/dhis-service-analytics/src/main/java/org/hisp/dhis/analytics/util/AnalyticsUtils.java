@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@ import static org.hisp.dhis.common.DimensionalObject.DATA_X_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.DIMENSION_SEP;
 import static org.hisp.dhis.common.DimensionalObject.ORGUNIT_DIM_ID;
 import static org.hisp.dhis.common.DimensionalObject.PERIOD_DIM_ID;
+import static org.hisp.dhis.common.DimensionalObject.QUERY_MODS_ID_SEPARATOR;
 import static org.hisp.dhis.dataelement.DataElementOperand.TotalType;
 import static org.hisp.dhis.expression.ExpressionService.SYMBOL_WILDCARD;
 import static org.hisp.dhis.util.DateUtils.getMediumDateString;
@@ -137,8 +138,8 @@ public class AnalyticsUtils
             throw new IllegalQueryException( ErrorCode.E7400 );
         }
 
-        String sql = "select de.name as de_name, de.uid as de_uid, de.dataelementid as de_id, pe.startdate as start_date, pe.enddate as end_date, pt.name as pt_name, "
-            +
+        String sql = "select de.name as de_name, de.uid as de_uid, de.dataelementid as de_id, " +
+            "pe.startdate as start_date, pe.enddate as end_date, pt.name as pt_name, " +
             "ou.name as ou_name, ou.uid as ou_uid, ou.organisationunitid as ou_id, " +
             "coc.name as coc_name, coc.uid as coc_uid, coc.categoryoptioncomboid as coc_id, " +
             "aoc.name as aoc_name, aoc.uid as aoc_uid, aoc.categoryoptioncomboid as aoc_id, dv.value as datavalue " +
@@ -149,8 +150,8 @@ public class AnalyticsUtils
             "inner join organisationunit ou on dv.sourceid = ou.organisationunitid " +
             "inner join categoryoptioncombo coc on dv.categoryoptioncomboid = coc.categoryoptioncomboid " +
             "inner join categoryoptioncombo aoc on dv.attributeoptioncomboid = aoc.categoryoptioncomboid " +
-            "where dv.dataelementid in ("
-            + StringUtils.join( IdentifiableObjectUtils.getIdentifiers( dataElements ), "," ) + ") " +
+            "where dv.dataelementid in (" +
+            StringUtils.join( IdentifiableObjectUtils.getIdentifiers( dataElements ), "," ) + ") " +
             "and (";
 
         for ( DimensionalItemObject period : periods )
@@ -305,6 +306,9 @@ public class AnalyticsUtils
      * i.e. {@code deuid-cocuid} to {@code deuid.cocuid}. For
      * {@link TotalType#AOC_ONLY} a {@link ExpressionService#SYMBOL_WILDCARD}
      * symbol will be inserted after the data item.
+     * <p>
+     * Also transfers a queryModsId to the end of the operand identifier, i.e.
+     * {@code deuid_queryModsId-cocuid} to {@code deuid.cocuid_queryModsId}
      *
      * @param valueMap the value map to convert.
      * @param totalType the {@link TotalType}.
@@ -326,6 +330,16 @@ public class AnalyticsUtils
             if ( TotalType.AOC_ONLY == totalType )
             {
                 operands.add( 1, SYMBOL_WILDCARD );
+            }
+
+            // If the DataElement has a queryModsId, move it to end of operand
+
+            List<String> queryModsSplit = Lists.newArrayList( operands.get( 0 ).split( QUERY_MODS_ID_SEPARATOR ) );
+            if ( queryModsSplit.size() > 1 )
+            {
+                operands.set( 0, queryModsSplit.get( 0 ) );
+                int lastOp = operands.size() - 1;
+                operands.set( lastOp, operands.get( lastOp ) + QUERY_MODS_ID_SEPARATOR + queryModsSplit.get( 1 ) );
             }
 
             String operand = StringUtils.join( operands, DimensionalObjectUtils.COMPOSITE_DIM_OBJECT_PLAIN_SEP );
@@ -697,10 +711,17 @@ public class AnalyticsUtils
                 new MetadataItem( dimension.getDisplayProperty( params.getDisplayProperty() ),
                     includeMetadataDetails ? dimension : null ) );
 
-            if ( dimension.getDimensionalKeywords() != null )
+            if ( dimension.getDimensionItemKeywords() != null )
             {
-                dimension.getDimensionalKeywords().getGroupBy()
-                    .forEach( b -> map.put( b.getKey(), new MetadataItem( b.getName(), b.getUid(), b.getCode() ) ) );
+                // if there is includeMetadataDetails flag set to true
+                // MetaDataItem is put into the map
+                // with all existing information.
+                // DimensionItemKeyword can use the same key and overwrite the
+                // value with the less information (DimensionItemKeyword can
+                // contain only key, uid, code and name ).
+                // The key/value should be included only if absent.
+                dimension.getDimensionItemKeywords().getKeywords()
+                    .forEach( b -> map.putIfAbsent( b.getKey(), b.getMetadataItem() ) );
             }
 
         }
@@ -926,8 +947,7 @@ public class AnalyticsUtils
      * Filters a List by Dimensional Item Object identifier and returns one ore
      * more {@see DimensionalItemObject} matching the given identifier
      *
-     * @param dimensionIdentifier a uid to filter {@see DimensionalItemObject}
-     *        on
+     * @param dimensionIdentifier uid to filter {@see DimensionalItemObject} on
      * @param items the filtered List
      * @return a List only containing the {@see DimensionalItemObject} matching
      *         the uid
@@ -936,7 +956,8 @@ public class AnalyticsUtils
         List<DimensionalItemObject> items )
     {
         return items.stream()
-            .filter( dio -> dio.getDimensionItem() != null && dio.getDimensionItem().equals( dimensionIdentifier ) )
+            .filter( dio -> dio.getDimensionItem() != null &&
+                dio.getDimensionItemWithQueryModsId().equals( dimensionIdentifier ) )
             .collect( Collectors.toList() );
     }
 

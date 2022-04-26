@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.META_
 import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.ORG_UNIT_ID;
 import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.ORG_UNIT_NAME;
 import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.PAGER_META_KEY;
+import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.POTENTIAL_DUPLICATE;
 import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.TRACKED_ENTITY_ID;
 import static org.hisp.dhis.trackedentity.TrackedEntityInstanceQueryParams.TRACKED_ENTITY_INSTANCE_ID;
 
@@ -328,6 +329,7 @@ public class DefaultTrackedEntityInstanceService
         grid.addHeader( new GridHeader( ORG_UNIT_NAME, "Organisation unit name" ) );
         grid.addHeader( new GridHeader( TRACKED_ENTITY_ID, "Tracked entity type" ) );
         grid.addHeader( new GridHeader( INACTIVE_ID, "Inactive" ) );
+        grid.addHeader( new GridHeader( POTENTIAL_DUPLICATE, "Potential duplicate" ) );
 
         if ( params.isIncludeDeleted() )
         {
@@ -385,6 +387,7 @@ public class DefaultTrackedEntityInstanceService
             grid.addValue( entity.get( ORG_UNIT_NAME ) );
             grid.addValue( entity.get( TRACKED_ENTITY_ID ) );
             grid.addValue( entity.get( INACTIVE_ID ) );
+            grid.addValue( entity.get( POTENTIAL_DUPLICATE ) );
 
             if ( params.isIncludeDeleted() )
             {
@@ -727,18 +730,6 @@ public class DefaultTrackedEntityInstanceService
                 }
             }
 
-            if ( params.hasProgram() )
-            {
-                maxTeiLimit = params.getProgram().getMaxTeiCountToReturn();
-
-                if ( !params.hasTrackedEntityInstances() && isProgramMinAttributesViolated( params ) )
-                {
-                    throw new IllegalQueryException(
-                        "At least " + params.getProgram().getMinAttributesRequiredToSearch()
-                            + " attributes should be mentioned in the search criteria." );
-                }
-            }
-
             if ( params.hasTrackedEntityType() )
             {
                 maxTeiLimit = params.getTrackedEntityType().getMaxTeiCountToReturn();
@@ -747,6 +738,18 @@ public class DefaultTrackedEntityInstanceService
                 {
                     throw new IllegalQueryException(
                         "At least " + params.getTrackedEntityType().getMinAttributesRequiredToSearch()
+                            + " attributes should be mentioned in the search criteria." );
+                }
+            }
+
+            if ( params.hasProgram() )
+            {
+                maxTeiLimit = params.getProgram().getMaxTeiCountToReturn();
+
+                if ( !params.hasTrackedEntityInstances() && isProgramMinAttributesViolated( params ) )
+                {
+                    throw new IllegalQueryException(
+                        "At least " + params.getProgram().getMinAttributesRequiredToSearch()
                             + " attributes should be mentioned in the search criteria." );
                 }
             }
@@ -861,6 +864,13 @@ public class DefaultTrackedEntityInstanceService
     {
         trackedEntityInstanceStore.updateTrackedEntityInstancesSyncTimestamp( trackedEntityInstanceUIDs,
             lastSynchronized );
+    }
+
+    @Override
+    @Transactional
+    public void updateTrackedEntityInstanceLastUpdated( Set<String> trackedEntityInstanceUIDs, Date lastUpdated )
+    {
+        trackedEntityInstanceStore.updateTrackedEntityInstancesLastUpdated( trackedEntityInstanceUIDs, lastUpdated );
     }
 
     @Override

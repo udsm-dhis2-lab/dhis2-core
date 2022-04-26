@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,14 @@ import org.hisp.dhis.option.OptionGroup;
 import org.hisp.dhis.programrule.ProgramRule;
 import org.hisp.dhis.programrule.ProgramRuleAction;
 import org.hisp.dhis.programrule.ProgramRuleActionValidationResult;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Zubair Asghar
  */
 
 @Slf4j
+@Component
 public class ShowHideOptionGroupProgramRuleActionValidator extends BaseProgramRuleActionValidator
 {
     @Override

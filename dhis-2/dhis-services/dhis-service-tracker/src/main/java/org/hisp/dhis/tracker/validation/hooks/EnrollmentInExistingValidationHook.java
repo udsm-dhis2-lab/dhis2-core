@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,21 +27,27 @@
  */
 package org.hisp.dhis.tracker.validation.hooks;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1015;
 import static org.hisp.dhis.tracker.report.TrackerErrorCode.E1016;
-import static org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors.*;
+import static org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors.ENROLLMENT_CANT_BE_NULL;
+import static org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors.PROGRAM_CANT_BE_NULL;
+import static org.hisp.dhis.tracker.validation.hooks.TrackerImporterAssertErrors.TRACKED_ENTITY_INSTANCE_CANT_BE_NULL;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.hisp.dhis.program.*;
+import org.hisp.dhis.program.Program;
+import org.hisp.dhis.program.ProgramInstance;
+import org.hisp.dhis.program.ProgramStatus;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.EnrollmentStatus;
 import org.hisp.dhis.tracker.report.ValidationErrorReporter;
-import org.hisp.dhis.tracker.validation.TrackerImportValidationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -61,9 +67,7 @@ public class EnrollmentInExistingValidationHook
             return;
         }
 
-        TrackerImportValidationContext validationContext = reporter.getValidationContext();
-
-        Program program = validationContext.getProgram( enrollment.getProgram() );
+        Program program = reporter.getBundle().getPreheat().getProgram( enrollment.getProgram() );
 
         checkNotNull( program, PROGRAM_CANT_BE_NULL );
 
@@ -83,15 +87,15 @@ public class EnrollmentInExistingValidationHook
 
         TrackedEntityInstance tei = getTrackedEntityInstance( reporter, enrollment.getTrackedEntity() );
 
-        Set<Enrollment> payloadEnrollment = reporter.getValidationContext().getBundle().getEnrollments()
+        Set<Enrollment> payloadEnrollment = reporter.getBundle().getEnrollments()
             .stream().filter( Objects::nonNull )
-            .filter( pi -> pi.getProgram().equals( program.getUid() ) )
+            .filter( pi -> pi.getProgram().isEqualTo( program ) )
             .filter( pi -> pi.getTrackedEntity().equals( tei.getUid() )
                 && !pi.getEnrollment().equals( enrollment.getEnrollment() ) )
             .filter( pi -> EnrollmentStatus.ACTIVE == pi.getStatus() || EnrollmentStatus.COMPLETED == pi.getStatus() )
             .collect( Collectors.toSet() );
 
-        Set<Enrollment> dbEnrollment = reporter.getValidationContext().getBundle().getPreheat()
+        Set<Enrollment> dbEnrollment = reporter.getBundle().getPreheat()
             .getTrackedEntityToProgramInstanceMap().getOrDefault( enrollment.getTrackedEntity(), new ArrayList<>() )
             .stream()
             .filter( Objects::nonNull )
@@ -104,6 +108,7 @@ public class EnrollmentInExistingValidationHook
         // Priority to payload
         Collection<Enrollment> mergedEnrollments = Stream.of( payloadEnrollment, dbEnrollment )
             .flatMap( Set::stream )
+            .filter( e -> !Objects.equals( e.getEnrollment(), enrollment.getEnrollment() ) )
             .collect( Collectors.toMap( Enrollment::getEnrollment,
                 p -> p,
                 ( Enrollment x, Enrollment y ) -> x ) )
@@ -115,15 +120,15 @@ public class EnrollmentInExistingValidationHook
                 .filter( e -> EnrollmentStatus.ACTIVE == e.getStatus() )
                 .collect( Collectors.toSet() );
 
-            if ( !activeOnly.isEmpty() && !activeOnly.contains( enrollment ) )
+            if ( !activeOnly.isEmpty() )
             {
-                addError( reporter, E1015, tei, program );
+                reporter.addError( enrollment, E1015, tei, program );
             }
         }
 
-        if ( !mergedEnrollments.isEmpty() )
+        if ( Boolean.TRUE.equals( program.getOnlyEnrollOnce() ) && !mergedEnrollments.isEmpty() )
         {
-            addError( reporter, E1016, tei, program );
+            reporter.addError( enrollment, E1016, tei, program );
         }
     }
 
@@ -138,9 +143,9 @@ public class EnrollmentInExistingValidationHook
 
     private TrackedEntityInstance getTrackedEntityInstance( ValidationErrorReporter reporter, String uid )
     {
-        TrackedEntityInstance tei = reporter.getValidationContext().getTrackedEntityInstance( uid );
+        TrackedEntityInstance tei = reporter.getBundle().getTrackedEntityInstance( uid );
 
-        if ( tei == null && reporter.getValidationContext().getReference( uid ).isPresent() )
+        if ( tei == null && reporter.getBundle().getPreheat().getReference( uid ).isPresent() )
         {
             tei = new TrackedEntityInstance();
             tei.setUid( uid );

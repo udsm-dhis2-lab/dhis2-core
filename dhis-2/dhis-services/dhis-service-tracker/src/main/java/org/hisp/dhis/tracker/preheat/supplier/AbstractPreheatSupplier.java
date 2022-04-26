@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.StopWatch;
 import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.hibernate.HibernateProxyUtils;
-import org.hisp.dhis.tracker.TrackerIdentifier;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
 import org.hisp.dhis.tracker.preheat.cache.PreheatCacheService;
@@ -81,18 +80,6 @@ public abstract class AbstractPreheatSupplier implements PreheatSupplier
      * Template method: executes preheat logic from the subclass
      */
     public abstract void preheatAdd( TrackerImportParams params, TrackerPreheat preheat );
-
-    protected void addToPreheat( TrackerPreheat preheat, List<? extends IdentifiableObject> relationshipTypes )
-    {
-        preheat.put( TrackerIdentifier.UID, relationshipTypes );
-    }
-
-    protected void addToCache( PreheatCacheService cache, List<? extends IdentifiableObject> objects, int ttl,
-        long capacity )
-    {
-        objects.forEach(
-            rt -> cache.put( HibernateProxyUtils.getRealClass( rt ).getName(), rt.getUid(), rt, ttl, capacity ) );
-    }
 
     protected void addToCache( PreheatCacheService cache, List<? extends IdentifiableObject> objects )
     {

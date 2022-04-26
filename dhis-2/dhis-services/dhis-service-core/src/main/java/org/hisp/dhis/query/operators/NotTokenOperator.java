@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,7 @@ import org.hisp.dhis.query.planner.QueryPath;
 /**
  * @author Henning Håkonsen
  */
-public class NotTokenOperator<T extends Comparable<? super T>>
-    extends Operator<T>
+public class NotTokenOperator<T extends Comparable<? super T>> extends Operator<T>
 {
     private final boolean caseSensitive;
 
@@ -74,10 +73,8 @@ public class NotTokenOperator<T extends Comparable<? super T>>
     }
 
     @Override
-    @SuppressWarnings( "unchecked" )
     public boolean test( Object value )
     {
-        String targetValue = caseSensitive ? getValue( String.class ) : getValue( String.class ).toLowerCase();
-        return !TokenUtils.test( args, (T) value, targetValue, caseSensitive, matchMode );
+        return !TokenUtils.test( value, getValue( String.class ), caseSensitive, matchMode );
     }
 }

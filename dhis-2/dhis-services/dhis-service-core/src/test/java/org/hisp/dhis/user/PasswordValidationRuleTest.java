@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,30 +29,30 @@ package org.hisp.dhis.user;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.hisp.dhis.commons.collection.ListUtils;
 import org.hisp.dhis.setting.SettingKey;
 import org.hisp.dhis.setting.SystemSettingManager;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * @author Zubair Asghar.
  */
-public class PasswordValidationRuleTest
+@ExtendWith( MockitoExtension.class )
+class PasswordValidationRuleTest
 {
     private static final int MIN_LENGTH = 8;
 
@@ -68,9 +68,6 @@ public class PasswordValidationRuleTest
 
     private static final String WEAK_PASSWORD = "abc";
 
-    @Rule
-    public MockitoRule rule = MockitoJUnit.rule();
-
     @Mock
     private SystemSettingManager systemSettingManager;
 
@@ -84,7 +81,7 @@ public class PasswordValidationRuleTest
     private PasswordEncoder passwordEncoder;
 
     @Captor
-    private ArgumentCaptor<UserCredentials> userCredentialsArgumentCaptor;
+    private ArgumentCaptor<User> userArgumentCaptor;
 
     private SpecialCharacterValidationRule specialCharValidationRule;
 
@@ -102,7 +99,7 @@ public class PasswordValidationRuleTest
 
     private PasswordMandatoryValidationRule mandatoryValidationRule;
 
-    @Before
+    @BeforeEach
     public void init()
     {
         specialCharValidationRule = new SpecialCharacterValidationRule();
@@ -116,7 +113,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testWhenPasswordIsNullOrEmpty()
+    void testWhenPasswordIsNullOrEmpty()
     {
         CredentialsInfo credentialsInfoNoPassword = new CredentialsInfo( USERNAME, "", EMAIL, true );
 
@@ -129,7 +126,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testSpecialCharValidationRule()
+    void testSpecialCharValidationRule()
     {
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD, EMAIL, true );
 
@@ -143,7 +140,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testDigitValidationRule()
+    void testDigitValidationRule()
     {
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD, EMAIL, true );
 
@@ -157,7 +154,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testDictionaryValidationRule()
+    void testDictionaryValidationRule()
     {
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD, EMAIL, true );
 
@@ -171,11 +168,11 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testLengthValidationRule()
+    void testLengthValidationRule()
     {
-        Mockito.when( systemSettingManager.getSystemSetting( SettingKey.MIN_PASSWORD_LENGTH ) )
+        Mockito.when( systemSettingManager.getIntSetting( SettingKey.MIN_PASSWORD_LENGTH ) )
             .thenReturn( MIN_LENGTH );
-        Mockito.when( systemSettingManager.getSystemSetting( SettingKey.MAX_PASSWORD_LENGTH ) )
+        Mockito.when( systemSettingManager.getIntSetting( SettingKey.MAX_PASSWORD_LENGTH ) )
             .thenReturn( MAX_LENGTH );
 
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD, EMAIL, true );
@@ -191,7 +188,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testUpperCaseValidationRule()
+    void testUpperCaseValidationRule()
     {
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD, EMAIL, true );
 
@@ -205,7 +202,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testUserParameterValidationRule()
+    void testUserParameterValidationRule()
     {
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD, EMAIL, true );
 
@@ -219,7 +216,7 @@ public class PasswordValidationRuleTest
     }
 
     @Test
-    public void testPasswordHistoryValidationRule()
+    void testPasswordHistoryValidationRule()
     {
         List<String> history = ListUtils.newList( STRONG_PASSWORD, STRONG_PASSWORD + "1", STRONG_PASSWORD + "2",
             STRONG_PASSWORD + "2", STRONG_PASSWORD + "4", STRONG_PASSWORD + "5", STRONG_PASSWORD + "6",
@@ -229,11 +226,11 @@ public class PasswordValidationRuleTest
             STRONG_PASSWORD + "19", STRONG_PASSWORD + "20", STRONG_PASSWORD + "21", STRONG_PASSWORD + "22" );
 
         CredentialsInfo credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD + "23", EMAIL, true );
-        UserCredentials userCredentials = new UserCredentials();
-        userCredentials.setPreviousPasswords( history );
+        User user = new User();
+        user.setPreviousPasswords( history );
 
-        Mockito.when( userService.getUserCredentialsByUsername( credentialsInfo.getUsername() ) )
-            .thenReturn( userCredentials );
+        Mockito.when( userService.getUserByUsername( credentialsInfo.getUsername() ) )
+            .thenReturn( user );
         Mockito.when( passwordEncoder.matches( Mockito.any( String.class ), Mockito.any( String.class ) ) )
             .thenReturn( false );
 
@@ -242,22 +239,22 @@ public class PasswordValidationRuleTest
         history.add( STRONG_PASSWORD + "23" );
 
         credentialsInfo = new CredentialsInfo( USERNAME, STRONG_PASSWORD + "23", EMAIL, true );
-        userCredentials = new UserCredentials();
-        userCredentials.setPreviousPasswords( history );
+        user = new User();
+        user.setPreviousPasswords( history );
 
-        Mockito.when( userService.getUserCredentialsByUsername( credentialsInfo.getUsername() ) )
-            .thenReturn( userCredentials );
+        Mockito.when( userService.getUserByUsername( credentialsInfo.getUsername() ) )
+            .thenReturn( user );
         Mockito.when( passwordEncoder.matches( Mockito.any( String.class ), Mockito.any( String.class ) ) )
             .thenReturn( false );
         Mockito.doAnswer( invocation -> null ).when( userService )
-            .updateUserCredentials( Mockito.any( UserCredentials.class ) );
+            .updateUser( Mockito.any( User.class ) );
 
         assertThat( historyValidationRule.validate( credentialsInfo ).isValid(), is( true ) );
 
-        Mockito.verify( userService ).updateUserCredentials( userCredentialsArgumentCaptor.capture() );
+        Mockito.verify( userService ).updateUser( userArgumentCaptor.capture() );
 
-        Assert.assertNotNull( userCredentialsArgumentCaptor.getValue() );
-        Assert.assertEquals( 23, userCredentialsArgumentCaptor.getValue().getPreviousPasswords().size() );
-        assertFalse( userCredentialsArgumentCaptor.getValue().getPreviousPasswords().contains( STRONG_PASSWORD ) );
+        Assertions.assertNotNull( userArgumentCaptor.getValue() );
+        Assertions.assertEquals( 23, userArgumentCaptor.getValue().getPreviousPasswords().size() );
+        assertFalse( userArgumentCaptor.getValue().getPreviousPasswords().contains( STRONG_PASSWORD ) );
     }
 }

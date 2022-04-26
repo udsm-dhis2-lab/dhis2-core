@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,15 +40,17 @@ import org.hisp.dhis.feedback.ObjectReport;
 import org.hisp.dhis.importexport.ImportStrategy;
 import org.hisp.dhis.preheat.PreheatIdentifier;
 import org.hisp.dhis.user.User;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Luciano Fiandesio
  */
+@Component
 public class SecurityCheck implements ObjectValidationCheck
 {
     @Override
-    public void check( ObjectBundle bundle, Class<? extends IdentifiableObject> klass,
-        List<IdentifiableObject> persistedObjects, List<IdentifiableObject> nonPersistedObjects,
+    public <T extends IdentifiableObject> void check( ObjectBundle bundle, Class<T> klass,
+        List<T> persistedObjects, List<T> nonPersistedObjects,
         ImportStrategy importStrategy, ValidationContext context, Consumer<ObjectReport> addReports )
     {
         if ( importStrategy.isUpdate() || importStrategy.isCreateAndUpdate() )
@@ -59,10 +61,14 @@ public class SecurityCheck implements ObjectValidationCheck
         {
             runValidationCheck( bundle, klass, nonPersistedObjects, ImportStrategy.CREATE, context, addReports );
         }
+        if ( importStrategy.isDelete() )
+        {
+            runValidationCheck( bundle, klass, persistedObjects, ImportStrategy.DELETE, context, addReports );
+        }
     }
 
-    private void runValidationCheck( ObjectBundle bundle, Class<? extends IdentifiableObject> klass,
-        List<IdentifiableObject> objects, ImportStrategy importMode, ValidationContext ctx,
+    private <T extends IdentifiableObject> void runValidationCheck( ObjectBundle bundle, Class<T> klass,
+        List<T> objects, ImportStrategy importMode, ValidationContext ctx,
         Consumer<ObjectReport> addReports )
     {
         if ( objects == null || objects.isEmpty() )
@@ -72,7 +78,7 @@ public class SecurityCheck implements ObjectValidationCheck
 
         PreheatIdentifier identifier = bundle.getPreheatIdentifier();
 
-        for ( IdentifiableObject object : objects )
+        for ( T object : objects )
         {
             if ( importMode.isCreate() )
             {
@@ -89,7 +95,7 @@ public class SecurityCheck implements ObjectValidationCheck
             }
             else
             {
-                IdentifiableObject persistedObject = bundle.getPreheat().get( bundle.getPreheatIdentifier(), object );
+                T persistedObject = bundle.getPreheat().get( bundle.getPreheatIdentifier(), object );
 
                 if ( importMode.isUpdate() )
                 {
@@ -128,12 +134,16 @@ public class SecurityCheck implements ObjectValidationCheck
                 }
             }
 
-            List<ErrorReport> sharingErrorReports = ctx.getAclService().verifySharing( object, bundle.getUser() );
-            if ( !sharingErrorReports.isEmpty() )
+            if ( !bundle.isSkipSharing() )
             {
-                addReports.accept( createObjectReport( sharingErrorReports, object, bundle ) );
-                ctx.markForRemoval( object );
+                List<ErrorReport> sharingErrorReports = ctx.getAclService().verifySharing( object, bundle.getUser() );
+                if ( !sharingErrorReports.isEmpty() )
+                {
+                    addReports.accept( createObjectReport( sharingErrorReports, object, bundle ) );
+                    ctx.markForRemoval( object );
+                }
             }
+
         }
     }
 }

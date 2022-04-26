@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,13 +47,13 @@ public class AggregatedStatistics
 
     private Integer mapViews;
 
-    private Integer chartViews;
-
-    private Integer pivotTableViews;
+    private Integer visualizationViews;
 
     private Integer eventReportViews;
 
     private Integer eventChartViews;
+
+    private Integer eventVisualizationViews;
 
     private Integer dashboardViews;
 
@@ -67,13 +67,13 @@ public class AggregatedStatistics
 
     private Integer averageMapViews;
 
-    private Integer averageChartViews;
-
-    private Integer averagePivotTableViews;
+    private Integer averageVisualizationViews;
 
     private Integer averageEventReportViews;
 
     private Integer averageEventChartViews;
+
+    private Integer averageEventVisualizationViews;
 
     private Integer averageDashboardViews;
 
@@ -81,13 +81,13 @@ public class AggregatedStatistics
 
     private Integer savedMaps;
 
-    private Integer savedCharts;
-
-    private Integer savedPivotTables;
+    private Integer savedVisualizations;
 
     private Integer savedEventReports;
 
     private Integer savedEventCharts;
+
+    private Integer savedEventVisualizations;
 
     private Integer savedDashboards;
 
@@ -159,6 +159,17 @@ public class AggregatedStatistics
     }
 
     @JsonProperty
+    public Integer getVisualizationViews()
+    {
+        return visualizationViews;
+    }
+
+    public void setVisualizationViews( Integer visualizationViews )
+    {
+        this.visualizationViews = visualizationViews;
+    }
+
+    @JsonProperty
     public Integer getMapViews()
     {
         return mapViews;
@@ -167,28 +178,6 @@ public class AggregatedStatistics
     public void setMapViews( Integer mapViews )
     {
         this.mapViews = mapViews;
-    }
-
-    @JsonProperty
-    public Integer getChartViews()
-    {
-        return chartViews;
-    }
-
-    public void setChartViews( Integer chartViews )
-    {
-        this.chartViews = chartViews;
-    }
-
-    @JsonProperty
-    public Integer getPivotTableViews()
-    {
-        return pivotTableViews;
-    }
-
-    public void setPivotTableViews( Integer pivotTableViews )
-    {
-        this.pivotTableViews = pivotTableViews;
     }
 
     @JsonProperty
@@ -211,6 +200,17 @@ public class AggregatedStatistics
     public void setEventChartViews( Integer eventChartViews )
     {
         this.eventChartViews = eventChartViews;
+    }
+
+    @JsonProperty
+    public Integer getEventVisualizationViews()
+    {
+        return eventVisualizationViews;
+    }
+
+    public void setEventVisualizationViews( Integer eventVisualizationViews )
+    {
+        this.eventVisualizationViews = eventVisualizationViews;
     }
 
     @JsonProperty
@@ -302,25 +302,14 @@ public class AggregatedStatistics
     }
 
     @JsonProperty
-    public Integer getAverageChartViews()
+    public Integer getAverageVisualizationViews()
     {
-        return averageChartViews;
+        return averageVisualizationViews;
     }
 
-    public void setAverageChartViews( Integer averageChartViews )
+    public void setAverageVisualizationViews( Integer averageVisualizationViews )
     {
-        this.averageChartViews = averageChartViews;
-    }
-
-    @JsonProperty
-    public Integer getAveragePivotTableViews()
-    {
-        return averagePivotTableViews;
-    }
-
-    public void setAveragePivotTableViews( Integer averagePivotTableViews )
-    {
-        this.averagePivotTableViews = averagePivotTableViews;
+        this.averageVisualizationViews = averageVisualizationViews;
     }
 
     @JsonProperty
@@ -346,6 +335,17 @@ public class AggregatedStatistics
     }
 
     @JsonProperty
+    public Integer getAverageEventVisualizationViews()
+    {
+        return averageEventVisualizationViews;
+    }
+
+    public void setAverageEventVisualizationViews( Integer averageEventVisualizationViews )
+    {
+        this.averageEventVisualizationViews = averageEventVisualizationViews;
+    }
+
+    @JsonProperty
     public Integer getSavedMaps()
     {
         return savedMaps;
@@ -357,25 +357,14 @@ public class AggregatedStatistics
     }
 
     @JsonProperty
-    public Integer getSavedCharts()
+    public Integer getSavedVisualizations()
     {
-        return savedCharts;
+        return savedVisualizations;
     }
 
-    public void setSavedCharts( Integer savedCharts )
+    public void setSavedVisualizations( Integer savedVisualizations )
     {
-        this.savedCharts = savedCharts;
-    }
-
-    @JsonProperty
-    public Integer getSavedPivotTables()
-    {
-        return savedPivotTables;
-    }
-
-    public void setSavedPivotTables( Integer savedPivotTables )
-    {
-        this.savedPivotTables = savedPivotTables;
+        this.savedVisualizations = savedVisualizations;
     }
 
     @JsonProperty
@@ -398,6 +387,17 @@ public class AggregatedStatistics
     public void setSavedEventCharts( Integer savedEventCharts )
     {
         this.savedEventCharts = savedEventCharts;
+    }
+
+    @JsonProperty
+    public Integer getSavedEventVisualizations()
+    {
+        return savedEventVisualizations;
+    }
+
+    public void setSavedEventVisualizations( Integer savedEventVisualizations )
+    {
+        this.savedEventVisualizations = savedEventVisualizations;
     }
 
     @JsonProperty
@@ -453,27 +453,27 @@ public class AggregatedStatistics
             ", week=" + week +
             ", day=" + day +
             ", mapViews=" + mapViews +
-            ", chartViews=" + chartViews +
-            ", pivotTableViews=" + pivotTableViews +
+            ", visualizationViews=" + visualizationViews +
             ", eventReportViews=" + eventReportViews +
             ", eventChartViews=" + eventChartViews +
+            ", eventVisualizationViews=" + eventVisualizationViews +
             ", dashboardViews=" + dashboardViews +
             ", passiveDashboardViews=" + passiveDashboardViews +
             ", dataSetReportViews=" + dataSetReportViews +
             ", totalViews=" + totalViews +
             ", averageViews=" + averageViews +
             ", averageMapViews=" + averageMapViews +
-            ", averageChartViews=" + averageChartViews +
-            ", averagePivotTableViews=" + averagePivotTableViews +
+            ", averageVisualizationViews=" + averageVisualizationViews +
             ", averageEventReportViews=" + averageEventReportViews +
             ", averageEventChartViews=" + averageEventChartViews +
+            ", averageEventVisualizationViews=" + averageEventVisualizationViews +
             ", averageDashboardViews=" + averageDashboardViews +
             ", averagePassiveDashboardViews=" + averagePassiveDashboardViews +
             ", savedMaps=" + savedMaps +
-            ", savedCharts=" + savedCharts +
-            ", savedPivotTables=" + savedPivotTables +
+            ", savedVisualizations=" + savedVisualizations +
             ", savedEventReports=" + savedEventReports +
             ", savedEventCharts=" + savedEventCharts +
+            ", savedEventVisualizations=" + savedEventVisualizations +
             ", savedDashboards=" + savedDashboards +
             ", savedIndicators=" + savedIndicators +
             ", savedDataValues=" + savedDataValues +

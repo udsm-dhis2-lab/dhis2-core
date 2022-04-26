@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,9 +28,12 @@
 package org.hisp.dhis.webapi.mvc.messageconverter;
 
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletRequest;
 
 import org.hisp.dhis.common.Compression;
 import org.hisp.dhis.node.NodeService;
+import org.hisp.dhis.webapi.security.config.WebMvcConfig;
+import org.hisp.dhis.webapi.utils.ContextUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
@@ -43,22 +46,43 @@ public class XmlMessageConverter extends AbstractRootNodeMessageConverter
 {
     public static final ImmutableList<MediaType> SUPPORTED_MEDIA_TYPES = ImmutableList.<MediaType> builder()
         .add( new MediaType( "application", "xml" ) )
-        .add( new MediaType( "text", "xml" ) )
         .build();
 
     public static final ImmutableList<MediaType> GZIP_SUPPORTED_MEDIA_TYPES = ImmutableList.<MediaType> builder()
         .add( new MediaType( "application", "xml+gzip" ) )
-        .add( new MediaType( "text", "xml+gzip" ) )
         .build();
 
     public static final ImmutableList<MediaType> ZIP_SUPPORTED_MEDIA_TYPES = ImmutableList.<MediaType> builder()
         .add( new MediaType( "application", "xml+zip" ) )
-        .add( new MediaType( "text", "xml+zip" ) )
         .build();
+
+    @Override
+    protected boolean supports( Class<?> clazz )
+    {
+        HttpServletRequest request = ContextUtils.getRequest();
+
+        if ( request == null )
+        {
+            return super.supports( clazz );
+        }
+
+        String pathInfo = request.getPathInfo();
+
+        for ( var pathPattern : WebMvcConfig.XML_PATTERNS )
+        {
+            if ( pathPattern.matcher( pathInfo ).matches() )
+            {
+                return super.supports( clazz );
+            }
+        }
+
+        return false;
+    }
 
     public XmlMessageConverter( @Autowired @Nonnull NodeService nodeService, Compression compression )
     {
         super( nodeService, "application/xml", "xml", compression );
+
         switch ( getCompression() )
         {
         case NONE:

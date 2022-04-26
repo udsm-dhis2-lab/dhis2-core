@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,14 @@ import org.hisp.dhis.common.adapter.JacksonPeriodTypeSerializer;
 import org.hisp.dhis.dataelement.DataElementGroup;
 import org.hisp.dhis.indicator.IndicatorGroup;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
+import org.hisp.dhis.organisationunit.OrganisationUnitGroupSet;
 import org.hisp.dhis.organisationunit.OrganisationUnitLevel;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.period.YearlyPeriodType;
 import org.hisp.dhis.schema.PropertyType;
 import org.hisp.dhis.schema.annotation.Property;
-import org.hisp.dhis.user.UserAuthorityGroup;
 import org.hisp.dhis.user.UserGroup;
+import org.hisp.dhis.user.UserRole;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -74,6 +75,8 @@ public class Configuration
 
     private UserGroup feedbackRecipients;
 
+    private UserGroup systemUpdateNotificationRecipients;
+
     private OrganisationUnitLevel offlineOrganisationUnitLevel;
 
     private IndicatorGroup infrastructuralIndicators;
@@ -82,9 +85,13 @@ public class Configuration
 
     private PeriodType infrastructuralPeriodType;
 
-    private UserAuthorityGroup selfRegistrationRole;
+    private UserRole selfRegistrationRole;
 
     private OrganisationUnit selfRegistrationOrgUnit;
+
+    private OrganisationUnitGroupSet facilityOrgUnitGroupSet;
+
+    private OrganisationUnitLevel facilityOrgUnitLevel;
 
     private Set<String> corsWhitelist = new HashSet<>();
 
@@ -152,6 +159,19 @@ public class Configuration
     @JsonProperty
     @JsonSerialize( as = BaseIdentifiableObject.class )
     @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public UserGroup getSystemUpdateNotificationRecipients()
+    {
+        return systemUpdateNotificationRecipients;
+    }
+
+    public void setSystemUpdateNotificationRecipients( UserGroup systemUpdateNotificationRecipients )
+    {
+        this.systemUpdateNotificationRecipients = systemUpdateNotificationRecipients;
+    }
+
+    @JsonProperty
+    @JsonSerialize( as = BaseIdentifiableObject.class )
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
     public OrganisationUnitLevel getOfflineOrganisationUnitLevel()
     {
         return offlineOrganisationUnitLevel;
@@ -205,12 +225,12 @@ public class Configuration
     @JsonProperty
     @JsonSerialize( as = BaseIdentifiableObject.class )
     @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
-    public UserAuthorityGroup getSelfRegistrationRole()
+    public UserRole getSelfRegistrationRole()
     {
         return selfRegistrationRole;
     }
 
-    public void setSelfRegistrationRole( UserAuthorityGroup selfRegistrationRole )
+    public void setSelfRegistrationRole( UserRole selfRegistrationRole )
     {
         this.selfRegistrationRole = selfRegistrationRole;
     }
@@ -226,6 +246,32 @@ public class Configuration
     public void setSelfRegistrationOrgUnit( OrganisationUnit selfRegistrationOrgUnit )
     {
         this.selfRegistrationOrgUnit = selfRegistrationOrgUnit;
+    }
+
+    @JsonProperty
+    @JsonSerialize( as = BaseIdentifiableObject.class )
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public OrganisationUnitGroupSet getFacilityOrgUnitGroupSet()
+    {
+        return facilityOrgUnitGroupSet;
+    }
+
+    public void setFacilityOrgUnitGroupSet( OrganisationUnitGroupSet facilityOrgUnitGroupSet )
+    {
+        this.facilityOrgUnitGroupSet = facilityOrgUnitGroupSet;
+    }
+
+    @JsonProperty
+    @JsonSerialize( as = BaseIdentifiableObject.class )
+    @JacksonXmlProperty( namespace = DxfNamespaces.DXF_2_0 )
+    public OrganisationUnitLevel getFacilityOrgUnitLevel()
+    {
+        return facilityOrgUnitLevel;
+    }
+
+    public void setFacilityOrgUnitLevel( OrganisationUnitLevel facilityOrgUnitLevel )
+    {
+        this.facilityOrgUnitLevel = facilityOrgUnitLevel;
     }
 
     @JsonProperty

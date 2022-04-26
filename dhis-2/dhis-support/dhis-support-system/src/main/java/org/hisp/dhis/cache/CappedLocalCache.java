@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,8 @@ import static java.lang.Integer.parseInt;
 import static java.lang.Math.max;
 import static java.lang.System.currentTimeMillis;
 import static java.util.Collections.unmodifiableSet;
-import static java.util.stream.Collectors.toList;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -182,7 +181,7 @@ public class CappedLocalCache
         }
 
         @Override
-        public Optional<V> get( String key, Function<String, V> fetcher )
+        public V get( String key, Function<String, V> fetcher )
         {
             if ( null == fetcher )
             {
@@ -194,24 +193,30 @@ public class CappedLocalCache
             if ( value != null )
             {
                 hits.incrementAndGet();
-                return Optional.of( value );
+                return value;
             }
             misses.incrementAndGet();
             value = fetcher.apply( key );
             if ( value == null && entry != null && !entry.isExpired( now ) )
             {
                 // still null, no entry update needed
-                return Optional.ofNullable( defaultValue );
+                return defaultValue;
             }
             // need new entry...
             put( key, value );
-            return Optional.ofNullable( value == null ? defaultValue : value );
+            return value == null ? defaultValue : value;
         }
 
         @Override
-        public Collection<V> getAll()
+        public Stream<V> getAll()
         {
-            return entries.values().stream().map( CacheEntry::read ).collect( toList() );
+            return entries.values().stream().map( CacheEntry::read );
+        }
+
+        @Override
+        public Iterable<String> keys()
+        {
+            return entries.keySet();
         }
 
         @Override
@@ -230,6 +235,20 @@ public class CappedLocalCache
             long sizeDelta = entrySize - (oldEntry == null ? 0L : oldEntry.size);
             totalRegionSize.addAndGet( sizeDelta );
             sizeDeltaListener.accept( sizeDelta );
+        }
+
+        @Override
+        public boolean putIfAbsent( String key, V value )
+        {
+            long entrySize = emptyEntrySize + sizeof.sizeof( key ) + sizeof.sizeof( value );
+            long now = currentTimeMillis();
+            CacheEntry<V> newEntry = new CacheEntry<>( region, key, value, now, now + (defaultTtlInSeconds * 1000L),
+                entrySize );
+            var oldEntry = entries.putIfAbsent( key, newEntry );
+            long sizeDelta = entrySize - (oldEntry == null ? 0L : oldEntry.size);
+            totalRegionSize.addAndGet( sizeDelta );
+            sizeDeltaListener.accept( sizeDelta );
+            return oldEntry != newEntry;
         }
 
         @Override

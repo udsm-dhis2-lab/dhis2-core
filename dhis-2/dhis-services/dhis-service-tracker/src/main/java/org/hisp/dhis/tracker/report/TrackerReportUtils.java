@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,39 +27,41 @@
  */
 package org.hisp.dhis.tracker.report;
 
-import static java.text.MessageFormat.format;
-
 import java.text.DateFormat;
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.common.IdentifiableObject;
-import org.hisp.dhis.tracker.TrackerIdentifier;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
 import org.hisp.dhis.tracker.bundle.TrackerBundle;
 import org.hisp.dhis.tracker.domain.Enrollment;
 import org.hisp.dhis.tracker.domain.Event;
 import org.hisp.dhis.tracker.domain.TrackedEntity;
+import org.hisp.dhis.util.DateUtils;
 import org.hisp.dhis.util.ObjectUtils;
 
 /**
  * @author Luciano Fiandesio
  */
-public class TrackerReportUtils
+class TrackerReportUtils
 {
-    public static String formatMessage( TrackerErrorCode errorCode, Object... arguments )
+
+    private TrackerReportUtils()
     {
-        return format( errorCode.getMessage(), arguments );
+        // not meant to be inherited from
     }
 
     protected static List<String> buildArgumentList( TrackerBundle bundle, List<Object> arguments )
     {
-        final TrackerIdentifier identifier = TrackerIdentifier.builder().idScheme( bundle.getIdentifier() ).build();
-        return arguments.stream().map( arg -> parseArgs( identifier, arg ) ).collect( Collectors.toList() );
+        final TrackerIdSchemeParam idSchemeParam = TrackerIdSchemeParam.builder().idScheme( bundle.getIdentifier() )
+            .build();
+        return arguments.stream().map( arg -> parseArgs( idSchemeParam, arg ) ).collect( Collectors.toList() );
     }
 
-    private static String parseArgs( TrackerIdentifier identifier, Object argument )
+    private static String parseArgs( TrackerIdSchemeParam idSchemeParam, Object argument )
     {
         if ( String.class.isAssignableFrom( ObjectUtils.firstNonNull( argument, "NULL" ).getClass() ) )
         {
@@ -67,11 +69,15 @@ public class TrackerReportUtils
         }
         else if ( IdentifiableObject.class.isAssignableFrom( argument.getClass() ) )
         {
-            return identifier.getIdAndName( (IdentifiableObject) argument );
+            return idSchemeParam.getIdAndName( (IdentifiableObject) argument );
         }
         else if ( Date.class.isAssignableFrom( argument.getClass() ) )
         {
             return (DateFormat.getInstance().format( argument ));
+        }
+        else if ( Instant.class.isAssignableFrom( argument.getClass() ) )
+        {
+            return DateUtils.getIso8601NoTz( DateUtils.fromInstant( (Instant) argument ) );
         }
         else if ( Enrollment.class.isAssignableFrom( argument.getClass() ) )
         {

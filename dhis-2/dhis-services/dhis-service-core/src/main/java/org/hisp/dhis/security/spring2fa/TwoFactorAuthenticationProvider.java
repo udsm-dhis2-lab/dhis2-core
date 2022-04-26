@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.LongValidator;
 import org.hisp.dhis.security.SecurityService;
 import org.hisp.dhis.security.SecurityUtils;
-import org.hisp.dhis.user.UserCredentials;
+import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -74,27 +74,26 @@ public class TwoFactorAuthenticationProvider extends DaoAuthenticationProvider
     public Authentication authenticate( Authentication auth )
         throws AuthenticationException
     {
-        log.info( String.format( "Login attempt: %s", auth.getName() ) );
+        log.debug( String.format( "Login attempt: %s", auth.getName() ) );
 
         String username = auth.getName();
 
-        UserCredentials userCredentials = userService.getUserCredentialsWithEagerFetchAuthorities( username );
+        User user = userService.getUserWithEagerFetchAuthorities( username );
 
-        if ( userCredentials == null )
+        if ( user == null )
         {
             throw new BadCredentialsException( "Invalid username or password" );
         }
 
         // Initialize all required properties of user credentials since these
         // will become detached
-
-        userCredentials.getAllAuthorities();
+        user.getAllAuthorities();
 
         // -------------------------------------------------------------------------
         // Check two-factor authentication
         // -------------------------------------------------------------------------
 
-        if ( userCredentials.isTwoFA() )
+        if ( user.isTwoFA() && auth.getDetails() instanceof TwoFactorWebAuthenticationDetails )
         {
             TwoFactorWebAuthenticationDetails authDetails = (TwoFactorWebAuthenticationDetails) auth.getDetails();
 
@@ -115,38 +114,41 @@ public class TwoFactorAuthenticationProvider extends DaoAuthenticationProvider
 
             if ( securityService.isLocked( username ) )
             {
-                log.info( String.format( "Temporary lockout for user: %s and IP: %s", username, ip ) );
+                log.debug( String.format( "Temporary lockout for user: %s and IP: %s", username, ip ) );
 
                 throw new LockedException( String.format( "IP is temporarily locked: %s", ip ) );
             }
 
-            if ( !LongValidator.getInstance().isValid( code ) || !SecurityUtils.verify( userCredentials, code ) )
+            if ( !LongValidator.getInstance().isValid( code ) || !SecurityUtils.verify( user, code ) )
             {
-                log.info(
-                    String.format( "Two-factor authentication failure for user: %s", userCredentials.getUsername() ) );
+                log.debug(
+                    String.format( "Two-factor authentication failure for user: %s", user.getUsername() ) );
 
                 throw new BadCredentialsException( "Invalid verification code" );
             }
         }
+        else if ( user.isTwoFA() && !(auth.getDetails() instanceof TwoFactorWebAuthenticationDetails) )
+        {
+            throw new BadCredentialsException( "Can't authenticate non form based login with 2FA enabled" );
+        }
 
         // -------------------------------------------------------------------------
-        // Delegate authentication downstream, using UserCredentials as
+        // Delegate authentication downstream, using User as
         // principal
         // -------------------------------------------------------------------------
 
         Authentication result = super.authenticate( auth );
 
         // Put detached state of the user credentials into the session as user
-        // credentials must not be updated during session execution
-
-        userCredentials = SerializationUtils.clone( userCredentials );
+        // must not be updated during session execution
+        user = SerializationUtils.clone( user );
 
         // Initialize cached authorities
 
-        userCredentials.isSuper();
-        userCredentials.getAllAuthorities();
+        user.isSuper();
+        user.getAllAuthorities();
 
-        return new UsernamePasswordAuthenticationToken( userCredentials, result.getCredentials(),
+        return new UsernamePasswordAuthenticationToken( user, result.getCredentials(),
             result.getAuthorities() );
     }
 

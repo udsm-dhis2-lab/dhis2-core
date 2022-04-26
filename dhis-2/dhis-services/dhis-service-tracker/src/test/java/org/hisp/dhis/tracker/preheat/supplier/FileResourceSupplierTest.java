@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,8 @@
 package org.hisp.dhis.tracker.preheat.supplier;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.when;
 
 import org.hisp.dhis.DhisConvenienceTest;
@@ -37,16 +38,19 @@ import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.fileresource.FileResource;
 import org.hisp.dhis.fileresource.FileResourceService;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
-import org.hisp.dhis.tracker.TrackerIdentifier;
+import org.hisp.dhis.tracker.TrackerIdSchemeParam;
 import org.hisp.dhis.tracker.TrackerImportParams;
-import org.hisp.dhis.tracker.domain.*;
+import org.hisp.dhis.tracker.domain.Attribute;
+import org.hisp.dhis.tracker.domain.DataValue;
+import org.hisp.dhis.tracker.domain.Enrollment;
+import org.hisp.dhis.tracker.domain.Event;
+import org.hisp.dhis.tracker.domain.TrackedEntity;
 import org.hisp.dhis.tracker.preheat.TrackerPreheat;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -54,9 +58,10 @@ import com.google.common.collect.Sets;
 /**
  * @author Enrico Colasante
  */
-public class FileResourceSupplierTest
-    extends DhisConvenienceTest
+@ExtendWith( MockitoExtension.class )
+class FileResourceSupplierTest extends DhisConvenienceTest
 {
+
     private static final String NUMERIC_DATA_ELEMENT_UID = "numericDataElement";
 
     private static final String FILE_RESOURCE_DATA_ELEMENT_UID = "fileResourceDataElement";
@@ -80,10 +85,7 @@ public class FileResourceSupplierTest
     @Mock
     private FileResourceService fileResourceService;
 
-    @Rule
-    public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Before
+    @BeforeEach
     public void setUp()
     {
         DataElement numericDataElement = createDataElement( 'A' );
@@ -102,7 +104,7 @@ public class FileResourceSupplierTest
         nullFileResourceDataElement.setUid( NULL_FILE_RESOURCE_DATA_ELEMENT_UID );
         nullFileResourceDataElement.setValueType( ValueType.FILE_RESOURCE );
 
-        preheat.put( TrackerIdentifier.UID, Lists
+        preheat.put( TrackerIdSchemeParam.UID, Lists
             .newArrayList( numericDataElement, fileResourceDataElement, emptyFileResourceDataElement,
                 nullFileResourceDataElement ) );
 
@@ -114,13 +116,13 @@ public class FileResourceSupplierTest
         fileResourceAttribute.setUid( FILE_RESOURCE_ATTRIBUTE_UID );
         fileResourceAttribute.setValueType( ValueType.FILE_RESOURCE );
 
-        preheat.put( TrackerIdentifier.UID, Lists.newArrayList( numericAttribute, fileResourceAttribute ) );
+        preheat.put( TrackerIdSchemeParam.UID, Lists.newArrayList( numericAttribute, fileResourceAttribute ) );
 
         supplierToTest = new FileResourceSupplier( fileResourceService );
     }
 
     @Test
-    public void verifySupplier()
+    void verifySupplier()
     {
         FileResource fileResource = createFileResource( 'A', "FileResource".getBytes() );
         fileResource.setUid( FILE_RESOURCE_UID );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,18 +37,27 @@ import static org.hisp.dhis.DhisConvenienceTest.createDataElement;
 import static org.hisp.dhis.analytics.DataQueryParams.DISPLAY_NAME_DATA_X;
 import static org.hisp.dhis.analytics.DataQueryParams.DISPLAY_NAME_ORGUNIT;
 import static org.hisp.dhis.period.RelativePeriodEnum.THIS_QUARTER;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.hisp.dhis.analytics.AnalyticsTableType;
 import org.hisp.dhis.analytics.DataQueryParams;
 import org.hisp.dhis.category.CategoryCombo;
-import org.hisp.dhis.common.*;
+import org.hisp.dhis.common.BaseDimensionalObject;
+import org.hisp.dhis.common.BaseNameableObject;
+import org.hisp.dhis.common.DimensionItemKeywords;
+import org.hisp.dhis.common.DimensionType;
+import org.hisp.dhis.common.DimensionalItemObject;
+import org.hisp.dhis.common.Grid;
 import org.hisp.dhis.dataelement.DataElementGroup;
 import org.hisp.dhis.indicator.Indicator;
 import org.hisp.dhis.indicator.IndicatorGroup;
@@ -58,8 +67,8 @@ import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.YearlyPeriodType;
 import org.joda.time.DateTime;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -67,10 +76,10 @@ import com.google.common.collect.Lists;
 /**
  * @author Luciano Fiandesio
  */
-public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
+class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
 {
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         Map<String, Object> aggregatedValues = new HashMap<>();
@@ -79,9 +88,9 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                 .thenReturn( CompletableFuture.completedFuture( aggregatedValues ) );
     }
 
-    @Test
     @SuppressWarnings( "unchecked" )
-    public void metadataContainsOuLevelData()
+    @Test
+    void metadataContainsOuLevelData()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             // PERIOD
@@ -94,7 +103,7 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                     ImmutableList.of(
                         new OrganisationUnit( "aaa", "aaa", "OU_1", null, null, "c1" ),
                         new OrganisationUnit( "bbb", "bbb", "OU_2", null, null, "c2" ) ),
-                    new DimensionalKeywords(
+                    new DimensionItemKeywords(
                         Lists.newArrayList(
                             buildOrgUnitLevel( 2, "wjP19dkFeIk", "District", null ),
                             buildOrgUnitLevel( 1, "tTUf91fCytl", "Chiefdom", "OU_12345" ) )
@@ -117,9 +126,9 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
             hasProperty( "code", is( "OU_12345" ) ) ) );
     }
 
-    @Test
     @SuppressWarnings( "unchecked" )
-    public void metadataContainsIndicatorGroupMetadata()
+    @Test
+    void metadataContainsIndicatorGroupMetadata()
     {
         List<DimensionalItemObject> periods = new ArrayList<>();
         periods.add( new MonthlyPeriodType().createPeriod( new DateTime( 2014, 4, 1, 0, 0 ).toDate() ) );
@@ -134,7 +143,7 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                 new BaseDimensionalObject( "dx", DimensionType.DATA_X, DISPLAY_NAME_DATA_X, "display name",
                     Lists.newArrayList( new Indicator(), new Indicator(), createDataElement( 'A', new CategoryCombo() ),
                         createDataElement( 'B', new CategoryCombo() ) ),
-                    new DimensionalKeywords( Collections.singletonList( indicatorGroup ) ) ) ) )
+                    new DimensionItemKeywords( Collections.singletonList( indicatorGroup ) ) ) ) )
             .withFilters( Collections.singletonList(
                 new BaseDimensionalObject( "ou", DimensionType.ORGANISATION_UNIT, null, DISPLAY_NAME_ORGUNIT,
                     ImmutableList.of( new OrganisationUnit( "aaa", "aaa", "OU_1", null, null, "c1" ),
@@ -155,9 +164,9 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                 hasProperty( "code", is( indicatorGroup.getCode() ) ) ) );
     }
 
-    @Test
     @SuppressWarnings( "unchecked" )
-    public void metadataContainsOuGroupData()
+    @Test
+    void metadataContainsOuGroupData()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             // PERIOD
@@ -169,7 +178,7 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                 new BaseDimensionalObject( "ou", DimensionType.ORGANISATION_UNIT, null, DISPLAY_NAME_ORGUNIT,
                     ImmutableList.of( new OrganisationUnit( "aaa", "aaa", "OU_1", null, null, "c1" ),
                         new OrganisationUnit( "bbb", "bbb", "OU_2", null, null, "c2" ) ),
-                    new DimensionalKeywords(
+                    new DimensionItemKeywords(
                         Lists.newArrayList( new BaseNameableObject( "tTUf91fCytl", "OU_12345", "Chiefdom" ) ) ) ) ) )
             .build();
 
@@ -182,9 +191,9 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
             hasProperty( "uid", is( "tTUf91fCytl" ) ), hasProperty( "code", is( "OU_12345" ) ) ) );
     }
 
-    @Test
     @SuppressWarnings( "unchecked" )
-    public void metadataContainsDataElementGroupMetadata()
+    @Test
+    void metadataContainsDataElementGroupMetadata()
     {
         List<DimensionalItemObject> periods = new ArrayList<>();
         periods.add( new MonthlyPeriodType().createPeriod( new DateTime( 2014, 4, 1, 0, 0 ).toDate() ) );
@@ -200,7 +209,7 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                     ImmutableList.of(
                         createDataElement( 'A', new CategoryCombo() ),
                         createDataElement( 'B', new CategoryCombo() ) ),
-                    new DimensionalKeywords( Collections.singletonList( dataElementGroup ) ) ) ) )
+                    new DimensionItemKeywords( Collections.singletonList( dataElementGroup ) ) ) ) )
             .withFilters( Collections.singletonList(
                 new BaseDimensionalObject( "ou", DimensionType.ORGANISATION_UNIT, null, DISPLAY_NAME_ORGUNIT,
                     ImmutableList.of( new OrganisationUnit( "aaa", "aaa", "OU_1", null, null, "c1" ) ) ) ) )
@@ -220,9 +229,9 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
                 hasProperty( "code", is( dataElementGroup.getCode() ) ) ) );
     }
 
-    @Test
     @SuppressWarnings( "unchecked" )
-    public void metadataContainsRelativePeriodItem()
+    @Test
+    void metadataContainsRelativePeriodItem()
     {
 
         List<DimensionalItemObject> periods = new ArrayList<>();
@@ -231,8 +240,8 @@ public class AnalyticsServiceMetadataTest extends AnalyticsServiceBaseTest
 
         BaseDimensionalObject periodDimension = new BaseDimensionalObject( "pe", DimensionType.PERIOD, periods );
 
-        DimensionalKeywords dimensionalKeywords = new DimensionalKeywords();
-        dimensionalKeywords.addGroupBy( THIS_QUARTER.name(), "This quarter" );
+        DimensionItemKeywords dimensionalKeywords = new DimensionItemKeywords();
+        dimensionalKeywords.addKeyword( THIS_QUARTER.name(), "This quarter" );
         periodDimension.setDimensionalKeywords( dimensionalKeywords );
 
         DataQueryParams params = DataQueryParams.newBuilder()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,7 @@ public class DhisMessageAlertListener
 
                 Set<User> receivers = new HashSet<>( userGroup.getMembers() );
                 messageService.sendMessage( new MessageConversationParams.Builder( receivers, sender,
-                    smsCommand.getName(), message, MessageType.SYSTEM ).build() );
+                    smsCommand.getName(), message, MessageType.SYSTEM, null ).build() );
 
                 Set<User> feedbackList = new HashSet<>();
                 feedbackList.add( sender );

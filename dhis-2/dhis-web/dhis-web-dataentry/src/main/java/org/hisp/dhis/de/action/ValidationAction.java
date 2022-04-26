@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.period.PeriodType;
+import org.hisp.dhis.scheduling.NoopJobProgress;
 import org.hisp.dhis.validation.ValidationAnalysisParams;
 import org.hisp.dhis.validation.ValidationResult;
 import org.hisp.dhis.validation.ValidationService;
@@ -215,6 +216,11 @@ public class ValidationAction
         Period period = periodService.getPeriod( selectedPeriod.getStartDate(), selectedPeriod.getEndDate(),
             selectedPeriod.getPeriodType() );
 
+        if ( period == null )
+        {
+            return SUCCESS;
+        }
+
         List<OrganisationUnit> organisationUnits = new ArrayList<>();
 
         if ( !multiOu )
@@ -245,7 +251,8 @@ public class ValidationAction
                 .withAttributeOptionCombo( attributeOptionCombo )
                 .build();
 
-            List<ValidationResult> results = new ArrayList<>( validationService.validationAnalysis( params ) );
+            List<ValidationResult> results = new ArrayList<>( validationService.validationAnalysis( params,
+                NoopJobProgress.INSTANCE ) );
 
             if ( !results.isEmpty() )
             {

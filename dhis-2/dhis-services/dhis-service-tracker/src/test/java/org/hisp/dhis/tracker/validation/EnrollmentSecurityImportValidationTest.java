@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -50,7 +50,6 @@ import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.ObjectBundleValidationService;
 import org.hisp.dhis.dxf2.metadata.objectbundle.feedback.ObjectBundleCommitReport;
 import org.hisp.dhis.dxf2.metadata.objectbundle.feedback.ObjectBundleValidationReport;
-import org.hisp.dhis.feedback.ErrorReport;
 import org.hisp.dhis.importexport.ImportStrategy;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.Program;
@@ -67,11 +66,12 @@ import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
 import org.hisp.dhis.tracker.TrackerImportParams;
 import org.hisp.dhis.tracker.TrackerImportService;
 import org.hisp.dhis.tracker.TrackerImportStrategy;
-import org.hisp.dhis.tracker.bundle.TrackerBundleService;
-import org.hisp.dhis.tracker.report.*;
+import org.hisp.dhis.tracker.report.TrackerErrorCode;
+import org.hisp.dhis.tracker.report.TrackerImportReport;
+import org.hisp.dhis.tracker.report.TrackerStatus;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 
@@ -80,14 +80,11 @@ import com.google.common.collect.Sets;
 /**
  * @author Morten Svanæs <msvanaes@dhis2.org>
  */
-public class EnrollmentSecurityImportValidationTest
-    extends AbstractImportValidationTest
+class EnrollmentSecurityImportValidationTest extends AbstractImportValidationTest
 {
-    @Autowired
-    protected TrackedEntityInstanceService trackedEntityInstanceService;
 
     @Autowired
-    private TrackerBundleService trackerBundleService;
+    protected TrackedEntityInstanceService trackedEntityInstanceService;
 
     @Autowired
     private ObjectBundleService objectBundleService;
@@ -97,9 +94,6 @@ public class EnrollmentSecurityImportValidationTest
 
     @Autowired
     private ObjectBundleValidationService objectBundleValidationService;
-
-    @Autowired
-    private DefaultTrackerValidationService trackerValidationService;
 
     @Autowired
     private RenderService _renderService;
@@ -146,72 +140,54 @@ public class EnrollmentSecurityImportValidationTest
         organisationUnitB = createOrganisationUnit( 'B' );
         manager.save( organisationUnitA );
         manager.save( organisationUnitB );
-
         dataElementA = createDataElement( 'A' );
         dataElementB = createDataElement( 'B' );
         dataElementA.setValueType( ValueType.INTEGER );
         dataElementB.setValueType( ValueType.INTEGER );
-
         manager.save( dataElementA );
         manager.save( dataElementB );
-
         programStageA = createProgramStage( 'A', 0 );
         programStageB = createProgramStage( 'B', 0 );
         programStageB.setRepeatable( true );
-
         manager.save( programStageA );
         manager.save( programStageB );
-
         programA = createProgram( 'A', new HashSet<>(), organisationUnitA );
         programA.setProgramType( ProgramType.WITH_REGISTRATION );
-
         trackedEntityType = createTrackedEntityType( 'A' );
         trackedEntityTypeService.addTrackedEntityType( trackedEntityType );
-
         TrackedEntityType trackedEntityTypeFromProgram = createTrackedEntityType( 'C' );
         trackedEntityTypeService.addTrackedEntityType( trackedEntityTypeFromProgram );
-
         manager.save( programA );
-
         ProgramStageDataElement programStageDataElement = new ProgramStageDataElement();
         programStageDataElement.setDataElement( dataElementA );
         programStageDataElement.setProgramStage( programStageA );
         programStageDataElementService.addProgramStageDataElement( programStageDataElement );
-
         programStageA.getProgramStageDataElements().add( programStageDataElement );
         programStageA.setProgram( programA );
-
         programStageDataElement = new ProgramStageDataElement();
         programStageDataElement.setDataElement( dataElementB );
         programStageDataElement.setProgramStage( programStageB );
         programStageDataElementService.addProgramStageDataElement( programStageDataElement );
-
         programStageB.getProgramStageDataElements().add( programStageDataElement );
         programStageB.setProgram( programA );
         programStageB.setMinDaysFromStart( 2 );
-
         programA.getProgramStages().add( programStageA );
         programA.getProgramStages().add( programStageB );
-
         manager.update( programStageA );
         manager.update( programStageB );
         manager.update( programA );
-
         maleA = createTrackedEntityInstance( 'A', organisationUnitA );
         maleB = createTrackedEntityInstance( organisationUnitB );
         femaleA = createTrackedEntityInstance( organisationUnitA );
         femaleB = createTrackedEntityInstance( organisationUnitB );
-
         maleA.setTrackedEntityType( trackedEntityType );
         maleB.setTrackedEntityType( trackedEntityType );
         femaleA.setTrackedEntityType( trackedEntityType );
         femaleB.setTrackedEntityType( trackedEntityType );
-
         manager.save( maleA );
         manager.save( maleB );
         manager.save( femaleA );
         manager.save( femaleB );
-
         manager.flush();
     }
 
@@ -221,202 +197,129 @@ public class EnrollmentSecurityImportValidationTest
     {
         renderService = _renderService;
         userService = _userService;
-
         Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata = renderService.fromMetadata(
             new ClassPathResource( "tracker/tracker_basic_metadata.json" ).getInputStream(), RenderFormat.JSON );
-
         ObjectBundleParams params = new ObjectBundleParams();
         params.setObjectBundleMode( ObjectBundleMode.COMMIT );
         params.setImportStrategy( ImportStrategy.CREATE );
         params.setObjects( metadata );
-
         ObjectBundle bundle = objectBundleService.create( params );
         ObjectBundleValidationReport validationReport = objectBundleValidationService.validate( bundle );
-        List<ErrorReport> errorReports = validationReport.getErrorReports();
-        assertTrue( errorReports.isEmpty() );
-
+        assertFalse( validationReport.hasErrorReports() );
         ObjectBundleCommitReport commit = objectBundleService.commit( bundle );
-        List<ErrorReport> objectReport = commit.getErrorReports();
-        assertTrue( objectReport.isEmpty() );
-
+        assertFalse( commit.hasErrorReports() );
         TrackerImportParams trackerBundleParams = createBundleFromJson(
             "tracker/validations/enrollments_te_te-data.json" );
-
         User user = userService.getUser( ADMIN_USER_UID );
         trackerBundleParams.setUserId( user.getUid() );
-
+        injectSecurityContext( user );
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( trackerBundleParams );
-
-        assertEquals( 0, trackerImportReport.getValidationReport().getErrorReports().size() );
-
+        assertEquals( 0, trackerImportReport.getValidationReport().getErrors().size() );
         assertEquals( TrackerStatus.OK, trackerImportReport.getStatus() );
     }
 
     @Test
-    public void testNoWriteAccessToOrg()
+    void testNoWriteAccessToOrg()
         throws IOException
     {
-        TrackerImportParams params = createBundleFromJson(
-            "tracker/validations/enrollments_te_enrollments-data.json" );
-
+        TrackerImportParams params = createBundleFromJson( "tracker/validations/enrollments_te_enrollments-data.json" );
         User user = userService.getUser( USER_2 );
+        injectSecurityContext( user );
         params.setUser( user );
         params.setImportStrategy( TrackerImportStrategy.CREATE );
-
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
-        assertEquals( 4, trackerImportReport.getValidationReport().getErrorReports().size() );
-
-        assertThat( trackerImportReport.getValidationReport().getErrorReports(),
+        assertEquals( 4, trackerImportReport.getValidationReport().getErrors().size() );
+        assertThat( trackerImportReport.getValidationReport().getErrors(),
             hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1000 ) ) ) );
     }
 
     @Test
-    public void testEnrollmentOrgUnitProgramOrgUnitMismatch()
+    void testUserNoAccessToTrackedEntity()
         throws IOException
     {
+        clearSecurityContext();
+
         setupMetadata();
-
-        programA.setPublicAccess( AccessStringHelper.DATA_READ_WRITE );
-        manager.update( programA );
-
-        User user = createUser( "user1" )
-            .setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
-        userService.addUser( user );
-        injectSecurityContext( user );
-
-        TrackerImportParams params = createBundleFromJson(
-            "tracker/validations/enrollments_orgunit-mismatch.json" );
-
-        params.setUserId( user.getUid() );
-        params.setImportStrategy( TrackerImportStrategy.CREATE );
-
-        TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
-
-        assertEquals( 1, trackerImportReport.getValidationReport().getErrorReports().size() );
-
-        assertThat( trackerImportReport.getValidationReport().getErrorReports(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1041 ) ) ) );
-    }
-
-    @Test
-    public void testUserNoAccessToTrackedEntity()
-        throws IOException
-    {
-        setupMetadata();
-
         programA.setPublicAccess( AccessStringHelper.DATA_READ_WRITE );
         TrackedEntityType bPJ0FMtcnEh = trackedEntityTypeService.getTrackedEntityType( "bPJ0FMtcnEh" );
         programA.setTrackedEntityType( bPJ0FMtcnEh );
         manager.updateNoAcl( programA );
-
-        User user = createUser( "user1" )
-            .setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
+        User user = createUser( "user1" ).setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
         userService.addUser( user );
         injectSecurityContext( user );
-
-        TrackerImportParams params = createBundleFromJson(
-            "tracker/validations/enrollments_no-access-tei.json" );
-
+        TrackerImportParams params = createBundleFromJson( "tracker/validations/enrollments_no-access-tei.json" );
         params.setUser( user );
         params.setImportStrategy( TrackerImportStrategy.CREATE );
-
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
-
-        assertEquals( 2, trackerImportReport.getValidationReport().getErrorReports().size() );
-
-        assertThat( trackerImportReport.getValidationReport().getErrorReports(),
-            hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1102 ) ) ) );
-
-        assertThat( trackerImportReport.getValidationReport().getErrorReports(),
+        assertEquals( 1, trackerImportReport.getValidationReport().getErrors().size() );
+        assertThat( trackerImportReport.getValidationReport().getErrors(),
             hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1104 ) ) ) );
-
     }
 
     @Test
-    public void testUserNoWriteAccessToProgram()
+    void testUserNoWriteAccessToProgram()
         throws IOException
     {
-        setupMetadata();
+        clearSecurityContext();
 
+        setupMetadata();
         programA.setPublicAccess( AccessStringHelper.DATA_READ );
         trackedEntityType.setPublicAccess( AccessStringHelper.DATA_READ );
         programA.setTrackedEntityType( trackedEntityType );
         manager.updateNoAcl( programA );
-
-        User user = createUser( "user1" )
-            .setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
+        User user = createUser( "user1" ).setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
         userService.addUser( user );
         injectSecurityContext( user );
-
-        TrackerImportParams params = createBundleFromJson(
-            "tracker/validations/enrollments_no-access-program.json" );
-
+        TrackerImportParams params = createBundleFromJson( "tracker/validations/enrollments_no-access-program.json" );
         params.setUser( user );
         params.setImportStrategy( TrackerImportStrategy.CREATE );
-
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
-
-        assertEquals( 1, trackerImportReport.getValidationReport().getErrorReports().size() );
-
-        assertThat( trackerImportReport.getValidationReport().getErrorReports(),
+        assertEquals( 1, trackerImportReport.getValidationReport().getErrors().size() );
+        assertThat( trackerImportReport.getValidationReport().getErrors(),
             hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1091 ) ) ) );
     }
 
     @Test
-    public void testUserHasWriteAccessToProgram()
+    void testUserHasWriteAccessToProgram()
         throws IOException
     {
-        setupMetadata();
+        clearSecurityContext();
 
+        setupMetadata();
         programA.setPublicAccess( AccessStringHelper.FULL );
         trackedEntityType.setPublicAccess( AccessStringHelper.DATA_READ );
         programA.setTrackedEntityType( trackedEntityType );
         manager.updateNoAcl( programA );
-
         User user = createUser( "user1" ).setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
         userService.addUser( user );
         injectSecurityContext( user );
-
-        TrackerImportParams params = createBundleFromJson(
-            "tracker/validations/enrollments_no-access-program.json" );
-
+        TrackerImportParams params = createBundleFromJson( "tracker/validations/enrollments_no-access-program.json" );
         params.setUser( user );
         params.setImportStrategy( TrackerImportStrategy.CREATE );
-
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
-
-        assertEquals( 0, trackerImportReport.getValidationReport().getErrorReports().size() );
+        assertEquals( 0, trackerImportReport.getValidationReport().getErrors().size() );
     }
 
     @Test
-    public void testUserHasNoAccessToProgramTeiType()
+    void testUserHasNoAccessToProgramTeiType()
         throws IOException
     {
+        clearSecurityContext();
+
         setupMetadata();
-
         programA.setPublicAccess( AccessStringHelper.DATA_READ_WRITE );
-
         programA.setTrackedEntityType( trackedEntityType );
         manager.update( programA );
-
         manager.flush();
-
-        User user = createUser( "user1" )
-            .setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
-
+        User user = createUser( "user1" ).setOrganisationUnits( Sets.newHashSet( organisationUnitA ) );
         injectSecurityContext( user );
-
         TrackerImportParams params = createBundleFromJson(
             "tracker/validations/enrollments_program-teitype-missmatch.json" );
-
         params.setUser( user );
         params.setImportStrategy( TrackerImportStrategy.CREATE );
-
         TrackerImportReport trackerImportReport = trackerImportService.importTracker( params );
-
-        assertEquals( 1, trackerImportReport.getValidationReport().getErrorReports().size() );
-
-        assertThat( trackerImportReport.getValidationReport().getErrorReports(),
+        assertEquals( 1, trackerImportReport.getValidationReport().getErrors().size() );
+        assertThat( trackerImportReport.getValidationReport().getErrors(),
             hasItem( hasProperty( "errorCode", equalTo( TrackerErrorCode.E1104 ) ) ) );
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -234,12 +234,10 @@ public class DefaultTrackerAccessManager implements TrackerAccessManager
         else // this branch will only happen if coming from /events
         {
             OrganisationUnit ou = programInstance.getOrganisationUnit();
-            if ( ou != null )
+
+            if ( ou != null && !canAccess( user, program, ou ) )
             {
-                if ( !organisationUnitService.isInUserSearchHierarchyCached( user, ou ) )
-                {
-                    errors.add( "User has no read access to organisation unit: " + ou.getUid() );
-                }
+                errors.add( "User has no read access to organisation unit: " + ou.getUid() );
             }
         }
 
@@ -434,12 +432,10 @@ public class DefaultTrackerAccessManager implements TrackerAccessManager
         else
         {
             OrganisationUnit ou = programStageInstance.getOrganisationUnit();
-            if ( ou != null )
+
+            if ( !canAccess( user, program, ou ) )
             {
-                if ( !organisationUnitService.isInUserSearchHierarchyCached( user, ou ) )
-                {
-                    errors.add( "User has no read access to organisation unit: " + ou.getUid() );
-                }
+                errors.add( "User has no read access to organisation unit: " + ou.getUid() );
             }
         }
 
@@ -564,7 +560,7 @@ public class DefaultTrackerAccessManager implements TrackerAccessManager
             OrganisationUnit ou = programStageInstance.getOrganisationUnit();
             if ( ou != null )
             {
-                if ( !organisationUnitService.isInUserSearchHierarchyCached( user, ou ) )
+                if ( !organisationUnitService.isInUserSearchHierarchy( user, ou ) )
                 {
                     errors.add( "User has no update access to organisation unit: " + ou.getUid() );
                 }
@@ -802,9 +798,29 @@ public class DefaultTrackerAccessManager implements TrackerAccessManager
         return errors;
     }
 
+    @Override
+    public boolean canAccess( User user, Program program, OrganisationUnit orgUnit )
+    {
+        if ( orgUnit == null )
+        {
+            return false;
+        }
+
+        if ( user == null || user.isSuper() )
+        {
+            return true;
+        }
+
+        if ( program == null || program.isClosed() || program.isProtected() )
+        {
+            return organisationUnitService.isInUserHierarchy( user, orgUnit );
+        }
+
+        return organisationUnitService.isInUserSearchHierarchy( user, orgUnit );
+    }
+
     private boolean isNull( ProgramStage programStage )
     {
         return programStage == null || programStage.getProgram() == null;
     }
-
 }

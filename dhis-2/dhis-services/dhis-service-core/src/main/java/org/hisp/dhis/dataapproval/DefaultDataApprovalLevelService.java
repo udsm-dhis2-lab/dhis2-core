@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,13 @@ package org.hisp.dhis.dataapproval;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,8 +49,8 @@ import org.hisp.dhis.organisationunit.OrganisationUnitLevel;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +63,7 @@ import com.google.common.collect.Maps;
 @Slf4j
 @Service( "org.hisp.dhis.dataapproval.DataApprovalLevelService" )
 public class DefaultDataApprovalLevelService
-    implements DataApprovalLevelService
+    implements DataApprovalLevelService, CurrentUserServiceTarget
 {
     // -------------------------------------------------------------------------
     // Dependencies
@@ -90,7 +96,7 @@ public class DefaultDataApprovalLevelService
         this.aclService = aclService;
     }
 
-    @Deprecated
+    @Override
     public void setCurrentUserService( CurrentUserService currentUserService )
     {
         this.currentUserService = currentUserService;
@@ -480,7 +486,7 @@ public class DefaultDataApprovalLevelService
         // Add user organisation units if authorized to approve at lower levels
         // ---------------------------------------------------------------------
 
-        if ( user.getUserCredentials().isAuthorized( DataApproval.AUTH_APPROVE_LOWER_LEVELS ) )
+        if ( user.isAuthorized( DataApproval.AUTH_APPROVE_LOWER_LEVELS ) )
         {
             for ( OrganisationUnit orgUnit : user.getOrganisationUnits() )
             {
@@ -729,10 +735,8 @@ public class DefaultDataApprovalLevelService
     {
         if ( cogs == null )
         {
-            UserCredentials userCredentials = user.getUserCredentials();
-
-            return CollectionUtils.isEmpty( userCredentials.getCogsDimensionConstraints() )
-                && CollectionUtils.isEmpty( userCredentials.getCatDimensionConstraints() );
+            return CollectionUtils.isEmpty( user.getCogsDimensionConstraints() )
+                && CollectionUtils.isEmpty( user.getCatDimensionConstraints() );
         }
 
         return !CollectionUtils.isEmpty( categoryService.getCategoryOptionGroups( cogs ) );
@@ -749,13 +753,11 @@ public class DefaultDataApprovalLevelService
     private List<DataApprovalLevel> subsetUserDataApprovalLevels( List<DataApprovalLevel> approvalLevels, User user,
         boolean lowestLevel )
     {
-        UserCredentials userCredentials = user.getUserCredentials();
-
         int lowestNumberOrgUnitLevel = getCurrentUsersLowestNumberOrgUnitLevel();
 
         boolean canSeeAllDimensions = CollectionUtils
-            .isEmpty( categoryService.getCoDimensionConstraints( userCredentials ) )
-            && CollectionUtils.isEmpty( categoryService.getCogDimensionConstraints( userCredentials ) );
+            .isEmpty( categoryService.getCoDimensionConstraints( user ) )
+            && CollectionUtils.isEmpty( categoryService.getCogDimensionConstraints( user ) );
 
         List<DataApprovalLevel> userDataApprovalLevels = new ArrayList<>();
 

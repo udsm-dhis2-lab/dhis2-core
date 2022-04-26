@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-import org.hisp.dhis.commons.util.SqlHelper;
 import org.hisp.dhis.program.AnalyticsPeriodBoundary;
 import org.hisp.dhis.program.ProgramIndicator;
 
@@ -274,18 +273,20 @@ public interface StatementBuilder
     boolean supportsPartialIndexes();
 
     /**
-     * Get SQL where-condition for all analyticsPeriodBoundaries in a program
+     * Get SQL where-condition for a single analyticsPeriodBoundary in a program
      * indicator.
      *
+     * @param boundary the boundary to get where-condition for
      * @param programIndicator the program indicator context
      * @param reportingStartDate the date of the start of the reporting period
      * @param reportingEndDate the date of the end of the reporting period
-     * @param sqlHelper a SQL helper that makes sure the where/and is correctly
-     *        assigned in the where clause
      * @return SQL to use in where clause.
      */
-    String getBoundaryCondition( ProgramIndicator programIndicator, Date reportingStartDate, Date reportingEndDate,
-        SqlHelper sqlHelper );
+    default String getBoundaryCondition( AnalyticsPeriodBoundary boundary, ProgramIndicator programIndicator,
+        Date reportingStartDate, Date reportingEndDate )
+    {
+        return getBoundaryCondition( boundary, programIndicator, null, reportingStartDate, reportingEndDate );
+    }
 
     /**
      * Get SQL where-condition for a single analyticsPeriodBoundary in a program
@@ -297,7 +298,7 @@ public interface StatementBuilder
      * @param reportingEndDate the date of the end of the reporting period
      * @return SQL to use in where clause.
      */
-    String getBoundaryCondition( AnalyticsPeriodBoundary boundary, ProgramIndicator programIndicator,
+    String getBoundaryCondition( AnalyticsPeriodBoundary boundary, ProgramIndicator programIndicator, String timeField,
         Date reportingStartDate, Date reportingEndDate );
 
     /**
@@ -331,4 +332,28 @@ public interface StatementBuilder
      */
     String getProgramIndicatorEventColumnSql( String programStageUid, String columnName, Date reportingStartDate,
         Date reportingEndDate, ProgramIndicator programIndicator );
+
+    /**
+     * Get a SQL for selecting a single data value in a program indicator
+     * expression, abiding to boundaries. Internally adds quotes to the param
+     * dataElementUid and calls the
+     * {@link StatementBuilder#getProgramIndicatorEventColumnSql(String, String, Date, Date, ProgramIndicator)}
+     * function.
+     *
+     * @param programStageUid the program stage to get data for
+     * @param stageOffset the program stage offset to get data (repeatable
+     *        stages)
+     * @param columnName the column to get data for
+     * @param reportingStartDate the reporting start date
+     * @param reportingEndDate the reporting end date
+     * @param programIndicator the program indicator context
+     * @return
+     */
+    default String getProgramIndicatorEventColumnSql( String programStageUid, String stageOffset, String columnName,
+        Date reportingStartDate,
+        Date reportingEndDate, ProgramIndicator programIndicator )
+    {
+        return getProgramIndicatorDataValueSelectSql( programStageUid, columnName, reportingStartDate,
+            reportingEndDate, programIndicator );
+    }
 }

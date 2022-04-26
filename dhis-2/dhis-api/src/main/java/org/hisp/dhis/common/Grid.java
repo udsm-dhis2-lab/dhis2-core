@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,6 +100,8 @@ public interface Grid
      * Returns a map of internal meta-data.
      */
     Map<String, Object> getInternalMetaData();
+
+    PerformanceMetrics getPerformanceMetrics();
 
     /**
      * Sets a map of internal meta-data.
@@ -253,6 +255,8 @@ public interface Grid
      * Returns all rows.
      */
     List<List<Object>> getRows();
+
+    List<Reference> getRefs();
 
     /**
      * Returns all visible rows, ie. rows with a corresponding header that is
@@ -501,4 +505,39 @@ public interface Grid
      *        no limit.
      */
     Grid addRows( SqlRowSet rs, int maxLimit );
+
+    Grid maybeAddPerformanceMetrics( List<ExecutionPlan> plans );
+
+    Grid addReference( Reference reference );
+
+    /**
+     * This method will keep, in the Grid, only the given list of headers. All
+     * other GridHeaders and respective columns will be removed from the Grid.
+     *
+     * @param headers
+     */
+    void keepOnlyThese( final Set<String> headers );
+
+    /**
+     * Re-order the GridHeaders of current Grid based on the List headers. The
+     * final Grid will have the all its headers defined in the same order as the
+     * given List of headers.
+     *
+     * @param headers
+     * @return a Set of indexes that holds the holds the new order
+     */
+    Set<Integer> repositionHeaders( final Set<String> headers );
+
+    /**
+     * Based on the given column indexes, this method will order the current
+     * columns in the Grid. The new positions of the columns will respect the
+     * new indexes.
+     *
+     * @param newColumnsIndexes
+     */
+    void repositionColumns( final Set<Integer> newColumnsIndexes );
+
+    boolean hasLastDataRow();
+
+    void setLastDataRow( boolean lastDataRow );
 }

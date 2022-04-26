@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,11 @@ public interface DimensionalItemObject
      * Gets the dimension item identifier.
      */
     String getDimensionItem();
+
+    /**
+     * Gets the dimension item identifier with queryModsId if present.
+     */
+    String getDimensionItemWithQueryModsId();
 
     /**
      * Gets the dimension item identifier based on the given identifier scheme.
@@ -90,12 +95,12 @@ public interface DimensionalItemObject
     TotalAggregationType getTotalAggregationType();
 
     /**
-     * Gets a Period Offset: the offset can be applied within an Indicator
-     * formula in order to "shift" the query period by the offset value (e.g.
-     * Jan 2020 with offset 1 becomes Feb 2020). An offset with value 0 means no
-     * offset.
-     *
-     * @return an int.
+     * Gets the query modifiers for an indicator expression.
      */
-    int getPeriodOffset();
+    QueryModifiers getQueryMods();
+
+    /**
+     * Sets the query modifiers for an indicator expression.
+     */
+    void setQueryMods( QueryModifiers queryMods );
 }

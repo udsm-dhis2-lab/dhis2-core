@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,6 @@ package org.hisp.dhis.relationship;
 
 import static org.apache.commons.lang3.StringUtils.splitByWholeSeparatorPreserveAllTokens;
 
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -44,7 +41,7 @@ import org.apache.commons.lang3.StringUtils;
 public class RelationshipKey
 {
 
-    private static final String RELATIONSHIP_KEY_SEPARATOR = "-";
+    private static final String RELATIONSHIP_KEY_SEPARATOR = "_";
 
     private final String type;
 
@@ -101,9 +98,20 @@ public class RelationshipKey
 
         public String asString()
         {
-            return Stream.of( trackedEntity, enrollment, event )
-                .map( StringUtils::trimToEmpty )
-                .collect( Collectors.joining( RELATIONSHIP_KEY_SEPARATOR ) );
+            if ( isTrackedEntity() )
+            {
+                return trackedEntity;
+            }
+            else if ( isEnrollment() )
+            {
+                return enrollment;
+            }
+            else if ( isEvent() )
+            {
+                return enrollment;
+            }
+
+            return "ERROR";
         }
 
         public boolean isTrackedEntity()

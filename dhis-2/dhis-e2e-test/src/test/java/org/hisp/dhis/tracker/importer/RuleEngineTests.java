@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package org.hisp.dhis.tracker.importer;
 
 import com.google.gson.JsonObject;
@@ -40,6 +39,9 @@ import org.hisp.dhis.dto.TrackerApiResponse;
 import org.hisp.dhis.helpers.JsonObjectBuilder;
 import org.hisp.dhis.helpers.QueryParamsBuilder;
 import org.hisp.dhis.tracker.TrackerNtiApiTest;
+import org.hisp.dhis.tracker.importer.databuilder.EnrollmentDataBuilder;
+import org.hisp.dhis.tracker.importer.databuilder.EventDataBuilder;
+import org.hisp.dhis.tracker.importer.databuilder.TeiDataBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,16 +86,20 @@ public class RuleEngineTests
     @ParameterizedTest
     @CsvSource( { "nH8zfPSUSN1,true", "yKg8CY252Yk,false" } )
     public void shouldShowErrorOnEventWhenProgramRuleStageMatches( String programStage, boolean shouldReturnError )
+        throws Exception
     {
-        //arrange
-        JsonObject object = trackerActions
-            .buildTeiWithEnrollmentAndEvent( Constants.ORG_UNIT_IDS[0], trackerProgramId, programStage );
-        JsonObjectBuilder.jsonObject( object )
-            .addPropertyByJsonPath( "trackedEntities[0].enrollments[0].enrolledAt", Instant.now().plus(
-                1, ChronoUnit.DAYS ).toString() );
+        // arrange
+        String tei = importTei();
 
+        String enrollment = trackerActions.postAndGetJobReport( new EnrollmentDataBuilder()
+            .setTei( tei )
+            .setEnrollmentDate( Instant.now().plus( 1, ChronoUnit.DAYS ).toString() )
+            .array( trackerProgramId, Constants.ORG_UNIT_IDS[0] ) ).extractImportedEnrollments().get( 0 );
+
+        JsonObject payload = new EventDataBuilder().setEnrollment( enrollment )
+            .array( Constants.ORG_UNIT_IDS[0], trackerProgramId, programStage );
         // act
-        TrackerApiResponse response = trackerActions.postAndGetJobReport( object );
+        TrackerApiResponse response = trackerActions.postAndGetJobReport( payload );
 
         if ( !shouldReturnError )
         {
@@ -113,8 +119,9 @@ public class RuleEngineTests
     @Test
     public void shouldShowErrorOnCompleteOnEvents()
     {
-        JsonObject payload = trackerActions.buildEvent( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
-        JsonObjectBuilder.jsonObject( payload ).addPropertyByJsonPath( "events[0].status", "COMPLETED" );
+        JsonObject payload = new EventDataBuilder()
+            .setStatus( "COMPLETED" )
+            .array( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
 
         TrackerApiResponse response = trackerActions.postAndGetJobReport( payload );
 
@@ -125,18 +132,23 @@ public class RuleEngineTests
 
     @Test
     public void shouldShowErrorOnCompleteInTrackerEvents()
+        throws Exception
     {
-        JsonObject payload = trackerActions.buildTeiWithEnrollmentAndEvent( Constants.ORG_UNIT_IDS[0], trackerProgramId
-            , "nH8zfPSUSN1" );
-
-        JsonObjectBuilder.jsonObject( payload )
-            .addPropertyByJsonPath( "trackedEntities[0].enrollments[0].enrolledAt", Instant.now().plus(
+        String tei = importTei();
+        JsonObject enrollment = new EnrollmentDataBuilder().setTei( tei )
+            .setEnrollmentDate( Instant.now().plus(
                 1, ChronoUnit.DAYS ).toString() )
-            .addPropertyByJsonPath( "trackedEntities[0].enrollments[0].events[0].status", "COMPLETED" );
+            .array( trackerProgramId, Constants.ORG_UNIT_IDS[0] );
 
-        TrackerApiResponse response = trackerActions.postAndGetJobReport( payload );
+        String enrollmentId = trackerActions.postAndGetJobReport( enrollment ).validateSuccessfulImport()
+            .extractImportedEnrollments().get( 0 );
 
-        response.validateErrorReport()
+        JsonObject payload = new EventDataBuilder().setEnrollment( enrollmentId )
+            .setStatus( "COMPLETED" )
+            .array( Constants.ORG_UNIT_IDS[0], trackerProgramId, "nH8zfPSUSN1" );
+
+        trackerActions.postAndGetJobReport( payload, new QueryParamsBuilder().add( "async=false" ) )
+            .validateErrorReport()
             .body( "trackerType", hasItem( "EVENT" ) )
             .body( "message", hasItem( stringContainsInOrder( "ERROR ON COMPLETE " ) ) );
     }
@@ -144,14 +156,9 @@ public class RuleEngineTests
     @Test
     public void shouldSetMandatoryField()
     {
-        JsonObject payload = trackerActions.buildEvent( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
-
-        // program rule is triggered when the following DV is present
-        JsonObjectBuilder.jsonObject( payload )
-            .addArrayByJsonPath( "events[0]", "dataValues", new JsonObjectBuilder()
-                .addProperty( "dataElement", "ILRgzHhzFkg" )
-                .addProperty( "value", "true" )
-                .build() );
+        JsonObject payload = new EventDataBuilder()
+            .addDataValue( "ILRgzHhzFkg", "true" )
+            .array( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
 
         TrackerApiResponse response = trackerActions.postAndGetJobReport( payload );
 
@@ -163,7 +170,7 @@ public class RuleEngineTests
     @Test
     public void shouldAssignValue()
     {
-        JsonObject payload = trackerActions.buildEvent( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
+        JsonObject payload = new EventDataBuilder().array( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
 
         TrackerApiResponse response = trackerActions
             .postAndGetJobReport( payload, new QueryParamsBuilder().addAll( "skipSideEffects=true" ) );
@@ -184,24 +191,16 @@ public class RuleEngineTests
 
     @Test
     public void shouldSendProgramRuleNotification()
-        throws InterruptedException
     {
-        JsonObject payload = trackerActions.buildEvent( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
-
-        JsonObjectBuilder.jsonObject( payload )
-            .addArrayByJsonPath( "events[0]", "dataValues", new JsonObjectBuilder()
-                .addProperty( "dataElement", "ILRgzHhzFkg" )
-                .addProperty( "value", "true" )
-                .build(), new JsonObjectBuilder()
-                .addProperty( "dataElement", "z3Z4TD3oBCP" )
-                .addProperty( "value", "true" )
-                .build(), new JsonObjectBuilder()
-                .addProperty( "dataElement", "BuZ5LGNfGEU" )
-                .addProperty( "value", "40" )
-                .build() );
+        JsonObject payload = new EventDataBuilder()
+            .addDataValue( "ILRgzHhzFkg", "true" )
+            .addDataValue( "z3Z4TD3oBCP", "true" )
+            .addDataValue( "BuZ5LGNfGEU", "40" )
+            .array( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
 
         loginActions.loginAsAdmin();
-        ApiResponse response = new RestApiActions( "/messageConversations" ).get( "", new QueryParamsBuilder().add( "fields=*" ) );
+        ApiResponse response = new RestApiActions( "/messageConversations" ).get( "",
+            new QueryParamsBuilder().add( "fields=*" ) );
 
         int size = response.getBody().getAsJsonArray( "messageConversations" ).size();
 
@@ -221,14 +220,17 @@ public class RuleEngineTests
 
     @ParameterizedTest
     @CsvSource( { "ON_COMPLETE,COMPLETED,true", "ON_COMPLETE,ACTIVE,false", "ON_UPDATE_AND_INSERT,ACTIVE,true" } )
-    public void shouldShowErrorsBasedOnValidationStrategy( String validationStrategy, String eventStatus, boolean shouldFail )
+    public void shouldShowErrorsBasedOnValidationStrategy( String validationStrategy, String eventStatus,
+        boolean shouldFail )
     {
         String programStage = new ProgramStageActions().get( "", new QueryParamsBuilder()
-            .addAll( "filter=program.id:eq:" + trackerProgramId, "filter=validationStrategy:eq:" + validationStrategy )
-        ).extractString( "programStages.id[0]" );
+            .addAll( "filter=program.id:eq:" + trackerProgramId,
+                "filter=validationStrategy:eq:" + validationStrategy ) )
+            .extractString( "programStages.id[0]" );
 
-        JsonObject payload = trackerActions.buildTeiWithEnrollmentAndEvent( Constants.ORG_UNIT_IDS[0], trackerProgramId
-            , programStage );
+        JsonObject payload = new TeiDataBuilder()
+            .buildWithEnrollmentAndEvent( Constants.TRACKED_ENTITY_TYPE, Constants.ORG_UNIT_IDS[0], trackerProgramId,
+                programStage );
 
         // program rule is triggered for events with date earlier than today
         new JsonObjectBuilder( payload )
@@ -251,8 +253,9 @@ public class RuleEngineTests
     @Test
     public void shouldAddErrorForEnrollmentsAndEventsWhenRuleHasNoStage()
     {
-        JsonObject object = trackerActions
-            .buildTeiWithEnrollmentAndEvent( Constants.ORG_UNIT_IDS[0], trackerProgramId, "yKg8CY252Yk" );
+        JsonObject object = new TeiDataBuilder()
+            .buildWithEnrollmentAndEvent( Constants.TRACKED_ENTITY_TYPE, Constants.ORG_UNIT_IDS[0], trackerProgramId,
+                "yKg8CY252Yk" );
 
         JsonObjectBuilder.jsonObject( object )
             .addPropertyByJsonPath( "trackedEntities[0].enrollments[0].enrolledAt",
@@ -272,8 +275,9 @@ public class RuleEngineTests
     @Test
     public void shouldBeSkippedWhenSkipRuleEngineFlag()
     {
-        JsonObject payload = trackerActions.buildEvent( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
-        JsonObjectBuilder.jsonObject( payload ).addPropertyByJsonPath( "events[0].status", "COMPLETED" );
+        JsonObject payload = new EventDataBuilder()
+            .setStatus( "COMPLETED" )
+            .array( Constants.ORG_UNIT_IDS[0], eventProgramId, "Mt6Ac5brjoK" );
 
         TrackerApiResponse response = trackerActions
             .postAndGetJobReport( payload, new QueryParamsBuilder().add( "skipRuleEngine=true" ) );
@@ -286,8 +290,9 @@ public class RuleEngineTests
     {
         // arrange
 
-        JsonObject object = trackerActions
-            .buildTeiWithEnrollmentAndEvent( Constants.ORG_UNIT_IDS[0], trackerProgramId, "yKg8CY252Yk" );
+        JsonObject object = new TeiDataBuilder()
+            .buildWithEnrollmentAndEvent( Constants.TRACKED_ENTITY_TYPE, Constants.ORG_UNIT_IDS[0], trackerProgramId,
+                "yKg8CY252Yk" );
 
         JsonObjectBuilder.jsonObject( object )
             .addPropertyByJsonPath( "trackedEntities[0].enrollments[0].enrolledAt",

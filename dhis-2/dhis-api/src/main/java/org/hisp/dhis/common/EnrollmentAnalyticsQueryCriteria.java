@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,9 @@ package org.hisp.dhis.common;
 import java.util.Date;
 import java.util.Set;
 
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import org.hisp.dhis.analytics.SortOrder;
 import org.hisp.dhis.program.ProgramStatus;
@@ -39,17 +40,42 @@ import org.hisp.dhis.program.ProgramStatus;
 /**
  * @author Jan Bernitt
  */
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-public class EnrollmentAnalyticsQueryCriteria
+public class EnrollmentAnalyticsQueryCriteria extends AnalyticsPagingCriteria
 {
     private Date startDate;
 
     private Date endDate;
 
+    /**
+     * Date interval for enrollment date;
+     */
+    private String enrollmentDate;
+
+    /**
+     * Time interval for incident date;
+     */
+    private String incidentDate;
+
+    /**
+     * Time interval for last updated date;
+     */
+    private String lastUpdated;
+
+    private String timeField;
+
     private Set<String> dimension;
 
     private Set<String> filter;
+
+    /**
+     * This parameter selects the headers to be returned as part of the
+     * response. The implementation for this Set will be LinkedHashSet as the
+     * ordering is important.
+     */
+    private Set<String> headers;
 
     private OrganisationUnitSelectionMode ouMode;
 
@@ -71,13 +97,13 @@ public class EnrollmentAnalyticsQueryCriteria
 
     private IdScheme dataIdScheme;
 
-    private ProgramStatus programStatus;
+    /**
+     * Identifier scheme to use for metadata items the query response, can be
+     * identifier, code or attributes. ( options: UID | CODE | ATTRIBUTE:<ID> )
+     */
+    private IdScheme outputIdScheme;
 
-    private Integer page;
-
-    private Integer pageSize;
-
-    private boolean paging;
+    private Set<ProgramStatus> programStatus;
 
     private DisplayProperty displayProperty;
 
@@ -88,4 +114,11 @@ public class EnrollmentAnalyticsQueryCriteria
     private String coordinateField;
 
     private SortOrder sortOrder;
+
+    private boolean totalPages;
+
+    /**
+     * flag to enable enhanced OR conditions on queryItem dimensions/filters
+     */
+    private boolean enhancedConditions;
 }

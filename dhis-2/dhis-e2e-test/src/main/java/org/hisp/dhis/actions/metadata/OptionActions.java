@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions.metadata;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +25,13 @@ package org.hisp.dhis.actions.metadata;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions.metadata;
+
+import org.hisp.dhis.actions.RestApiActions;
+import org.hisp.dhis.utils.DataGenerator;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import org.hisp.dhis.actions.RestApiActions;
-import org.hisp.dhis.utils.DataGenerator;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -49,9 +49,11 @@ public class OptionActions
     }
 
     /**
-     * Creates an option. If optionSetId provided, associates option with an option set;
+     * Creates an option. If optionSetId provided, associates option with an
+     * option set;
      *
-     * @param optionSetId UID of option set. If null - option set won´t be associated with an option.
+     * @param optionSetId UID of option set. If null - option set won´t be
+     *        associated with an option.
      * @return
      */
     public String createOption( String optionName, String optionCode, String optionSetId )
@@ -73,11 +75,12 @@ public class OptionActions
     }
 
     /**
-     * Creates an option set. If optionIds are provided, links options with option set.
+     * Creates an option set. If optionIds are provided, links options with
+     * option set.
      *
      * @param optionSetName
      * @param valueType
-     * @param optionIds     UIDS of options
+     * @param optionIds UIDS of options
      * @return
      */
     public String createOptionSet( String optionSetName, String valueType, String... optionIds )
@@ -112,8 +115,8 @@ public class OptionActions
     }
 
     /**
-     * Grants user read and write access to option set.
-     * Validates that request was successful.
+     * Grants user read and write access to option set. Validates that request
+     * was successful.
      *
      * @param optionSetId
      * @param userId

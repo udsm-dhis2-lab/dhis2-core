@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,14 @@ package org.hisp.dhis.webapi.controller.event.webrequest;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hisp.dhis.common.AssignedUserSelectionMode;
+import org.hisp.dhis.common.CodeGenerator;
 import org.hisp.dhis.common.OrganisationUnitSelectionMode;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.event.EventStatus;
@@ -191,12 +193,20 @@ public class TrackedEntityInstanceCriteria extends PagingAndSortingCriteriaAdapt
 
     public Set<String> getOrgUnits()
     {
-        return ou != null ? TextUtils.splitToArray( ou, TextUtils.SEMICOLON ) : new HashSet<>();
+        return ou != null ? TextUtils.splitToSet( ou, TextUtils.SEMICOLON ) : new HashSet<>();
     }
 
     public Set<String> getAssignedUsers()
     {
-        return assignedUser != null ? TextUtils.splitToArray( assignedUser, TextUtils.SEMICOLON ) : new HashSet<>();
+        Set<String> assignedUsers = new HashSet<>();
+
+        if ( assignedUser != null && !assignedUser.isEmpty() )
+        {
+            assignedUsers = TextUtils.splitToSet( assignedUser, TextUtils.SEMICOLON ).stream()
+                .filter( CodeGenerator::isValidUid ).collect( Collectors.toSet() );
+        }
+
+        return assignedUsers;
     }
 
     public boolean hasTrackedEntityInstance()
@@ -208,7 +218,7 @@ public class TrackedEntityInstanceCriteria extends PagingAndSortingCriteriaAdapt
     {
         if ( hasTrackedEntityInstance() )
         {
-            return TextUtils.splitToArray( trackedEntityInstance, TextUtils.SEMICOLON );
+            return TextUtils.splitToSet( trackedEntityInstance, TextUtils.SEMICOLON );
         }
         return new HashSet<>();
     }

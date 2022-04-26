@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,10 +30,10 @@ package org.hisp.dhis.webapi.strategy.old.tracker.imports.impl;
 import java.io.IOException;
 import java.util.List;
 
+import org.hisp.dhis.common.AsyncTaskExecutor;
 import org.hisp.dhis.dxf2.events.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.dxf2.events.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.dxf2.importsummary.ImportSummaries;
-import org.hisp.dhis.scheduling.SchedulingManager;
 import org.hisp.dhis.webapi.controller.exception.BadRequestException;
 import org.hisp.dhis.webapi.strategy.old.tracker.imports.request.TrackerEntityInstanceRequest;
 import org.springframework.stereotype.Component;
@@ -45,9 +45,9 @@ import org.springframework.stereotype.Component;
 public class TrackedEntityInstanceSyncStrategyImpl extends AbstractTrackedEntityInstanceStrategy
 {
     public TrackedEntityInstanceSyncStrategyImpl( TrackedEntityInstanceService trackedEntityInstanceService,
-        SchedulingManager schedulingManager )
+        AsyncTaskExecutor taskExecutor )
     {
-        super( trackedEntityInstanceService, schedulingManager );
+        super( trackedEntityInstanceService, taskExecutor );
     }
 
     @Override

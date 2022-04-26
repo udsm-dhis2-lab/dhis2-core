@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,10 @@
  */
 package org.hisp.dhis.dxf2.datavalueset;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
+import static java.util.Collections.singleton;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -65,9 +66,10 @@ import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.security.acl.AccessStringHelper;
 import org.hisp.dhis.user.CurrentUserService;
+import org.hisp.dhis.user.CurrentUserServiceTarget;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,8 +78,7 @@ import com.google.common.collect.Sets;
 /**
  * @author Lars Helge Overland
  */
-public class DataValueSetServiceExportTest
-    extends IntegrationTestBase
+class DataValueSetServiceExportTest extends IntegrationTestBase
 {
     @Autowired
     private CategoryService categoryService;
@@ -154,108 +155,84 @@ public class DataValueSetServiceExportTest
 
     private String peAUid;
 
+    private String peBUid;
+
     @Override
     public void setUpTest()
     {
         userService = _userService;
-
         peA = createPeriod( PeriodType.getByNameIgnoreCase( MonthlyPeriodType.NAME ), getDate( 2016, 3, 1 ),
             getDate( 2016, 3, 31 ) );
         peB = createPeriod( PeriodType.getByNameIgnoreCase( MonthlyPeriodType.NAME ), getDate( 2016, 4, 1 ),
             getDate( 2016, 4, 30 ) );
         periodService.addPeriod( peA );
         periodService.addPeriod( peB );
-
         peAUid = peA.getUid();
-
+        peBUid = peB.getUid();
         deA = createDataElement( 'A' );
         deB = createDataElement( 'B' );
         deC = createDataElement( 'C' );
-
         dataElementService.addDataElement( deA );
         dataElementService.addDataElement( deB );
         dataElementService.addDataElement( deC );
-
         ccA = createCategoryCombo( 'A' );
-
         categoryService.addCategoryCombo( ccA );
-
         cocA = createCategoryOptionCombo( 'A' );
         cocB = createCategoryOptionCombo( 'B' );
-
         cocA.setCategoryCombo( ccA );
         cocB.setCategoryCombo( ccA );
-
         categoryService.addCategoryOptionCombo( cocA );
         categoryService.addCategoryOptionCombo( cocB );
-
         atA = createAttribute( 'A' );
         atA.setDataElementAttribute( true );
         atA.setOrganisationUnitAttribute( true );
         atA.setCategoryOptionComboAttribute( true );
-
         idObjectManager.save( atA );
-
         dsA = createDataSet( 'A' );
         dsA.addDataSetElement( deA );
         dsA.addDataSetElement( deB );
-
         dsB = createDataSet( 'B' );
         dsB.addDataSetElement( deA );
-
         dataSetService.addDataSet( dsA );
         dataSetService.addDataSet( dsB );
-
         ouA = createOrganisationUnit( 'A' );
         ouB = createOrganisationUnit( 'B', ouA );
-        ouC = createOrganisationUnit( 'C' ); // Not in hierarchy of A
-
+        // Not in hierarchy of A
+        ouC = createOrganisationUnit( 'C' );
         organisationUnitService.addOrganisationUnit( ouA );
         organisationUnitService.addOrganisationUnit( ouB );
         organisationUnitService.addOrganisationUnit( ouC );
-
         ogA = createOrganisationUnitGroup( 'A' );
-
         idObjectManager.save( ogA );
-
         avA = new AttributeValue( "AttributeValueA", atA );
         avB = new AttributeValue( "AttributeValueB", atA );
         avC = new AttributeValue( "AttributeValueC", atA );
         avD = new AttributeValue( "AttributeValueD", atA );
-
         attributeService.addAttributeValue( deA, avA );
         attributeService.addAttributeValue( ouA, avB );
         attributeService.addAttributeValue( cocA, avC );
         attributeService.addAttributeValue( cocB, avD );
-
         // Data values
-
         dataValueService.addDataValue( new DataValue( deA, peA, ouA, cocA, cocA, "1" ) );
         dataValueService.addDataValue( new DataValue( deA, peA, ouA, cocB, cocB, "1" ) );
         dataValueService.addDataValue( new DataValue( deA, peA, ouB, cocA, cocA, "1" ) );
         dataValueService.addDataValue( new DataValue( deA, peA, ouB, cocB, cocB, "1" ) );
-
         dataValueService.addDataValue( new DataValue( deA, peB, ouA, cocA, cocA, "1" ) );
         dataValueService.addDataValue( new DataValue( deA, peB, ouA, cocB, cocB, "1" ) );
         dataValueService.addDataValue( new DataValue( deA, peB, ouB, cocA, cocA, "1" ) );
         dataValueService.addDataValue( new DataValue( deA, peB, ouB, cocB, cocB, "1" ) );
-
         dataValueService.addDataValue( new DataValue( deB, peA, ouA, cocA, cocA, "1" ) );
         dataValueService.addDataValue( new DataValue( deB, peA, ouA, cocB, cocB, "1" ) );
         dataValueService.addDataValue( new DataValue( deB, peA, ouB, cocA, cocA, "1" ) );
         dataValueService.addDataValue( new DataValue( deB, peA, ouB, cocB, cocB, "1" ) );
-
         // Flush session to make data values visible to JDBC query
-
         // Service mocks
-
         user = createUser( 'A' );
         user.setOrganisationUnits( Sets.newHashSet( ouA, ouB ) );
         userService.addUser( user );
         CurrentUserService currentUserService = new MockCurrentUserService( user );
-        setDependency( dataValueSetService, "currentUserService", currentUserService );
-        setDependency( organisationUnitService, "currentUserService", currentUserService );
-
+        setDependency( CurrentUserServiceTarget.class, CurrentUserServiceTarget::setCurrentUserService,
+            currentUserService, dataValueSetService, organisationUnitService );
         enableDataSharing( user, dsA, AccessStringHelper.DATA_READ_WRITE );
         enableDataSharing( user, dsB, AccessStringHelper.DATA_READ_WRITE );
         dataSetService.updateDataSet( dsA );
@@ -265,27 +242,19 @@ public class DataValueSetServiceExportTest
     // -------------------------------------------------------------------------
     // Tests
     // -------------------------------------------------------------------------
-
     @Test
-    public void testExportBasic()
+    void testExportBasic()
         throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setOrganisationUnits( Sets.newHashSet( ouA ) )
-            .setPeriods( Sets.newHashSet( peA ) );
-
-        dataValueSetService.writeDataValueSetJson( params, out );
-
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setOrganisationUnits( Sets.newHashSet( ouA ) ).setPeriods( Sets.newHashSet( peA ) );
+        dataValueSetService.exportDataValueSetJson( params, out );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertNotNull( dvs.getDataSet() );
         assertEquals( dsA.getUid(), dvs.getDataSet() );
         assertEquals( 4, dvs.getDataValues().size() );
-
         for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
         {
             assertNotNull( dv );
@@ -295,25 +264,42 @@ public class DataValueSetServiceExportTest
     }
 
     @Test
-    public void testExportAttributeOptionCombo()
+    void testExportBasic_FromUrlParamsWithCodes()
+        throws IOException
+    {
+        DataValueSetQueryParams params = DataValueSetQueryParams.builder().dataSet( singleton( dsA.getCode() ) )
+            .inputOrgUnitIdScheme( IdentifiableProperty.CODE ).orgUnit( singleton( ouA.getCode() ) )
+            .inputDataSetIdScheme( IdentifiableProperty.CODE ).period( singleton( peAUid ) )
+            .dataSetIdScheme( IdentifiableProperty.CODE.name() ).orgUnitIdScheme( IdentifiableProperty.CODE.name() )
+            .build();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        dataValueSetService.exportDataValueSetJson( dataValueSetService.getFromUrl( params ), out );
+        DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
+        assertNotNull( dvs );
+        assertNotNull( dvs.getDataSet() );
+        assertEquals( dsA.getCode(), dvs.getDataSet() );
+        assertEquals( 4, dvs.getDataValues().size() );
+        for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
+        {
+            assertNotNull( dv );
+            assertEquals( ouA.getCode(), dv.getOrgUnit() );
+            assertEquals( peAUid, dv.getPeriod() );
+        }
+    }
+
+    @Test
+    void testExportAttributeOptionCombo()
         throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setOrganisationUnits( Sets.newHashSet( ouB ) )
-            .setPeriods( Sets.newHashSet( peA ) )
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setOrganisationUnits( Sets.newHashSet( ouB ) ).setPeriods( Sets.newHashSet( peA ) )
             .setAttributeOptionCombos( Sets.newHashSet( cocA ) );
-
-        dataValueSetService.writeDataValueSetJson( params, out );
-
+        dataValueSetService.exportDataValueSetJson( params, out );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertNotNull( dvs.getDataSet() );
         assertEquals( 2, dvs.getDataValues().size() );
-
         for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
         {
             assertNotNull( dv );
@@ -323,26 +309,44 @@ public class DataValueSetServiceExportTest
     }
 
     @Test
-    public void testExportOrgUnitChildren()
+    void testExportAttributeOptionCombo_FromUrlParamsWithCodes()
+        throws IOException
+    {
+        DataValueSetQueryParams params = DataValueSetQueryParams.builder().dataSet( singleton( dsA.getCode() ) )
+            .inputOrgUnitIdScheme( IdentifiableProperty.CODE ).orgUnit( singleton( ouB.getCode() ) )
+            .inputDataSetIdScheme( IdentifiableProperty.CODE ).period( singleton( peAUid ) )
+            .attributeOptionCombo( singleton( cocA.getCode() ) ).inputIdScheme( IdentifiableProperty.CODE )
+            .dataSetIdScheme( IdentifiableProperty.CODE.name() ).orgUnitIdScheme( IdentifiableProperty.CODE.name() )
+            .attributeOptionComboIdScheme( IdentifiableProperty.CODE.name() ).build();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        dataValueSetService.exportDataValueSetJson( dataValueSetService.getFromUrl( params ), out );
+        DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
+        assertNotNull( dvs );
+        assertNotNull( dvs.getDataSet() );
+        assertEquals( 2, dvs.getDataValues().size() );
+        for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
+        {
+            assertNotNull( dv );
+            assertEquals( ouB.getCode(), dv.getOrgUnit() );
+            assertEquals( cocA.getCode(), dv.getAttributeOptionCombo() );
+            assertEquals( peAUid, dv.getPeriod() );
+        }
+    }
+
+    @Test
+    void testExportOrgUnitChildren()
         throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setOrganisationUnits( Sets.newHashSet( ouA ) )
-            .setIncludeChildren( true )
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setOrganisationUnits( Sets.newHashSet( ouA ) ).setIncludeDescendants( true )
             .setPeriods( Sets.newHashSet( peA ) );
-
-        dataValueSetService.writeDataValueSetJson( params, out );
-
+        dataValueSetService.exportDataValueSetJson( params, out );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertNotNull( dvs.getDataSet() );
         assertEquals( dsA.getUid(), dvs.getDataSet() );
         assertEquals( 8, dvs.getDataValues().size() );
-
         for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
         {
             assertNotNull( dv );
@@ -351,33 +355,24 @@ public class DataValueSetServiceExportTest
     }
 
     @Test
-    public void testExportOutputSingleDataValueSetIdSchemeCode()
+    void testExportOutputSingleDataValueSetIdSchemeCode()
         throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        IdSchemes idSchemes = new IdSchemes()
-            .setOrgUnitIdScheme( IdentifiableProperty.CODE.name() )
+        IdSchemes idSchemes = new IdSchemes().setOrgUnitIdScheme( IdentifiableProperty.CODE.name() )
             .setDataElementIdScheme( IdentifiableProperty.CODE.name() )
             .setDataSetIdScheme( IdentifiableProperty.CODE.name() );
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsB ) )
-            .setOrganisationUnits( Sets.newHashSet( ouA ) )
-            .setPeriods( Sets.newHashSet( peB ) )
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsB ) )
+            .setOrganisationUnits( Sets.newHashSet( ouA ) ).setPeriods( Sets.newHashSet( peB ) )
             .setOutputIdSchemes( idSchemes );
-
-        dataValueSetService.writeDataValueSetJson( params, out );
-
+        dataValueSetService.exportDataValueSetJson( params, out );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertNotNull( dvs.getDataSet() );
         assertNotNull( dvs.getOrgUnit() );
         assertEquals( dsB.getCode(), dvs.getDataSet() );
         assertEquals( ouA.getCode(), dvs.getOrgUnit() );
         assertEquals( 2, dvs.getDataValues().size() );
-
         for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
         {
             assertNotNull( dv );
@@ -387,33 +382,48 @@ public class DataValueSetServiceExportTest
     }
 
     @Test
-    public void testExportOutputIdSchemeAttribute()
+    void testExportOutputSingleDataValueSetIdSchemeCode_FromUrlParamsWithCodes()
+        throws IOException
+    {
+        DataValueSetQueryParams params = DataValueSetQueryParams.builder()
+            .orgUnitIdScheme( IdentifiableProperty.CODE.name() ).dataElementIdScheme( IdentifiableProperty.CODE.name() )
+            .dataSetIdScheme( IdentifiableProperty.CODE.name() ).//
+            dataSet( singleton( dsB.getCode() ) ).orgUnit( singleton( ouA.getCode() ) ).period( singleton( peBUid ) )
+            .inputIdScheme( IdentifiableProperty.CODE ).build();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        dataValueSetService.exportDataValueSetJson( dataValueSetService.getFromUrl( params ), out );
+        DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
+        assertNotNull( dvs );
+        assertNotNull( dvs.getDataSet() );
+        assertNotNull( dvs.getOrgUnit() );
+        assertEquals( dsB.getCode(), dvs.getDataSet() );
+        assertEquals( ouA.getCode(), dvs.getOrgUnit() );
+        assertEquals( 2, dvs.getDataValues().size() );
+        for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
+        {
+            assertNotNull( dv );
+            assertEquals( deA.getCode(), dv.getDataElement() );
+            assertEquals( ouA.getCode(), dv.getOrgUnit() );
+        }
+    }
+
+    @Test
+    void testExportOutputIdSchemeAttribute()
         throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
         String attributeIdScheme = IdScheme.ATTR_ID_SCHEME_PREFIX + atA.getUid();
-
-        IdSchemes idSchemes = new IdSchemes()
-            .setDataElementIdScheme( attributeIdScheme )
-            .setOrgUnitIdScheme( attributeIdScheme )
-            .setCategoryOptionComboIdScheme( attributeIdScheme );
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsB ) )
-            .setOrganisationUnits( Sets.newHashSet( ouA ) )
-            .setPeriods( Sets.newHashSet( peB ) )
+        IdSchemes idSchemes = new IdSchemes().setDataElementIdScheme( attributeIdScheme )
+            .setOrgUnitIdScheme( attributeIdScheme ).setCategoryOptionComboIdScheme( attributeIdScheme );
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsB ) )
+            .setOrganisationUnits( Sets.newHashSet( ouA ) ).setPeriods( Sets.newHashSet( peB ) )
             .setOutputIdSchemes( idSchemes );
-
-        dataValueSetService.writeDataValueSetJson( params, out );
-
+        dataValueSetService.exportDataValueSetJson( params, out );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertNotNull( dvs.getDataSet() );
         assertEquals( dsB.getUid(), dvs.getDataSet() );
         assertEquals( 2, dvs.getDataValues().size() );
-
         for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
         {
             assertNotNull( dv );
@@ -423,19 +433,15 @@ public class DataValueSetServiceExportTest
     }
 
     @Test
-    public void testExportLastUpdated()
+    void testExportLastUpdated()
         throws IOException
     {
         Date lastUpdated = getDate( 1970, 1, 1 );
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        dataValueSetService.writeDataValueSetJson( lastUpdated, out, new IdSchemes() );
-
+        dataValueSetService.exportDataValueSetJson( lastUpdated, out, new IdSchemes() );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertEquals( 12, dvs.getDataValues().size() );
-
         for ( org.hisp.dhis.dxf2.datavalue.DataValue dv : dvs.getDataValues() )
         {
             assertNotNull( dv );
@@ -443,159 +449,124 @@ public class DataValueSetServiceExportTest
     }
 
     @Test
-    public void testExportLastUpdatedWithDeletedValues()
+    void testExportLastUpdatedWithDeletedValues()
         throws IOException
     {
         DataValue dvA = new DataValue( deC, peA, ouA, cocA, cocA, "1" );
         DataValue dvB = new DataValue( deC, peB, ouA, cocA, cocA, "2" );
-
         dataValueService.addDataValue( dvA );
         dataValueService.addDataValue( dvB );
-
         Date lastUpdated = getDate( 1970, 1, 1 );
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        dataValueSetService.writeDataValueSetJson( lastUpdated, out, new IdSchemes() );
-
+        dataValueSetService.exportDataValueSetJson( lastUpdated, out, new IdSchemes() );
         DataValueSet dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertEquals( 14, dvs.getDataValues().size() );
-
         dataValueService.deleteDataValue( dvA );
         dataValueService.deleteDataValue( dvB );
-
         out = new ByteArrayOutputStream();
-
-        dataValueSetService.writeDataValueSetJson( lastUpdated, out, new IdSchemes() );
-
+        dataValueSetService.exportDataValueSetJson( lastUpdated, out, new IdSchemes() );
         dvs = jsonMapper.readValue( out.toByteArray(), DataValueSet.class );
-
         assertNotNull( dvs );
         assertEquals( 14, dvs.getDataValues().size() );
     }
 
     @Test
-    public void testMissingDataSetElementGroup()
+    void testMissingDataSetElementGroup()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setOrganisationUnits( Sets.newHashSet( ouB ) )
+        DataExportParams params = new DataExportParams().setOrganisationUnits( Sets.newHashSet( ouB ) )
             .setPeriods( Sets.newHashSet( peA ) );
-
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2001 );
     }
 
     @Test
-    public void testMissingPeriodStartEndDate()
+    void testMissingPeriodStartEndDate()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
             .setOrganisationUnits( Sets.newHashSet( ouA ) );
-
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2002 );
     }
 
     @Test
-    public void testPeriodAndStartEndDate()
+    void testPeriodAndStartEndDate()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setOrganisationUnits( Sets.newHashSet( ouB ) )
-            .setPeriods( Sets.newHashSet( peA ) )
-            .setStartDate( getDate( 2019, 1, 1 ) )
-            .setEndDate( getDate( 2019, 1, 31 ) );
-
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setOrganisationUnits( Sets.newHashSet( ouB ) ).setPeriods( Sets.newHashSet( peA ) )
+            .setStartDate( getDate( 2019, 1, 1 ) ).setEndDate( getDate( 2019, 1, 31 ) );
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2003 );
     }
 
     @Test
-    public void testStartDateAfterEndDate()
+    void testStartDateAfterEndDate()
     {
-
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setOrganisationUnits( Sets.newHashSet( ouB ) )
-            .setStartDate( getDate( 2019, 3, 1 ) )
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setOrganisationUnits( Sets.newHashSet( ouB ) ).setStartDate( getDate( 2019, 3, 1 ) )
             .setEndDate( getDate( 2019, 1, 31 ) );
-
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2004 );
     }
 
     @Test
-    public void testMissingOrgUnit()
+    void testMissingOrgUnit()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
             .setPeriods( Sets.newHashSet( peA ) );
-
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2006 );
     }
 
     @Test
-    public void testAtLestOneOrgUnitWithChildren()
+    void testAtLestOneOrgUnitWithChildren()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setPeriods( Sets.newHashSet( peA, peB ) )
-            .setOrganisationUnitGroups( Sets.newHashSet( ogA ) )
-            .setIncludeChildren( true );
-
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setPeriods( Sets.newHashSet( peA, peB ) ).setOrganisationUnitGroups( Sets.newHashSet( ogA ) )
+            .setIncludeDescendants( true );
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2008 );
     }
 
     @Test
-    public void testLimitLimitNotLessThanZero()
+    void testLimitLimitNotLessThanZero()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setPeriods( Sets.newHashSet( peA, peB ) )
-            .setOrganisationUnits( Sets.newHashSet( ouB ) )
-            .setLimit( -2 );
-
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setPeriods( Sets.newHashSet( peA, peB ) ).setOrganisationUnits( Sets.newHashSet( ouB ) ).setLimit( -2 );
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2009 );
     }
 
     @Test
-    public void testAccessOutsideOrgUnitHierarchy()
+    void testAccessOutsideOrgUnitHierarchy()
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        DataExportParams params = new DataExportParams()
-            .setDataSets( Sets.newHashSet( dsA ) )
-            .setOrganisationUnits( Sets.newHashSet( ouC ) )
-            .setPeriods( Sets.newHashSet( peA ) );
-
+        DataExportParams params = new DataExportParams().setDataSets( Sets.newHashSet( dsA ) )
+            .setOrganisationUnits( Sets.newHashSet( ouC ) ).setPeriods( Sets.newHashSet( peA ) );
         assertIllegalQueryEx(
-            assertThrows( IllegalQueryException.class, () -> dataValueSetService.writeDataValueSetJson( params, out ) ),
+            assertThrows( IllegalQueryException.class,
+                () -> dataValueSetService.exportDataValueSetJson( params, out ) ),
             ErrorCode.E2012 );
     }
-
 }

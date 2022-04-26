@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,12 @@
  */
 package org.hisp.dhis.analytics.security;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsIterableContaining.hasItem;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Set;
 
@@ -45,11 +49,14 @@ import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.common.QueryItem;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementService;
+import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
+import org.hisp.dhis.security.acl.AccessStringHelper;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
-import org.junit.Test;
+import org.hisp.dhis.user.sharing.Sharing;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.common.collect.Lists;
@@ -58,9 +65,9 @@ import com.google.common.collect.Sets;
 /**
  * @author Lars Helge Overland
  */
-public class AnalyticsSecurityManagerTest
-    extends IntegrationTestBase
+class AnalyticsSecurityManagerTest extends IntegrationTestBase
 {
+
     @Autowired
     private AnalyticsSecurityManager securityManager;
 
@@ -80,6 +87,8 @@ public class AnalyticsSecurityManagerTest
 
     private CategoryOption coB;
 
+    private CategoryOption coNotReadable;
+
     private Category caA;
 
     private DataElement deA;
@@ -89,6 +98,12 @@ public class AnalyticsSecurityManagerTest
     private OrganisationUnit ouB;
 
     private OrganisationUnit ouC;
+
+    private OrganisationUnit ouD;
+
+    private OrganisationUnit ouE;
+
+    private OrganisationUnit ouF;
 
     private Set<OrganisationUnit> userOrgUnits;
 
@@ -105,90 +120,101 @@ public class AnalyticsSecurityManagerTest
         createAndInjectAdminUser();
         coA = createCategoryOption( 'A' );
         coB = createCategoryOption( 'B' );
-
+        coNotReadable = createCategoryOption( 'N' );
         categoryService.addCategoryOption( coA );
         categoryService.addCategoryOption( coB );
-
-        caA = createCategory( 'A', coA, coB );
-
+        long nonReadableCatOption = categoryService.addCategoryOption( coNotReadable );
+        coNotReadable = categoryService.getCategoryOption( nonReadableCatOption );
+        Sharing sharing = Sharing.builder().owner( "cannotRead" ).publicAccess( AccessStringHelper.DEFAULT ).build();
+        coNotReadable.setSharing( sharing );
+        coNotReadable.setPublicAccess( AccessStringHelper.DEFAULT );
+        caA = createCategory( 'A', coA, coB, coNotReadable );
         categoryService.addCategory( caA );
-
         Set<Category> catDimensionConstraints = Sets.newHashSet( caA );
-
         deA = createDataElement( 'A' );
-
         dataElementService.addDataElement( deA );
-
         ouA = createOrganisationUnit( 'A' );
         ouB = createOrganisationUnit( 'B', ouA );
         ouC = createOrganisationUnit( 'C', ouB );
-
+        ouD = createOrganisationUnit( 'D', ouC );
+        ouE = createOrganisationUnit( 'E', ouC );
+        ouF = createOrganisationUnit( 'F', ouA );
         organisationUnitService.addOrganisationUnit( ouA );
         organisationUnitService.addOrganisationUnit( ouB );
         organisationUnitService.addOrganisationUnit( ouC );
-
+        organisationUnitService.addOrganisationUnit( ouD );
+        organisationUnitService.addOrganisationUnit( ouE );
         userOrgUnits = Sets.newHashSet( ouB, ouC );
-
         User user = createUser( "A", "F_VIEW_EVENT_ANALYTICS" );
         user.setOrganisationUnits( userOrgUnits );
         user.setDataViewOrganisationUnits( userOrgUnits );
-        user.getUserCredentials().setCatDimensionConstraints( catDimensionConstraints );
-
+        user.setDataViewMaxOrganisationUnitLevel( 3 );
+        user.setCatDimensionConstraints( catDimensionConstraints );
         userService.addUser( user );
         injectSecurityContext( user );
-
     }
 
     @Test
-    public void testDecideAccessGranted()
+    void testDataViewOrganisationUnits()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .withPeriods( Lists.newArrayList( createPeriod( "201801" ), createPeriod( "201802" ) ) )
-            .withOrganisationUnits( Lists.newArrayList( ouB, ouC ) )
-            .build();
-
-        securityManager.decideAccess( params );
+            .withOrganisationUnits( Lists.newArrayList( ouF ) ).build();
+        IllegalQueryException ex = assertThrows( IllegalQueryException.class,
+            () -> securityManager.decideAccess( params ) );
+        assertEquals( ErrorCode.E7120, ex.getErrorCode() );
     }
 
-    @Test( expected = IllegalQueryException.class )
-    public void testDecideAccessDenied()
+    @Test
+    void testDataViewMaxOrganisationUnitLevel()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
             .withPeriods( Lists.newArrayList( createPeriod( "201801" ), createPeriod( "201802" ) ) )
-            .withOrganisationUnits( Lists.newArrayList( ouA, ouB ) )
-            .build();
+            .withOrganisationUnits( Lists.newArrayList( ouD ) ).build();
+        IllegalQueryException ex = assertThrows( IllegalQueryException.class,
+            () -> securityManager.decideAccess( params ) );
+        assertEquals( ErrorCode.E7120, ex.getErrorCode() );
+    }
 
+    @Test
+    void testDecideAccessGranted()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder()
+            .withPeriods( Lists.newArrayList( createPeriod( "201801" ), createPeriod( "201802" ) ) )
+            .withOrganisationUnits( Lists.newArrayList( ouB, ouC ) ).build();
         securityManager.decideAccess( params );
     }
 
     @Test
-    public void testWithUserConstraintsDataQueryParams()
+    void testDecideAccessDenied()
     {
         DataQueryParams params = DataQueryParams.newBuilder()
-            .withDataElements( Lists.newArrayList( deA ) )
             .withPeriods( Lists.newArrayList( createPeriod( "201801" ), createPeriod( "201802" ) ) )
-            .build();
+            .withOrganisationUnits( Lists.newArrayList( ouA, ouB ) ).build();
+        assertThrows( IllegalQueryException.class, () -> securityManager.decideAccess( params ) );
+    }
 
+    @Test
+    void testWithUserConstraintsDataQueryParams()
+    {
+        DataQueryParams params = DataQueryParams.newBuilder().withDataElements( Lists.newArrayList( deA ) )
+            .withPeriods( Lists.newArrayList( createPeriod( "201801" ), createPeriod( "201802" ) ) ).build();
         params = securityManager.withUserConstraints( params );
-
         assertEquals( userOrgUnits, Sets.newHashSet( params.getFilterOrganisationUnits() ) );
         assertNotNull( params.getFilter( caA.getDimension() ) );
         assertEquals( caA.getDimension(), params.getFilter( caA.getDimension() ).getDimension() );
     }
 
     @Test
-    public void testWithUserConstraintsAlreadyPresentDataQueryParams()
+    void testWithUserConstraintsAlreadyPresentDataQueryParams()
     {
-        DataQueryParams params = DataQueryParams.newBuilder()
-            .withDataElements( Lists.newArrayList( deA ) )
+        DataQueryParams params = DataQueryParams.newBuilder().withDataElements( Lists.newArrayList( deA ) )
             .withPeriods( Lists.newArrayList( createPeriod( "201801" ), createPeriod( "201802" ) ) )
             .withOrganisationUnits( Lists.newArrayList( ouB ) )
             .addFilter(
                 new BaseDimensionalObject( caA.getDimension(), DimensionType.CATEGORY, Lists.newArrayList( coA ) ) )
             .build();
-
         params = securityManager.withUserConstraints( params );
-
         assertEquals( Lists.newArrayList( ouB ), params.getOrganisationUnits() );
         assertNotNull( params.getFilter( caA.getDimension() ) );
         assertEquals( caA.getDimension(), params.getFilter( caA.getDimension() ).getDimension() );
@@ -198,35 +224,43 @@ public class AnalyticsSecurityManagerTest
     }
 
     @Test
-    public void testWithUserConstraintsEventQueryParams()
+    void testWithUserConstraintsEventQueryParams()
     {
-        EventQueryParams params = new EventQueryParams.Builder()
-            .addItem( new QueryItem( deA ) )
-            .withStartDate( getDate( 2018, 1, 1 ) )
-            .withEndDate( getDate( 2018, 4, 1 ) )
-            .build();
-
+        EventQueryParams params = new EventQueryParams.Builder().addItem( new QueryItem( deA ) )
+            .withStartDate( getDate( 2018, 1, 1 ) ).withEndDate( getDate( 2018, 4, 1 ) ).build();
         params = securityManager.withUserConstraints( params );
-
         assertEquals( userOrgUnits, Sets.newHashSet( params.getFilterOrganisationUnits() ) );
         assertNotNull( params.getFilter( caA.getDimension() ) );
         assertEquals( caA.getDimension(), params.getFilter( caA.getDimension() ).getDimension() );
     }
 
     @Test
-    public void testWithUserConstraintsAlreadyPresentEventQueryParams()
+    void testWithUserConstraintsEventQueryParamsCheckingNotReadableCategoryOption()
     {
-        EventQueryParams params = new EventQueryParams.Builder()
-            .addItem( new QueryItem( deA ) )
-            .withStartDate( getDate( 2018, 1, 1 ) )
-            .withEndDate( getDate( 2018, 4, 1 ) )
+        // Given
+        EventQueryParams params = new EventQueryParams.Builder().addItem( new QueryItem( deA ) )
+            .withStartDate( getDate( 2018, 1, 1 ) ).withEndDate( getDate( 2018, 4, 1 ) ).build();
+        // When
+        params = securityManager.withUserConstraints( params );
+        // Then
+        int authorizedCatOptions = 2;
+        assertEquals( userOrgUnits, Sets.newHashSet( params.getFilterOrganisationUnits() ) );
+        assertNotNull( params.getFilter( caA.getDimension() ) );
+        assertEquals( caA.getDimension(), params.getFilter( caA.getDimension() ).getDimension() );
+        assertEquals( authorizedCatOptions, params.getFilter( caA.getDimension() ).getItems().size() );
+        assertThat( params.getFilter( caA.getDimension() ).getItems(), not( hasItem( coNotReadable ) ) );
+    }
+
+    @Test
+    void testWithUserConstraintsAlreadyPresentEventQueryParams()
+    {
+        EventQueryParams params = new EventQueryParams.Builder().addItem( new QueryItem( deA ) )
+            .withStartDate( getDate( 2018, 1, 1 ) ).withEndDate( getDate( 2018, 4, 1 ) )
             .withOrganisationUnits( Lists.newArrayList( ouB ) )
             .addFilter(
                 new BaseDimensionalObject( caA.getDimension(), DimensionType.CATEGORY, Lists.newArrayList( coA ) ) )
             .build();
-
         params = securityManager.withUserConstraints( params );
-
         assertEquals( Lists.newArrayList( ouB ), params.getOrganisationUnits() );
         assertNotNull( params.getFilter( caA.getDimension() ) );
         assertEquals( caA.getDimension(), params.getFilter( caA.getDimension() ).getDimension() );

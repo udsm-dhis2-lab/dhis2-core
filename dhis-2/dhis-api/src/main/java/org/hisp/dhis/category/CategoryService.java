@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.hisp.dhis.common.IdentifiableProperty;
+import org.apache.commons.collections4.SetValuedMap;
+import org.hisp.dhis.common.IdScheme;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.dataset.DataSet;
 import org.hisp.dhis.user.User;
-import org.hisp.dhis.user.UserCredentials;
 
 /**
  * @author Abyot Asalefew
@@ -216,10 +216,19 @@ public interface CategoryService
      * Returns a set of CategoryOptions that may be seen by the current user, if
      * the current user has any Category constraint(s).
      *
-     * @param userCredentials User credentials to check restrictions for.
+     * @param user User user to check restrictions for.
      * @return Set of CategoryOptions if constrained, else null.
      */
-    Set<CategoryOption> getCoDimensionConstraints( UserCredentials userCredentials );
+    Set<CategoryOption> getCoDimensionConstraints( User user );
+
+    /**
+     * returns associations between categoryOptions and orgUnits
+     *
+     * @param categoryOptionsUids a list of categoryOption uids
+     * @return an IdentifiableObjectAssociations representing associations
+     *         between each categoryOption in input and orgUnits
+     */
+    SetValuedMap<String, String> getCategoryOptionOrganisationUnitsAssociations( Set<String> categoryOptionsUids );
 
     // -------------------------------------------------------------------------
     // CategoryCombo
@@ -375,16 +384,6 @@ public interface CategoryService
         Set<CategoryOption> categoryOptions );
 
     /**
-     * Retrieves the CategoryOptionCombo with the given uid and
-     * {@link IdentifiableProperty}.
-     *
-     * @param id the id of the CategoryOptionCombo.
-     * @param property the type of id to use
-     * @return the CategoryOptionCombo.
-     */
-    CategoryOptionCombo getCategoryOptionCombo( IdentifiableProperty property, String id );
-
-    /**
      * Retrieves all CategoryOptionCombos.
      *
      * @return a list of CategoryOptionCombos.
@@ -433,11 +432,11 @@ public interface CategoryService
      * control by only returning objects which the current user has
      * {@code data write} access to.
      *
-     * @param property the property.
+     * @param idScheme the id scheme.
      * @param id the id.
      * @return a category option combo.
      */
-    CategoryOptionCombo getCategoryOptionComboAcl( IdentifiableProperty property, String id );
+    CategoryOptionCombo getCategoryOptionComboAcl( IdScheme idScheme, String id );
 
     /**
      * Updates the name property of all category option combinations.
@@ -496,10 +495,10 @@ public interface CategoryService
      * Returns a set of CategoryOptionGroups that may be seen by the current
      * user, if the current user has any CategoryOptionGroupSet constraint(s).
      *
-     * @param userCredentials User credentials to check restrictions for.
+     * @param user User user to check restrictions for.
      * @return Set of CategoryOptionGroups if constrained, else null.
      */
-    Set<CategoryOptionGroup> getCogDimensionConstraints( UserCredentials userCredentials );
+    Set<CategoryOptionGroup> getCogDimensionConstraints( User user );
 
     // -------------------------------------------------------------------------
     // CategoryOptionGroupSet

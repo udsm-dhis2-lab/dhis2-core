@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,12 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
 
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import org.hisp.dhis.common.DxfNamespaces;
 
@@ -44,6 +49,8 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 @Builder( toBuilder = true )
 @AllArgsConstructor( access = AccessLevel.PROTECTED )
 @NoArgsConstructor
+@Getter
+@Setter
 public class ReservedValue
     implements Serializable
 {
@@ -65,6 +72,8 @@ public class ReservedValue
     private Date created;
 
     private Date expiryDate;
+
+    private transient long trackedEntityAttributeId;
 
     public int getId()
     {

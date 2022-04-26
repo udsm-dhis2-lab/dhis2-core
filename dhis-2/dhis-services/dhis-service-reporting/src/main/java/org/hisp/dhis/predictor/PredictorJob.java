@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,29 +27,26 @@
  */
 package org.hisp.dhis.predictor;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import lombok.AllArgsConstructor;
 
-import org.hisp.dhis.scheduling.AbstractJob;
+import org.hisp.dhis.scheduling.Job;
 import org.hisp.dhis.scheduling.JobConfiguration;
+import org.hisp.dhis.scheduling.JobProgress;
 import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.scheduling.parameters.PredictorJobParameters;
+import org.hisp.dhis.system.notification.Notifier;
 import org.springframework.stereotype.Component;
 
 /**
  * @author Henning Håkonsen
  */
-@Component( "predictorJob" )
-public class PredictorJob
-    extends AbstractJob
+@Component
+@AllArgsConstructor
+public class PredictorJob implements Job
 {
     private final PredictionService predictionService;
 
-    public PredictorJob( PredictionService predictionService )
-    {
-        checkNotNull( predictionService );
-
-        this.predictionService = predictionService;
-    }
+    private final Notifier notifier;
 
     @Override
     public JobType getJobType()
@@ -58,15 +55,25 @@ public class PredictorJob
     }
 
     @Override
-    public void execute( JobConfiguration jobConfiguration )
+    public void execute( JobConfiguration config, JobProgress progress )
     {
-        PredictorJobParameters predictorJobParameters = (PredictorJobParameters) jobConfiguration.getJobParameters();
+        PredictorJobParameters params = (PredictorJobParameters) config.getJobParameters();
 
-        if ( predictorJobParameters == null )
+        if ( params == null )
         {
             throw new IllegalStateException( "No job parameters present in predictor job" );
         }
 
-        predictionService.predictJob( predictorJobParameters, null );
+        progress.startingProcess( "Making predictions" );
+        PredictionSummary summary = predictionService.predictJob( params, progress );
+        notifier.addJobSummary( config, summary, PredictionSummary.class );
+        if ( summary.getStatus() == PredictionStatus.SUCCESS )
+        {
+            progress.completedProcess( summary.getDescription() );
+        }
+        else
+        {
+            progress.failedProcess( summary.getDescription() );
+        }
     }
 }

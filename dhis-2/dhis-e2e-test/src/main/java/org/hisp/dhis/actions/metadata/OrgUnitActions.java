@@ -1,7 +1,5 @@
-package org.hisp.dhis.actions.metadata;
-
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +25,16 @@ package org.hisp.dhis.actions.metadata;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.hisp.dhis.actions.metadata;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import org.hisp.dhis.actions.RestApiActions;
 import org.hisp.dhis.dto.ApiResponse;
 import org.hisp.dhis.dto.OrgUnit;
 import org.hisp.dhis.helpers.JsonParserUtils;
 import org.hisp.dhis.utils.DataGenerator;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 /**
  * @author Gintare Vilkelyte <vilkelyte.gintare@gmail.com>
@@ -68,6 +68,7 @@ public class OrgUnitActions
 
     /***
      * Generates dummy org unit and sends POST request to create it.
+     *
      * @return
      */
     public ApiResponse postDummyOrgUnit()
@@ -96,8 +97,9 @@ public class OrgUnitActions
         return orgUnit;
     }
 
-    public JsonObject createOrgUnitBody() {
-        return JsonParserUtils.toJsonObject(  generateDummy());
+    public JsonObject createOrgUnitBody()
+    {
+        return JsonParserUtils.toJsonObject( generateDummy() );
     }
 
     public String createOrgUnit()
@@ -131,7 +133,8 @@ public class OrgUnitActions
         return create( orgUnit );
     }
 
-    public void addAttributeValue(String orgUnit, String attributeId, String attributeValue) {
+    public void addAttributeValue( String orgUnit, String attributeId, String attributeValue )
+    {
         JsonObject orgUnitObj = this.get( orgUnit ).getBody();
 
         JsonObject attributeObj = new JsonObject();
@@ -139,7 +142,7 @@ public class OrgUnitActions
 
         JsonObject attributeValueObj = new JsonObject();
         attributeValueObj.addProperty( "value", attributeValue );
-        attributeValueObj.add("attribute", attributeObj );
+        attributeValueObj.add( "attribute", attributeObj );
 
         JsonArray attributeValues = orgUnitObj.getAsJsonArray( "attributeValues" );
         attributeValues.add( attributeValueObj );

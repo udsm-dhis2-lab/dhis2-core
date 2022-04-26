@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2021, University of Oslo
+ * Copyright (c) 2004-2022, University of Oslo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package org.hisp.dhis.security.authority;
+
+import static java.util.Collections.emptyList;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -63,9 +65,14 @@ public class DetectingSystemAuthoritiesProvider
     @Override
     public Collection<String> getSystemAuthorities()
     {
-        HashSet<String> authorities = new HashSet<>();
+        Dispatcher instance = Dispatcher.getInstance();
+        if ( instance == null )
+        {
+            return emptyList();
+        }
 
-        Configuration configuration = Dispatcher.getInstance().getConfigurationManager().getConfiguration();
+        HashSet<String> authorities = new HashSet<>();
+        Configuration configuration = instance.getConfigurationManager().getConfiguration();
 
         for ( PackageConfig packageConfig : configuration.getPackageConfigs().values() )
         {
