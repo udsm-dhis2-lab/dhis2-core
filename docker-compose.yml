@@ -2,9 +2,10 @@ version: "3.6"
 
 services:
   dhis2-core:
-    image: tons/dhis2-core:2.37-SNAPSHOT
+    image: dhis2/core-dev:jib-2.37-SNAPSHOT
     ports:
-      - 8080:9080
+#      - 8080:9080
+      - 8080:8080
     environment:
       JAVA_TOOL_OPTIONS: "-Djetty.host=0.0.0.0"
     volumes:
