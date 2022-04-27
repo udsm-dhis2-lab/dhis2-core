@@ -21,7 +21,7 @@ services:
     environment:
       POSTGRES_USER: dhis
       POSTGRES_DB: dhis2
-      POSTGRES_PASSOWRD: dhis
+      POSTGRES_PASSWORD: dhis
 
   dhis2-base:
     image: tons/dhis2-base
