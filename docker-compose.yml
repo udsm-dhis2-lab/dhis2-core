@@ -8,8 +8,10 @@ services:
       - 8080:8080
     environment:
       JAVA_TOOL_OPTIONS: "-Djetty.host=0.0.0.0"
+      DHIS2_HOME: /dhis2
     volumes:
       - ./config/dhis.conf:/opt/dhis2/dhis.conf:rw
+      - ./dhis2_home:/dhis2:rw
 
   db:
     image: mdillon/postgis:10-alpine
