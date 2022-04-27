@@ -31,7 +31,7 @@
                 <configuration>
                     <container>
                         <user>nobody</user>
-                        <appRoot>/usr/local/tomcat/webapps/dhis2</appRoot>
+                        <appRoot>/usr/local/tomcat/webapps/ROOT</appRoot>
                     </container>
                     <from>
                         <image>${jib-maven-plugin.from-image}</image>
