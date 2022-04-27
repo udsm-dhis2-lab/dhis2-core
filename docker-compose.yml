@@ -2,7 +2,7 @@ version: "3.6"
 
 services:
   dhis2-core:
-    image: dhis2/core-dev:jib-2.37-SNAPSHOT
+    image: dhis2/core-dev:jib-2.39-SNAPSHOT
     ports:
 #      - 8080:9080
       - 8080:8080
