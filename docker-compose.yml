@@ -26,3 +26,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.base
+
+#  tomcat:
+#    image: tomcat:8.5-jre11-openjdk
+#    ports:
+#      - "8080:8080"
+#    volumes:
+#      - ./config/dhis.conf:/opt/dhis2/dhis.conf:rw
+#      - ./config/context.xml:/usr/local/tomcat/webapps/manager/META-INF/context.xml
+#      - ./tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+#      - /home/tons/IdeaProjects/dhis2/dhis2-core/dhis-2/dhis-web/dhis-web-portal/target/dhis.war:/usr/local/tomcat/webapps/dhis2.war
