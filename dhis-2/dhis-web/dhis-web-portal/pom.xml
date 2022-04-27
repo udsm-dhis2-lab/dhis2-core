@@ -15,7 +15,7 @@
 
     <properties>
         <jib-maven-plugin.version>3.2.1</jib-maven-plugin.version>
-        <jib-maven-plugin.from-image>tomcat:8.5-jre11-openjdk</jib-maven-plugin.from-image>
+        <jib-maven-plugin.from-image>tomcat:8.5-jre11-slim</jib-maven-plugin.from-image>
         <jib-maven-plugin.to-image>dhis2/core-dev</jib-maven-plugin.to-image>
 
         <rootDir>../../</rootDir>
