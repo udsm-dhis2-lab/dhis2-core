@@ -1,4 +1,5 @@
-./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml war:war jib:dockerBuild
+./mvnw clean install -DskipTests -f ./pom-full.xml
+./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml jib:dockerBuild
 docker compose up dhis2-core db
 # Install httpie, you can thank me later
 http --auth admin:district :8080/api/me
