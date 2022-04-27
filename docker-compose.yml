@@ -6,11 +6,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-#      JAVA_TOOL_OPTIONS: "-DCONTEXT_PATH='/whatever'"
-      DHIS2_HOME: /dhis2
+      JAVA_TOOL_OPTIONS: "-DCONTEXT_PATH=/whatever"
     volumes:
       - ./config/server.xml:/usr/local/tomcat/conf/server.xml:ro
-      - ./dhis2_home:/dhis2:rw
+      - ./dhis2_home:/opt/dhis2:rw
 
   db:
     image: mdillon/postgis:10-alpine
