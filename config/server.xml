@@ -148,8 +148,11 @@
                resourceName="UserDatabase"/>
       </Realm>
 
-      <Host name="localhost"  appBase="webapps"
-            unpackWARs="true" autoDeploy="true">
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="false"
+            autoDeploy="false"
+            deployOnStartup="false"
+      >
 
         <Context path="${CONTEXT_PATH}" docBase="ROOT/" />
 
