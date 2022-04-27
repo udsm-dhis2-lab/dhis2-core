@@ -6,7 +6,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      JAVA_TOOL_OPTIONS: "-DCONTEXT_PATH=/whatever"
+#      JAVA_TOOL_OPTIONS: "-DCONTEXT_PATH=/whatever"
+      JAVA_TOOL_OPTIONS: "-DCONTEXT_PATH=''"
     volumes:
       - ./config/server.xml:/usr/local/tomcat/conf/server.xml:ro
       - ./dhis2_home:/opt/dhis2:rw
