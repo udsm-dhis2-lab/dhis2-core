@@ -154,7 +154,7 @@
             deployOnStartup="false"
       >
 
-        <Context path="${CONTEXT_PATH}" docBase="ROOT/" />
+        <Context path="${context.path}" docBase="ROOT/" />
 
         <!-- SingleSignOn valve, share authentication between web applications
              Documentation at: /docs/config/valve.html -->
