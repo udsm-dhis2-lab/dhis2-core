@@ -1,6 +1,6 @@
 ./mvnw clean install -DskipTests -f ./pom-full.xml
 ./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml jib:dockerBuild
-./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml jib:dockerBuild -Djib.to-image-tag=custom-tag
+#./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml jib:dockerBuild -Djib.to-image-tag=custom-tag
 docker compose up dhis2-core db
 http --auth admin:district :8080/api/me
 
