@@ -14,9 +14,12 @@
     <name>DHIS Web Portal</name>
 
     <properties>
-        <jib-maven-plugin.version>3.2.1</jib-maven-plugin.version>
-        <jib-maven-plugin.from-image>tomcat:8.5-jre11-slim</jib-maven-plugin.from-image>
-        <jib-maven-plugin.to-image>dhis2/core-dev</jib-maven-plugin.to-image>
+        <jib.version>3.2.1</jib.version>
+        <jib.from-image>tomcat:8.5-jre11-slim</jib.from-image>
+        <jib.to-image>dhis2/core-dev</jib.to-image>
+        <jib.to-image-tag>jib-${project.version}</jib.to-image-tag>
+        <jib.user>nobody</jib.user>
+        <jib.app-root>/usr/local/tomcat/webapps/ROOT</jib.app-root>
 
         <rootDir>../../</rootDir>
     </properties>
@@ -27,14 +30,14 @@
             <plugin>
                 <groupId>com.google.cloud.tools</groupId>
                 <artifactId>jib-maven-plugin</artifactId>
-                <version>${jib-maven-plugin.version}</version>
+                <version>${jib.version}</version>
                 <configuration>
                     <container>
-                        <user>nobody</user>
-                        <appRoot>/usr/local/tomcat/webapps/ROOT</appRoot>
+                        <user>${jib.user}</user>
+                        <appRoot>${jib.app-root}</appRoot>
                     </container>
                     <from>
-                        <image>${jib-maven-plugin.from-image}</image>
+                        <image>${jib.from-image}</image>
 <!--
                         <platforms>
                             <platform>
@@ -49,7 +52,7 @@
 -->
                     </from>
                     <to>
-                        <image>${jib-maven-plugin.to-image}:jib-${project.version}</image>
+                        <image>${jib.to-image}:${jib.to-image-tag}</image>
                     </to>
                 </configuration>
             </plugin>
