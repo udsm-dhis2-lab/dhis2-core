@@ -20,7 +20,10 @@ services:
       POSTGRES_PASSWORD: dhis
 
   builder:
-    image: adoptopenjdk/openjdk11:jdk-11.0.1.13-alpine
+#    image: adoptopenjdk/openjdk11:jdk-11.0.1.13-alpine
+    build:
+      context: .
+      dockerfile: ./Dockerfile.builder
     command: /bin/sh -c "cd dhis-2 && ./mvnw clean install -DskipTests -f ./pom-full.xml && ./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml jib:dockerBuild"
     working_dir: /src
     volumes:
