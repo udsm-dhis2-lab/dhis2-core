@@ -18,3 +18,12 @@ services:
       POSTGRES_USER: dhis
       POSTGRES_DB: dhis2
       POSTGRES_PASSWORD: dhis
+
+  builder:
+    image: adoptopenjdk/openjdk11:jdk-11.0.1.13-alpine
+    command: /bin/sh -c "cd dhis-2 && ./mvnw clean install -DskipTests -f ./pom-full.xml && ./mvnw -DskipTests -f dhis-web/dhis-web-portal/pom.xml jib:dockerBuild"
+    working_dir: /src
+    volumes:
+      - .:/src
+      - /home/tons/.m2:/root/.m2
+      - /var/run/docker.sock:/var/run/docker.sock
