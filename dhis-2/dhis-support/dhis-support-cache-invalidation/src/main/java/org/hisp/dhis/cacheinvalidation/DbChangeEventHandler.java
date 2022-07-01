@@ -149,17 +149,7 @@ public class DbChangeEventHandler
             return;
         }
 
-        Long txId;
-        try
-        {
-            txId = ((Struct) payload.get( "source" )).getInt64( "txId" );
-            Objects.requireNonNull( txId, "TxId is null!" );
-        }
-        catch ( Exception e )
-        {
-            log.error( "Could not extract txId! Skipping event...", e );
-            throw e;
-        }
+        Long txId = extractTransactionId( payload );
 
         // Looks up the incoming transaction ID in our local txId cache.
         if ( knownTransactionsService.isKnown( txId ) )
@@ -184,12 +174,35 @@ public class DbChangeEventHandler
         if ( keySchema == null )
         {
             Object key = sourceRecord.key();
-            log.warn( String.format( "No key schema for tablename=%s, key=%s", tableName, key ) );
+            log.warn( String.format( "No key schema for table name=%s, key=%s", tableName, key ) );
             return;
         }
 
         Class<?> firstEntityClass = (Class<?>) entityClasses.get( 0 )[0];
 
+        Serializable entityId = extractEntityId( sourceRecord, operation, firstEntityClass );
+
+        evictExternalEntityChanges( txId, operation, entityClasses, entityId );
+    }
+
+    private Long extractTransactionId( Struct payload )
+    {
+        try
+        {
+            Long txId = ((Struct) payload.get( "source" )).getInt64( "txId" );
+            Objects.requireNonNull( txId, "TxId is null!" );
+            return txId;
+        }
+        catch ( Exception e )
+        {
+            log.error( "Could not extract txId! Skipping event...", e );
+            throw e;
+        }
+    }
+
+    private Serializable extractEntityId( SourceRecord sourceRecord, Envelope.Operation operation,
+        Class<?> firstEntityClass )
+    {
         Serializable entityId = null;
 
         if ( DataValue.class == firstEntityClass )
@@ -203,7 +216,7 @@ public class DbChangeEventHandler
         else
         {
             // If there is more than one id field, this is a composite key and
-            // needs special handling, if they are not handled above
+            // needs special handling. If they are not handled above
             // we must ignore this event.
             Schema schema = sourceRecord.keySchema();
             List<Field> allIdFields = schema.fields();
@@ -225,7 +238,7 @@ public class DbChangeEventHandler
                 "Could not extract an entity id from the event, can not continue with cache eviction." );
         }
 
-        evictExternalEntityChanges( txId, operation, entityClasses, entityId );
+        return entityId;
     }
 
     private Serializable getTrackedEntityAttributeValueId( SourceRecord sourceRecord )
