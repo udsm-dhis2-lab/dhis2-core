@@ -54,7 +54,6 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.hisp.dhis.external.conf.ConfigurationKey;
 import org.hisp.dhis.external.conf.DhisConfigurationProvider;
 import org.hisp.dhis.external.location.LocationManager;
-import org.springframework.stereotype.Component;
 
 import com.google.common.collect.Lists;
 
@@ -69,7 +68,6 @@ import com.google.common.collect.Lists;
  * @author Lars Helge Overland
  */
 @Slf4j
-@Component( "logInitializer" )
 public class Log4JLogConfigInitializer
     implements LogConfigInitializer
 {
