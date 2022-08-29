@@ -51,6 +51,8 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.quick.BatchHandler;
 import org.hisp.quick.BatchHandlerFactory;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -114,7 +116,7 @@ class DataValueAuditBatchHandlerTest extends SingleSetupIntegrationTestBase
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         batchHandler = batchHandlerFactory.createBatchHandler( DataValueAuditBatchHandler.class );
@@ -141,7 +143,7 @@ class DataValueAuditBatchHandlerTest extends SingleSetupIntegrationTestBase
         batchHandler.init();
     }
 
-    @Override
+    @AfterAll
     public void tearDownTest()
     {
         batchHandler.flush();

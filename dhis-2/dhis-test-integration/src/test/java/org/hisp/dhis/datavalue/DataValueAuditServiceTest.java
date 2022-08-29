@@ -43,6 +43,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -103,7 +104,7 @@ class DataValueAuditServiceTest extends SingleSetupIntegrationTestBase
 
     private DataValue dataValueD;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
         throws Exception
     {

@@ -44,6 +44,7 @@ import org.hisp.dhis.render.RenderFormat;
 import org.hisp.dhis.render.RenderService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -59,7 +60,7 @@ class TrackedEntityTypeValidationTest extends SingleSetupIntegrationTestBase
     @Autowired
     private MetadataImportService importService;
 
-    @Override
+    @BeforeAll
     protected void setUpTest()
         throws Exception
     {

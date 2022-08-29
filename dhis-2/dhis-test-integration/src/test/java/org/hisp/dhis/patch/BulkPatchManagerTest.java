@@ -53,6 +53,7 @@ import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.Sharing;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -97,7 +98,7 @@ class BulkPatchManagerTest extends SingleSetupIntegrationTestBase
 
     private User userD;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         userService = _userService;

@@ -36,6 +36,7 @@ import java.util.List;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -53,7 +54,7 @@ class UserDatastoreEntryStoreTest extends SingleSetupIntegrationTestBase
 
     private User user;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         this.userService = injectUserService;

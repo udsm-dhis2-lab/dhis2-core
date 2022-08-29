@@ -36,6 +36,7 @@ import org.hisp.dhis.merge.orgunit.OrgUnitMergeRequest;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -59,7 +60,7 @@ class AnalyticalObjectOrgUnitMergeHandlerTest extends SingleSetupIntegrationTest
 
     private OrganisationUnit ouC;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         deA = createDataElement( 'A' );

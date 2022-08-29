@@ -51,6 +51,7 @@ import org.hisp.dhis.split.orgunit.OrgUnitSplitRequest;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -108,7 +109,7 @@ class DataOrgUnitSplitHandlerTest extends SingleSetupIntegrationTestBase
 
     private DataApprovalWorkflow dwA;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         cocA = categoryService.getDefaultCategoryOptionCombo();

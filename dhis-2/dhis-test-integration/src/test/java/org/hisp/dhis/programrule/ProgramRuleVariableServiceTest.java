@@ -43,6 +43,7 @@ import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -75,7 +76,7 @@ class ProgramRuleVariableServiceTest extends SingleSetupIntegrationTestBase
     @Autowired
     private ProgramRuleVariableService variableService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         programA = createProgram( 'A', null, null );

@@ -41,6 +41,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -59,7 +60,7 @@ class ResourceTableServiceTest extends SingleSetupIntegrationTestBase
     @Autowired
     private DataSetService dataSetService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         PeriodType pt = new MonthlyPeriodType();

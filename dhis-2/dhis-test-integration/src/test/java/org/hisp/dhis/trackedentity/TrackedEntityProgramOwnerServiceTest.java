@@ -36,6 +36,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -67,7 +68,7 @@ class TrackedEntityProgramOwnerServiceTest extends SingleSetupIntegrationTestBas
 
     private OrganisationUnit organisationUnitB;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         organisationUnitA = createOrganisationUnit( 'A' );

@@ -43,6 +43,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitGroup;
 import org.hisp.dhis.organisationunit.OrganisationUnitGroupService;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -73,7 +74,7 @@ class CsvImportServiceTest extends SingleSetupIntegrationTestBase
 
     private OrganisationUnitGroup organisationUnitGroup_B;
 
-    @Override
+    @BeforeAll
     protected void setUpTest()
         throws Exception
     {

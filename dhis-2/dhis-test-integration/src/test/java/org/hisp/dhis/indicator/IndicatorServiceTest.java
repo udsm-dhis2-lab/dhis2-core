@@ -44,6 +44,7 @@ import org.hisp.dhis.user.CurrentUserUtil;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.UserSettingKey;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -64,7 +65,7 @@ class IndicatorServiceTest extends SingleSetupIntegrationTestBase
 
     private User user;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         this.userService = injectUserService;

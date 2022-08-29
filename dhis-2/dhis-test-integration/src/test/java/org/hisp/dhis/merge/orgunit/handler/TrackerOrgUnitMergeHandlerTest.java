@@ -42,6 +42,7 @@ import org.hisp.dhis.program.ProgramStageInstanceService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -99,7 +100,7 @@ class TrackerOrgUnitMergeHandlerTest extends SingleSetupIntegrationTestBase
 
     private ProgramStageInstance psiC;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         prA = createProgram( 'A', Sets.newHashSet(), ouA );

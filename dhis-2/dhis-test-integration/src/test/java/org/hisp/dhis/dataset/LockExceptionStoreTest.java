@@ -36,6 +36,7 @@ import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -58,7 +59,7 @@ class LockExceptionStoreTest extends SingleSetupIntegrationTestBase
 
     private OrganisationUnit ouB;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         ouA = createOrganisationUnit( 'A' );

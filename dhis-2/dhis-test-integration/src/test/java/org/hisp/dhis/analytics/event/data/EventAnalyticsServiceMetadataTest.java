@@ -64,6 +64,7 @@ import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -120,7 +121,7 @@ class EventAnalyticsServiceMetadataTest extends SingleSetupIntegrationTestBase
     @Autowired
     private EventAnalyticsService eventAnalyticsService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         userService = _userService;

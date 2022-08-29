@@ -66,6 +66,7 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.UserSettingKey;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -86,7 +87,7 @@ class TranslationServiceTest extends SingleSetupIntegrationTestBase
 
     private Locale locale;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         this.userService = injectUserService;

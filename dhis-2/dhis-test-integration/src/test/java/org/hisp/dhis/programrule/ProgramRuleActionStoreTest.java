@@ -37,6 +37,7 @@ import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -61,7 +62,7 @@ class ProgramRuleActionStoreTest extends SingleSetupIntegrationTestBase
     @Autowired
     private ProgramService programService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         programA = createProgram( 'A', null, null );

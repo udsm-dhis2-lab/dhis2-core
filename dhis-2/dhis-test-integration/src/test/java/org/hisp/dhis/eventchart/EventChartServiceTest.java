@@ -35,6 +35,7 @@ import org.hisp.dhis.eventvisualization.EventVisualizationType;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -52,7 +53,7 @@ class EventChartServiceTest extends SingleSetupIntegrationTestBase
 
     private Program prA;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         prA = createProgram( 'A', null, null );

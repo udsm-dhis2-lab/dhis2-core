@@ -75,6 +75,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityAttributeDimension;
 import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
 import org.hisp.dhis.trackedentity.TrackedEntityDataElementDimension;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -135,7 +136,7 @@ class EventDataQueryServiceTest extends SingleSetupIntegrationTestBase
     @Autowired
     private LegendSetService legendSetService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         peA = PeriodType.getPeriodFromIsoString( "201401" );

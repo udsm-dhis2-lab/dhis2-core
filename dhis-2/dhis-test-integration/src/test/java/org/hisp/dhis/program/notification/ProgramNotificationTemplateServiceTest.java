@@ -40,6 +40,7 @@ import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.program.ProgramStage;
 import org.hisp.dhis.program.ProgramStageService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -73,7 +74,7 @@ class ProgramNotificationTemplateServiceTest extends SingleSetupIntegrationTestB
     @Autowired
     private OrganisationUnitService organisationUnitService;
 
-    @Override
+    @BeforeAll
     protected void setUpTest()
         throws Exception
     {

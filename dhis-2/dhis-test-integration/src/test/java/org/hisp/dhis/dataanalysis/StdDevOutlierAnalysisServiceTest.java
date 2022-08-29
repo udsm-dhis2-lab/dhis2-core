@@ -50,6 +50,7 @@ import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -126,7 +127,7 @@ class StdDevOutlierAnalysisServiceTest extends SingleSetupIntegrationTestBase
     // ----------------------------------------------------------------------
     // Fixture
     // ----------------------------------------------------------------------
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         categoryCombo = categoryService.getDefaultCategoryCombo();

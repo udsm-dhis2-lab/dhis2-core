@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -62,7 +63,7 @@ class UserGroupServiceTest extends SingleSetupIntegrationTestBase
 
     private User user3;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
         throws Exception
     {

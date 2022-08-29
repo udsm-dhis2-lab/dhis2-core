@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -61,7 +62,7 @@ class SystemSettingManagerTest extends SingleSetupIntegrationTestBase
     @Autowired
     private SystemSettingManager systemSettingManager;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         systemSettingManager.invalidateCache();

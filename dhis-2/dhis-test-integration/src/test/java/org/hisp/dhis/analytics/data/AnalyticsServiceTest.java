@@ -95,6 +95,8 @@ import org.hisp.dhis.validation.ValidationResultService;
 import org.hisp.dhis.validation.ValidationRule;
 import org.hisp.dhis.validation.ValidationRuleService;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -108,8 +110,7 @@ import com.google.common.collect.Lists;
  * @author Henning Haakonsen (original)
  * @author Jim Grace (break cases into indidual tests)
  */
-class AnalyticsServiceTest
-    extends SingleSetupIntegrationTestBase
+class AnalyticsServiceTest extends SingleSetupIntegrationTestBase
 {
     private CategoryOptionCombo ocDef;
 
@@ -243,7 +244,7 @@ class AnalyticsServiceTest
     // 32, deD, peJan
     //
     // --------------------------------------------------------------------
-    @Override
+    @BeforeAll
     public void setUpTest()
         throws IOException,
         InterruptedException
@@ -534,7 +535,7 @@ class AnalyticsServiceTest
     // Tear down from all tests
     // --------------------------------------------------------------------------
 
-    @Override
+    @AfterAll
     public void tearDownTest()
     {
         for ( AnalyticsTableService service : analyticsTableServices )

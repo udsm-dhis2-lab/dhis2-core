@@ -41,6 +41,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -80,7 +81,7 @@ class ProgramExpressionServiceTest extends SingleSetupIntegrationTestBase
 
     private ProgramStage stageB;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         OrganisationUnit organisationUnit = createOrganisationUnit( 'A' );

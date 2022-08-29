@@ -45,6 +45,7 @@ import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -95,7 +96,7 @@ class TrackerSynchronizationTest extends SingleSetupIntegrationTestBase
         manager.update( tei );
     }
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         userService = _userService;

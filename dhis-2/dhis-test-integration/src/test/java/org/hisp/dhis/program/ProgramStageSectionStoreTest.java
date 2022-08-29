@@ -39,6 +39,7 @@ import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -78,7 +79,7 @@ class ProgramStageSectionStoreTest extends SingleSetupIntegrationTestBase
 
     private List<DataElement> dataElements;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         organisationUnit = createOrganisationUnit( 'A' );

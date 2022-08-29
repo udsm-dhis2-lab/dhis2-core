@@ -56,6 +56,7 @@ import org.hisp.dhis.orgunitprofile.impl.DefaultOrgUnitProfileService;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
@@ -97,7 +98,7 @@ class OrgUnitProfileServiceTest extends SingleSetupIntegrationTestBase
 
     private OrgUnitProfileService mockService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         userService = _userService;

@@ -49,6 +49,7 @@ import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.query.Query;
 import org.hisp.dhis.schema.SchemaService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -99,7 +100,7 @@ class DefaultExportServiceTest extends SingleSetupIntegrationTestBase
 
     private Period peB;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         deA = createDataElement( 'A' );

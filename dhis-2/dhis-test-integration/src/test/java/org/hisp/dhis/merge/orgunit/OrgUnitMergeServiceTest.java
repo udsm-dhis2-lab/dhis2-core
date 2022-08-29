@@ -43,6 +43,7 @@ import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -71,7 +72,7 @@ class OrgUnitMergeServiceTest extends SingleSetupIntegrationTestBase
 
     private OrganisationUnit ouC;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         ptA = periodService.getPeriodTypeByClass( MonthlyPeriodType.class );

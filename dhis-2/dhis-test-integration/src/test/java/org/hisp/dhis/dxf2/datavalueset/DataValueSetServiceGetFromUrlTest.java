@@ -40,6 +40,7 @@ import org.hisp.dhis.category.CategoryService;
 import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.datavalue.DataExportParams;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -78,7 +79,7 @@ class DataValueSetServiceGetFromUrlTest extends SingleSetupIntegrationTestBase
 
     private CategoryOptionCombo optionComboD;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         categoryOptionA = createCategoryOption( 'A' );

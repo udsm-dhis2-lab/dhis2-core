@@ -43,6 +43,7 @@ import org.hisp.dhis.schema.MergeParams;
 import org.hisp.dhis.schema.MergeService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -55,7 +56,7 @@ class MergeServiceTest extends SingleSetupIntegrationTestBase
     @Autowired
     private MergeService mergeService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
     }

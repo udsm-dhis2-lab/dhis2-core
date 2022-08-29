@@ -27,8 +27,14 @@
  */
 package org.hisp.dhis.test.integration;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.hisp.dhis.BaseSpringTest;
 import org.hisp.dhis.config.IntegrationTestConfig;
+import org.hisp.dhis.external.conf.ConfigurationKey;
+import org.hisp.dhis.utils.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -42,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @author Jim Grace
  */
+@Slf4j
 @ContextConfiguration( classes = { IntegrationTestConfig.class } )
 @IntegrationTest
 @ActiveProfiles( profiles = { "test-postgres" } )
@@ -56,13 +63,36 @@ public abstract class SingleSetupIntegrationTestBase
     {
         bindSession();
 
-        integrationTestBefore();
+        TestUtils.executeStartupRoutines( applicationContext );
+        boolean enableQueryLogging = dhisConfigurationProvider.isEnabled( ConfigurationKey.ENABLE_QUERY_LOGGING );
+        // Enable to query logger to log only what's happening inside the test
+        // method
+        if ( enableQueryLogging )
+        {
+            Configurator.setLevel( ORG_HISP_DHIS_DATASOURCE_QUERY, Level.INFO );
+            Configurator.setRootLevel( Level.INFO );
+        }
     }
 
     @AfterAll
     public final void after()
-        throws Exception
     {
-        nonTransactionalAfter();
+        clearSecurityContext();
+        try
+        {
+            dbmsManager.clearSession();
+        }
+        catch ( Exception e )
+        {
+            log.info( "Failed to clear hibernate session, reason:" + e.getMessage() );
+        }
+        unbindSession();
+        // We normally don't want all the delete/empty db statements in the
+        // query logger
+        Configurator.setLevel( ORG_HISP_DHIS_DATASOURCE_QUERY, Level.WARN );
+        transactionTemplate.execute( status -> {
+            dbmsManager.emptyDatabase();
+            return null;
+        } );
     }
 }

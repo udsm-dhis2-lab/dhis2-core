@@ -41,6 +41,7 @@ import java.util.UUID;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -81,7 +82,7 @@ class UserStoreTest extends SingleSetupIntegrationTestBase
 
     private UserRole roleC;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
         throws Exception
     {

@@ -61,6 +61,7 @@ import org.hisp.dhis.program.ProgramTrackedEntityAttributeDimensionItem;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -118,7 +119,7 @@ class EventQueryPlannerTest extends SingleSetupIntegrationTestBase
     @Autowired
     private OrganisationUnitService organisationUnitService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         prA = createProgram( 'A' );

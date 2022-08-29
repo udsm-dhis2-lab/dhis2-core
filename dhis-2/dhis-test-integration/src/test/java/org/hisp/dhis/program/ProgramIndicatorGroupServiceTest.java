@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -45,7 +46,7 @@ class ProgramIndicatorGroupServiceTest extends SingleSetupIntegrationTestBase
 
     private ProgramIndicatorGroup programIndicatorGroupA;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         programIndicatorGroupA = new ProgramIndicatorGroup( "A" );

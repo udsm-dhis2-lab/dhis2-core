@@ -50,6 +50,7 @@ import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 
@@ -77,7 +78,7 @@ public abstract class TrackerTest extends SingleSetupIntegrationTestBase
     @Autowired
     private ObjectBundleValidationService objectBundleValidationService;
 
-    @Override
+    @BeforeAll
     protected void setUpTest()
         throws IOException
     {

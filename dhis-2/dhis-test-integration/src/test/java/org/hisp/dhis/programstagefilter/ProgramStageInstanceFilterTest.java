@@ -38,6 +38,7 @@ import org.hisp.dhis.common.AssignedUserSelectionMode;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -54,7 +55,7 @@ class ProgramStageInstanceFilterTest extends SingleSetupIntegrationTestBase
 
     private Program programB;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         programA = createProgram( 'A' );

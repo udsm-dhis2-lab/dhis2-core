@@ -54,6 +54,7 @@ import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.UserService;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -78,7 +79,7 @@ public class ReferencesCheckTest extends SingleSetupIntegrationTestBase
 
     private ValidationContext validationContext;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         validationContext = new ValidationContext( this.objectBundleHooks, this.schemaValidator, this.aclService,

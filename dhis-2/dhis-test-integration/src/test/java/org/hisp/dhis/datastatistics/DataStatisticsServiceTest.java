@@ -38,6 +38,7 @@ import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -62,7 +63,7 @@ class DataStatisticsServiceTest extends SingleSetupIntegrationTestBase
 
     private DateTimeFormatter fmt;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
         throws Exception
     {

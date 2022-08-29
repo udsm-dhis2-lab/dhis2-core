@@ -37,14 +37,14 @@ import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * @author viet@dhis2.org
  */
-class ProgramSectionServiceTest
-    extends SingleSetupIntegrationTestBase
+class ProgramSectionServiceTest extends SingleSetupIntegrationTestBase
 {
     @Autowired
     private IdentifiableObjectManager manager;
@@ -58,7 +58,7 @@ class ProgramSectionServiceTest
     @Autowired
     private CategoryService _categoryService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         userService = _userService;

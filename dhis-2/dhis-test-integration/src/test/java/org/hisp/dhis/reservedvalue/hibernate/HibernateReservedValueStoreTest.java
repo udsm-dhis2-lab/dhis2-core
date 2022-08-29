@@ -50,6 +50,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceStore;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueStore;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -89,7 +90,7 @@ class HibernateReservedValueStoreTest extends SingleSetupIntegrationTestBase
     @Autowired
     private TrackedEntityAttributeValueStore trackedEntityAttributeValueStore;
 
-    @Override
+    @BeforeAll
     protected void setUpTest()
     {
         Calendar future = Calendar.getInstance();

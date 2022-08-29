@@ -55,6 +55,7 @@ import org.hisp.dhis.program.UserInfoSnapshot;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.trackedentitydatavalue.TrackedEntityDataValueAudit;
 import org.hisp.dhis.trackedentitydatavalue.TrackedEntityDataValueAuditStore;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -131,7 +132,7 @@ class TrackedEntityDataValueAuditStoreTest extends SingleSetupIntegrationTestBas
 
     private EventDataValue dvE;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         ouA = createOrganisationUnit( 'A' );

@@ -48,6 +48,7 @@ import org.hisp.dhis.relationship.RelationshipTypeService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -93,7 +94,7 @@ class HandleRelationshipsTrackedEntityInstanceServiceTest extends SingleSetupInt
 
     private ProgramStageInstance programStageInstanceA;
 
-    @Override
+    @BeforeAll
     protected void setUpTest()
         throws Exception
     {

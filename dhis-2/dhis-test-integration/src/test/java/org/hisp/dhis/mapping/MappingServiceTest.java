@@ -42,6 +42,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitGroupSet;
 import org.hisp.dhis.organisationunit.OrganisationUnitGroupSetDimension;
 import org.hisp.dhis.render.RenderService;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -77,7 +78,7 @@ class MappingServiceTest extends SingleSetupIntegrationTestBase
 
     private OrganisationUnitGroupSet ougsA = createOrganisationUnitGroupSet( 'A' );
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         renderService = _renderService;

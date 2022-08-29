@@ -93,6 +93,7 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -199,7 +200,7 @@ class DataQueryServiceTest extends SingleSetupIntegrationTestBase
     @Autowired
     private UserService internalUserService;
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         super.userService = internalUserService;

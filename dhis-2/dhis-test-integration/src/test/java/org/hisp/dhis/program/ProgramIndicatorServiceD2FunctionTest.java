@@ -44,6 +44,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.relationship.RelationshipType;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -93,7 +94,7 @@ class ProgramIndicatorServiceD2FunctionTest extends SingleSetupIntegrationTestBa
 
     private Date newDate = new GregorianCalendar( 2020, Calendar.JANUARY, 9 ).getTime();
 
-    @Override
+    @BeforeAll
     public void setUpTest()
     {
         OrganisationUnit organisationUnit = createOrganisationUnit( 'A' );

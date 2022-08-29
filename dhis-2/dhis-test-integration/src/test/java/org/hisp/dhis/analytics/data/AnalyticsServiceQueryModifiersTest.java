@@ -65,6 +65,8 @@ import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.scheduling.NoopJobProgress;
 import org.hisp.dhis.test.integration.SingleSetupIntegrationTestBase;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -73,8 +75,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  *
  * @author Jim Grace
  */
-class AnalyticsServiceQueryModifiersTest
-    extends SingleSetupIntegrationTestBase
+class AnalyticsServiceQueryModifiersTest extends SingleSetupIntegrationTestBase
 {
     @Autowired
     private List<AnalyticsTableService> analyticsTableServices;
@@ -123,7 +124,7 @@ class AnalyticsServiceQueryModifiersTest
     // Fixture
     // -------------------------------------------------------------------------
 
-    @Override
+    @BeforeAll
     public void setUpTest()
         throws IOException,
         InterruptedException
@@ -199,7 +200,7 @@ class AnalyticsServiceQueryModifiersTest
             NoopJobProgress.INSTANCE );
     }
 
-    @Override
+    @AfterAll
     public void tearDownTest()
     {
         for ( AnalyticsTableService service : analyticsTableServices )
