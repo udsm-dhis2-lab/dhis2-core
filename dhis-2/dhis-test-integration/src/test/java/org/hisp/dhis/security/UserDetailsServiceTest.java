@@ -36,6 +36,7 @@ import java.util.Date;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -59,7 +60,7 @@ class UserDetailsServiceTest extends TransactionalIntegrationTest
 
     private User user;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

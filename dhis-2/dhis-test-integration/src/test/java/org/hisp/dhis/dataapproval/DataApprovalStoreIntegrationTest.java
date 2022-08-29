@@ -60,6 +60,7 @@ import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.UserAccess;
 import org.hisp.dhis.user.sharing.UserGroupAccess;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -169,10 +170,8 @@ class DataApprovalStoreIntegrationTest extends TransactionalIntegrationTest
     private List<DataApprovalLevel> userApprovalLevels;
 
     // -------------------------------------------------------------------------
-    // Set up/tear down
-    // -------------------------------------------------------------------------
 
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {

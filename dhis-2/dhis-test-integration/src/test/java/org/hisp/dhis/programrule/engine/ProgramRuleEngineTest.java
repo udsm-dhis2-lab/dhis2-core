@@ -82,6 +82,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -219,7 +220,7 @@ class ProgramRuleEngineTest extends TransactionalIntegrationTest
     @Autowired
     private NotificationLoggingService notificationLoggingService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws ParseException
     {

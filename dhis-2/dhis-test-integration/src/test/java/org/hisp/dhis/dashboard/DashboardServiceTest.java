@@ -49,6 +49,7 @@ import org.hisp.dhis.program.Program;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.visualization.Visualization;
 import org.hisp.dhis.visualization.VisualizationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -98,7 +99,7 @@ class DashboardServiceTest extends TransactionalIntegrationTest
 
     private Document dcA;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         vzA = createVisualization( "A" );

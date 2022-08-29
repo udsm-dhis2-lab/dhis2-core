@@ -43,6 +43,7 @@ import org.hisp.dhis.mapping.ThematicMapType;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.program.ProgramStatus;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -76,7 +77,7 @@ class AnalyticalObjectStoreTest extends TransactionalIntegrationTest
     @Qualifier( "org.hisp.dhis.mapping.MapViewStore" )
     private MapViewStore mapViewStore;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         itA = createIndicatorType( 'A' );

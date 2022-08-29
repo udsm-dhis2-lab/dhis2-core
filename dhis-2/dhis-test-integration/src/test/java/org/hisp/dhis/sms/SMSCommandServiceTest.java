@@ -61,6 +61,7 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserGroup;
 import org.hisp.dhis.user.UserGroupService;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -201,7 +202,7 @@ class SMSCommandServiceTest extends TransactionalIntegrationTest
     @Autowired
     private UserService userService;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

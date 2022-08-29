@@ -39,6 +39,7 @@ import org.hisp.dhis.dataentryform.DataEntryFormService;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -67,7 +68,7 @@ class ProgramStoreTest extends TransactionalIntegrationTest
 
     private Program programC;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         organisationUnitA = createOrganisationUnit( 'A' );

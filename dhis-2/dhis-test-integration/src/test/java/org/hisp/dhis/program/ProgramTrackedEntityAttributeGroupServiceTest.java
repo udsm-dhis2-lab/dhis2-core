@@ -37,6 +37,7 @@ import java.util.Set;
 import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -64,7 +65,7 @@ class ProgramTrackedEntityAttributeGroupServiceTest extends TransactionalIntegra
 
     private ProgramTrackedEntityAttributeGroup group;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         prA = createProgram( 'A' );

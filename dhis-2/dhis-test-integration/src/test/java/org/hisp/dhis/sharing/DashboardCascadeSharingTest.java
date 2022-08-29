@@ -56,6 +56,7 @@ import org.hisp.dhis.user.sharing.Sharing;
 import org.hisp.dhis.user.sharing.UserAccess;
 import org.hisp.dhis.user.sharing.UserGroupAccess;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -89,7 +90,7 @@ class DashboardCascadeSharingTest extends CascadeSharingTest
 
     private Program programA;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;

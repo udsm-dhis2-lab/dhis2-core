@@ -51,6 +51,7 @@ import org.hisp.dhis.sms.command.SMSCommand;
 import org.hisp.dhis.sms.command.code.SMSCode;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -78,7 +79,7 @@ public class SMSCommandObjectBundleServiceTest extends TransactionalIntegrationT
     @Autowired
     private UserService _userService;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

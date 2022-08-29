@@ -65,6 +65,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
 import org.hisp.dhis.user.UserService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -121,7 +122,7 @@ class RegistrationMultiEventsServiceTest extends TransactionalIntegrationTest
 
     private ProgramStage programStageB;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

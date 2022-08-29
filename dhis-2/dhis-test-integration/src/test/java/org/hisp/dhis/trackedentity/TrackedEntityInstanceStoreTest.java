@@ -57,6 +57,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.hisp.dhis.webapi.controller.event.mapper.OrderParam;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -117,7 +118,7 @@ class TrackedEntityInstanceStoreTest extends TransactionalIntegrationTest
 
     private Program prB;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         atA = createTrackedEntityAttribute( 'A' );

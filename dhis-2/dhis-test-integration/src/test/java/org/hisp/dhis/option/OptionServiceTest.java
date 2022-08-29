@@ -39,6 +39,7 @@ import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.feedback.ErrorCode;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -79,7 +80,7 @@ class OptionServiceTest extends TransactionalIntegrationTest
 
     private Option option4;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         option1 = new Option( "OptA1", "OptA1" );

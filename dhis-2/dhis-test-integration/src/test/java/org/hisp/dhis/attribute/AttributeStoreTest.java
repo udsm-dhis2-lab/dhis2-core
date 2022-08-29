@@ -36,6 +36,7 @@ import org.hisp.dhis.indicator.Indicator;
 import org.hisp.dhis.indicator.IndicatorGroup;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -52,7 +53,7 @@ class AttributeStoreTest extends TransactionalIntegrationTest
 
     private Attribute atB;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         atA = new Attribute();

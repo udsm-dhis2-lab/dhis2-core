@@ -49,6 +49,7 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.UserAccess;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -75,7 +76,7 @@ class ObjectBundleServiceUserTest extends TransactionalIntegrationTest
     @Autowired
     private UserService _userService;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

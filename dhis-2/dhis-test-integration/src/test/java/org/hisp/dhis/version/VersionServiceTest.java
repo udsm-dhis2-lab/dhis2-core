@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -47,7 +48,7 @@ class VersionServiceTest extends TransactionalIntegrationTest
 
     private Version versionB;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         versionA = new Version();

@@ -50,6 +50,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -137,7 +138,7 @@ class ProgramMessageStoreTest extends TransactionalIntegrationTest
     // -------------------------------------------------------------------------
     // Prerequisite
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         ouA = createOrganisationUnit( 'A' );

@@ -62,6 +62,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -110,7 +111,7 @@ class EnrollmentSecurityTest extends TransactionalIntegrationTest
 
     private ProgramStage programStageB;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         userService = _userService;

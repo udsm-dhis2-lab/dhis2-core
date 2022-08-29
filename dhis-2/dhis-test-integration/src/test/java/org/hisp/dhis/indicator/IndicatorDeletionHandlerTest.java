@@ -42,6 +42,7 @@ import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -58,7 +59,7 @@ class IndicatorDeletionHandlerTest extends TransactionalIntegrationTest
 
     private Indicator indicator;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;

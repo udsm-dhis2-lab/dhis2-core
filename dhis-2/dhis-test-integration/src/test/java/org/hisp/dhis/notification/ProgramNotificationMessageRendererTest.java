@@ -67,6 +67,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -170,7 +171,7 @@ class ProgramNotificationMessageRendererTest extends TransactionalIntegrationTes
     @Autowired
     private ProgramStageNotificationMessageRenderer programStageNotificationMessageRenderer;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

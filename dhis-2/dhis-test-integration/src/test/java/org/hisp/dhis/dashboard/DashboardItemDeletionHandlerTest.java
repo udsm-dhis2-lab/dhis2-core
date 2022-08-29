@@ -50,6 +50,7 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.visualization.Visualization;
 import org.hisp.dhis.visualization.VisualizationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -95,7 +96,7 @@ class DashboardItemDeletionHandlerTest extends TransactionalIntegrationTest
 
     private Program program;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;

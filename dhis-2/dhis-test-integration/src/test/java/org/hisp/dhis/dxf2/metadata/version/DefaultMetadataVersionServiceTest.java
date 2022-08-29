@@ -50,6 +50,7 @@ import org.hisp.dhis.metadata.version.MetadataVersion;
 import org.hisp.dhis.metadata.version.MetadataVersionService;
 import org.hisp.dhis.metadata.version.VersionType;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -82,7 +83,7 @@ class DefaultMetadataVersionServiceTest extends TransactionalIntegrationTest
     // Tests
     // -------------------------------------------------------------------------
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         startDate = new Date();

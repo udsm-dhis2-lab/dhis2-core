@@ -77,6 +77,7 @@ import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.Sharing;
 import org.hisp.dhis.user.sharing.UserAccess;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -108,7 +109,7 @@ class MetadataImportServiceTest extends TransactionalIntegrationTest
     @Autowired
     private AclService aclService;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

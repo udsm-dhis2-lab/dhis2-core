@@ -87,16 +87,10 @@ class InterpretationServiceTest extends TransactionalIntegrationTest
 
     private Interpretation interpretationC;
 
-    @Override
-    protected void setUpTest()
-        throws Exception
-    {
-        userService = _userService;
-    }
-
     @BeforeEach
     void beforeTest()
     {
+        userService = _userService;
         userA = makeUser( "A" );
         userB = makeUser( "B" );
         userC = createUserWithAuth( "C.D-E_F" );

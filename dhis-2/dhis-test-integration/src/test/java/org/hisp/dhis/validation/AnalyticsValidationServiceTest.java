@@ -91,6 +91,8 @@ import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -184,7 +186,7 @@ class AnalyticsValidationServiceTest extends TransactionalIntegrationTest
 
     private ValidationRule ruleX;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
 
@@ -297,7 +299,7 @@ class AnalyticsValidationServiceTest extends TransactionalIntegrationTest
         injectSecurityContext( user );
     }
 
-    @Override
+    @AfterEach
     public void tearDownTest()
     {
         runner.setAnalyticsService( analyticsService );

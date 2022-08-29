@@ -43,6 +43,7 @@ import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -71,7 +72,7 @@ class OrgUnitSplitServiceTest extends TransactionalIntegrationTest
 
     private OrganisationUnit ouC;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         ptA = periodService.getPeriodTypeByClass( MonthlyPeriodType.class );

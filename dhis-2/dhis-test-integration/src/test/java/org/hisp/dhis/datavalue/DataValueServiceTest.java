@@ -46,6 +46,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -97,10 +98,8 @@ class DataValueServiceTest extends TransactionalIntegrationTest
     private OrganisationUnit ouD;
 
     // -------------------------------------------------------------------------
-    // Set up/tear down
-    // -------------------------------------------------------------------------
 
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {

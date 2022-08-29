@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.util.Collection;
 
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -51,7 +52,7 @@ class OAuth2ClientStoreTest extends TransactionalIntegrationTest
 
     private OAuth2Client clientC;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         clientA = new OAuth2Client();

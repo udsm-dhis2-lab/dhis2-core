@@ -55,6 +55,7 @@ import org.hisp.dhis.user.UserAccess;
 import org.hisp.dhis.user.UserGroup;
 import org.hisp.dhis.user.UserGroupAccess;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -78,7 +79,7 @@ class ProgramSupplierAclIntegrationTest extends TransactionalIntegrationTest
 
     private Event event = new Event();
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

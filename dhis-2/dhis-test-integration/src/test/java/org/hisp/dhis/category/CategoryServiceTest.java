@@ -41,6 +41,7 @@ import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.dataelement.DataElement;
 import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -89,7 +90,7 @@ class CategoryServiceTest extends TransactionalIntegrationTest
     // Fixture
     // -------------------------------------------------------------------------
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         categoryOptionA = createCategoryOption( 'A' );

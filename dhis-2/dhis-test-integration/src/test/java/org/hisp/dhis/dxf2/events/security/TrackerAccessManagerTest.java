@@ -67,6 +67,7 @@ import org.hisp.dhis.trackedentity.TrackerAccessManager;
 import org.hisp.dhis.trackedentity.TrackerOwnershipManager;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -129,7 +130,7 @@ class TrackerAccessManagerTest extends TransactionalIntegrationTest
 
     private TrackedEntityType trackedEntityType;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         userService = _userService;

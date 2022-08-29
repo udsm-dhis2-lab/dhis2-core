@@ -46,6 +46,7 @@ import org.hisp.dhis.program.ProgramStageService;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -86,7 +87,7 @@ class ProgramRuleActionServiceTest extends TransactionalIntegrationTest
     @Autowired
     private ProgramStageService programStageService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         programStageA = createProgramStage( 'A', 0 );

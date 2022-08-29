@@ -49,6 +49,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -94,7 +95,7 @@ class AttributeValueServiceTest extends TransactionalIntegrationTest
 
     private User currentUser;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         userService = _userService;

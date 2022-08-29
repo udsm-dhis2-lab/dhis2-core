@@ -48,6 +48,7 @@ import org.hisp.dhis.scheduling.JobType;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -80,7 +81,7 @@ class GmlImportServiceTest extends TransactionalIntegrationTest
     @Autowired
     private UserService _userService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws IOException
     {

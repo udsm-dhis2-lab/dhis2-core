@@ -57,6 +57,7 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -119,7 +120,7 @@ class DataValueSetExportAccessControlTest extends TransactionalIntegrationTest
 
     private OrganisationUnit ouA;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;

@@ -89,6 +89,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityDataElementDimension;
 import org.hisp.dhis.visualization.Visualization;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -219,7 +220,7 @@ class DimensionServiceTest extends TransactionalIntegrationTest
     @Autowired
     private DimensionService dimensionService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         deA = createDataElement( 'A' );

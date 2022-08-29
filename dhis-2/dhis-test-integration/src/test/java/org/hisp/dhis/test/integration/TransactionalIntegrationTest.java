@@ -29,8 +29,12 @@ package org.hisp.dhis.test.integration;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.hisp.dhis.BaseSpringTest;
 import org.hisp.dhis.config.IntegrationTestConfig;
+import org.hisp.dhis.external.conf.ConfigurationKey;
+import org.hisp.dhis.utils.TestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.test.context.ActiveProfiles;
@@ -51,16 +55,21 @@ public abstract class TransactionalIntegrationTest extends BaseSpringTest
     public final void before()
         throws Exception
     {
-        integrationTestBefore();
+        TestUtils.executeStartupRoutines( applicationContext );
+        boolean enableQueryLogging = dhisConfigurationProvider.isEnabled( ConfigurationKey.ENABLE_QUERY_LOGGING );
+        // Enable to query logger to log only what's happening inside the test
+        // method
+        if ( enableQueryLogging )
+        {
+            Configurator.setLevel( ORG_HISP_DHIS_DATASOURCE_QUERY, Level.INFO );
+            Configurator.setRootLevel( Level.INFO );
+        }
     }
 
     @AfterEach
     public final void after()
-        throws Exception
     {
         clearSecurityContext();
-
-        tearDownTest();
 
         try
         {

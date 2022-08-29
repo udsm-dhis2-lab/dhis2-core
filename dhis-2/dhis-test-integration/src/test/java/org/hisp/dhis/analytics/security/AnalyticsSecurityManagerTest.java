@@ -57,6 +57,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.Sharing;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -108,7 +109,7 @@ class AnalyticsSecurityManagerTest extends TransactionalIntegrationTest
 
     private Set<OrganisationUnit> userOrgUnits;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;

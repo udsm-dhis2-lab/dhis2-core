@@ -57,6 +57,7 @@ import org.hisp.dhis.program.ProgramType;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -90,7 +91,7 @@ class EventXmlImportTest extends TransactionalIntegrationTest
 
     private DataElement dataElementA;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

@@ -80,6 +80,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -148,7 +149,7 @@ class TrackedEntityInstanceServiceTest extends TransactionalIntegrationTest
 
     private TrackedEntityType trackedEntityType;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

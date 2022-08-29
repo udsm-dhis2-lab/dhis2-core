@@ -58,6 +58,7 @@ import org.hisp.dhis.user.sharing.UserAccess;
 import org.hisp.dhis.user.sharing.UserGroupAccess;
 import org.hisp.dhis.visualization.Visualization;
 import org.hisp.dhis.visualization.VisualizationType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -86,7 +87,7 @@ class AclServiceTest extends TransactionalIntegrationTest
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

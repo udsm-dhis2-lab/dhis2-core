@@ -50,6 +50,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -143,7 +144,7 @@ class ProgramStageInstanceServiceTest extends TransactionalIntegrationTest
 
     private Cache<DataElement> dataElementMap = new TestCache<>();
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         organisationUnitA = createOrganisationUnit( 'A' );

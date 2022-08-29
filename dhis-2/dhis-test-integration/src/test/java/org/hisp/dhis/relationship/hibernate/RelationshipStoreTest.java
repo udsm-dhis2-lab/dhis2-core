@@ -59,6 +59,7 @@ import org.hisp.dhis.relationship.RelationshipTypeService;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -99,7 +100,7 @@ class RelationshipStoreTest extends TransactionalIntegrationTest
 
     private OrganisationUnit organisationUnit;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         relationshipType = createRelationshipType( 'A' );

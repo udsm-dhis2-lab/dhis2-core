@@ -87,6 +87,7 @@ import org.hisp.dhis.period.QuarterlyPeriodType;
 import org.hisp.dhis.period.YearlyPeriodType;
 import org.hisp.dhis.program.Program;
 import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -188,7 +189,7 @@ class QueryPlannerTest extends TransactionalIntegrationTest
 
     private DataElementGroupSet dgsB;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         itA = createIndicatorType( 'A' );

@@ -57,6 +57,7 @@ import org.hisp.dhis.test.integration.TransactionalIntegrationTest;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -117,7 +118,7 @@ class ProgramInstanceStoreTest extends TransactionalIntegrationTest
 
     private Collection<Long> orgunitIds;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         organisationUnitA = createOrganisationUnit( 'A' );

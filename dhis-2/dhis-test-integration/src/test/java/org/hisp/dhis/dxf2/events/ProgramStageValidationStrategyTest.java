@@ -72,6 +72,7 @@ import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.UserAccess;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -118,7 +119,7 @@ class ProgramStageValidationStrategyTest extends TransactionalIntegrationTest
 
     private ProgramStage programStageA;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         final int testYear = Calendar.getInstance().get( Calendar.YEAR ) - 1;
