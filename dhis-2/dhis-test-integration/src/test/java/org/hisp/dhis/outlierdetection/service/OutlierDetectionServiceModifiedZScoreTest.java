@@ -60,6 +60,7 @@ import org.hisp.dhis.period.Period;
 import org.hisp.dhis.period.PeriodService;
 import org.hisp.dhis.system.util.MathUtils;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -96,7 +97,7 @@ class OutlierDetectionServiceModifiedZScoreTest extends IntegrationTestBase
 
     private CategoryOptionCombo coc;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         MonthlyPeriodType pt = new MonthlyPeriodType();

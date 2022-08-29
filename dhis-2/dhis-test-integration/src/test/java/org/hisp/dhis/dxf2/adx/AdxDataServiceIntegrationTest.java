@@ -65,6 +65,7 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -154,7 +155,7 @@ class AdxDataServiceIntegrationTest extends IntegrationTestBase
 
     private User user;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         // UserService

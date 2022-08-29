@@ -65,6 +65,8 @@ import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -285,7 +287,7 @@ class DataApprovalServiceTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Set up/tear down
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;
@@ -452,7 +454,7 @@ class DataApprovalServiceTest extends IntegrationTestBase
         userService.addUser( userB );
     }
 
-    @Override
+    @AfterEach
     public void tearDownTest()
     {
         DataApprovalPermissionsEvaluator.invalidateCache();

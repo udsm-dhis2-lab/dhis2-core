@@ -54,6 +54,7 @@ import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueServ
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -62,8 +63,7 @@ import com.google.common.collect.Sets;
 /**
  * @author Chau Thu Tran
  */
-class TrackedEntityInstanceServiceTest
-    extends IntegrationTestBase
+class TrackedEntityInstanceServiceTest extends IntegrationTestBase
 {
     @Autowired
     private TrackedEntityInstanceService entityInstanceService;
@@ -128,7 +128,7 @@ class TrackedEntityInstanceServiceTest
 
     private User superUser;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         super.userService = _userService;

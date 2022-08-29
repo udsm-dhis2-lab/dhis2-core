@@ -50,6 +50,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.MonthlyPeriodType;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -127,7 +128,7 @@ class MinMaxOutlierAnalysisServiceTest extends IntegrationTestBase
     // ----------------------------------------------------------------------
     // Fixture
     // ----------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {

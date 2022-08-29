@@ -50,6 +50,7 @@ import org.hisp.dhis.scheduling.NoopJobProgress;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -103,7 +104,7 @@ class ValidationServiceIntegrationTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         this.userService = injectUserService;

@@ -38,6 +38,7 @@ import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -76,7 +77,7 @@ class TrackerOwnershipManagerTest extends IntegrationTestBase
 
     private User userB;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

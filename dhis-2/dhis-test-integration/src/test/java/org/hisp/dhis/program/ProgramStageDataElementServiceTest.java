@@ -42,6 +42,7 @@ import org.hisp.dhis.dataelement.DataElementService;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -82,7 +83,7 @@ class ProgramStageDataElementServiceTest extends IntegrationTestBase
 
     private ProgramStageDataElement stageDataElementB;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         organisationUnit = createOrganisationUnit( 'A' );

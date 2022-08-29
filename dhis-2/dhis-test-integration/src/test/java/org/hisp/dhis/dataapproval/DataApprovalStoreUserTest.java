@@ -45,6 +45,7 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -103,7 +104,7 @@ class DataApprovalStoreUserTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Set up/tear down
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {

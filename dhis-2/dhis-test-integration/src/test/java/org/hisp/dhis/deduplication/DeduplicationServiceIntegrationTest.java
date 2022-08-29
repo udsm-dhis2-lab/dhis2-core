@@ -40,6 +40,7 @@ import java.util.List;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -59,7 +60,7 @@ class DeduplicationServiceIntegrationTest extends IntegrationTestBase
 
     private static final String teiD = "trackedentD";
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         super.userService = this.userService;

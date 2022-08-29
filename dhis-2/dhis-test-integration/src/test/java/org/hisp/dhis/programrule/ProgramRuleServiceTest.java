@@ -49,6 +49,7 @@ import org.hisp.dhis.program.ProgramStageSection;
 import org.hisp.dhis.program.ProgramStageSectionService;
 import org.hisp.dhis.program.ProgramStageService;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -100,7 +101,7 @@ class ProgramRuleServiceTest extends IntegrationTestBase
     @Autowired
     private DeletedObjectStore deletedObjectStore;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         programA = createProgram( 'A', null, null );

@@ -91,6 +91,7 @@ import org.hisp.dhis.user.CurrentUserUtil;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.UserSettingKey;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -249,7 +250,7 @@ class ValidationServiceTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {

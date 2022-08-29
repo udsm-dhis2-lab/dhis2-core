@@ -53,6 +53,7 @@ import org.hisp.dhis.organisationunit.OrganisationUnitLevel;
 import org.hisp.dhis.organisationunit.OrganisationUnitService;
 import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -119,7 +120,7 @@ class PredictorServiceTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {

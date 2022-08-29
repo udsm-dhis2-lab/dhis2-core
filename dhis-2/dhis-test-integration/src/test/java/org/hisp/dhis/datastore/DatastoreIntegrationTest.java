@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -56,7 +58,7 @@ class DatastoreIntegrationTest extends IntegrationTestBase
     @Autowired
     private DatastoreService datastore;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {
@@ -78,7 +80,7 @@ class DatastoreIntegrationTest extends IntegrationTestBase
         addPet( "pig", "Oink", 6, List.of( "carrots", "potatoes" ) );
     }
 
-    @Override
+    @AfterEach
     protected void tearDownTest()
         throws Exception
     {

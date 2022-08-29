@@ -54,6 +54,7 @@ import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.Sharing;
 import org.hisp.dhis.user.sharing.UserGroupAccess;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -80,7 +81,7 @@ class DeduplicationServiceMergeIntegrationTest extends IntegrationTestBase
     @Autowired
     private ProgramService programService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         super.userService = this.userService;

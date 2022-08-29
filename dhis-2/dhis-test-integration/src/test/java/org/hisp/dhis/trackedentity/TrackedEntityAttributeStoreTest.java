@@ -49,6 +49,7 @@ import org.hisp.dhis.program.ProgramService;
 import org.hisp.dhis.program.ProgramTrackedEntityAttribute;
 import org.hisp.dhis.security.acl.AccessStringHelper;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -79,7 +80,7 @@ class TrackedEntityAttributeStoreTest extends IntegrationTestBase
 
     private Program programB;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         attributeW = createTrackedEntityAttribute( 'W' );

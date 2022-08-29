@@ -84,6 +84,7 @@ import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.util.DateUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -141,7 +142,7 @@ public abstract class TrackerTest extends IntegrationTestBase
      */
     protected final static String DEF_COC_UID = "HllvX50cXC0";
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

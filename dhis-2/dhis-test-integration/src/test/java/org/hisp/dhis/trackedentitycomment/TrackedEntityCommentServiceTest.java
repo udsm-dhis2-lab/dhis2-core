@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.hisp.dhis.common.CodeGenerator;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -49,7 +50,7 @@ class TrackedEntityCommentServiceTest extends IntegrationTestBase
 
     private TrackedEntityComment commentB;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         commentA = new TrackedEntityComment( "A", "Test" );

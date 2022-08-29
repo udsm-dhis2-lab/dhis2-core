@@ -51,6 +51,7 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -110,7 +111,7 @@ class DataOrgUnitMergeHandlerTest extends IntegrationTestBase
 
     private DataApprovalWorkflow dwA;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         cocA = categoryService.getDefaultCategoryOptionCombo();

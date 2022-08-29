@@ -44,6 +44,7 @@ import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
 import org.hisp.dhis.trackedentity.TrackedEntityAttributeService;
 import org.hisp.dhis.util.DateUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,7 +77,7 @@ class ProgramIndicatorServiceVariableTest extends IntegrationTestBase
 
     private Date endDate = new GregorianCalendar( 2020, Calendar.JANUARY, 31 ).getTime();
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         OrganisationUnit organisationUnit = createOrganisationUnit( 'A' );

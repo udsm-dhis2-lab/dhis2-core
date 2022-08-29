@@ -72,6 +72,8 @@ import org.hisp.dhis.user.UserGroupAccessService;
 import org.hisp.dhis.user.UserGroupService;
 import org.hisp.dhis.user.UserService;
 import org.hisp.dhis.user.sharing.UserGroupAccess;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -299,7 +301,7 @@ class DataApprovalServiceCategoryOptionGroupTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Set up/tear down
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
         throws Exception
     {
@@ -524,7 +526,7 @@ class DataApprovalServiceCategoryOptionGroupTest extends IntegrationTestBase
         systemSettingManager.saveSystemSetting( SettingKey.ACCEPTANCE_REQUIRED_FOR_APPROVAL, true );
     }
 
-    @Override
+    @AfterEach
     public void tearDownTest()
     {
         systemSettingManager.saveSystemSetting( SettingKey.IGNORE_ANALYTICS_APPROVAL_YEAR_THRESHOLD, -1 );

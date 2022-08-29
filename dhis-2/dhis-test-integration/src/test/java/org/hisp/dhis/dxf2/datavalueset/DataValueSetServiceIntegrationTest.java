@@ -91,6 +91,7 @@ import org.hisp.dhis.security.acl.AccessStringHelper;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -173,7 +174,7 @@ class DataValueSetServiceIntegrationTest extends IntegrationTestBase
 
     private User superUser;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;

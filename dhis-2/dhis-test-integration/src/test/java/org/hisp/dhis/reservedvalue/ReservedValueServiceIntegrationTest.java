@@ -47,6 +47,7 @@ import org.hisp.dhis.textpattern.TextPattern;
 import org.hisp.dhis.textpattern.TextPatternGenerationException;
 import org.hisp.dhis.textpattern.TextPatternParser;
 import org.hisp.dhis.trackedentity.TrackedEntityAttribute;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -72,7 +73,7 @@ class ReservedValueServiceIntegrationTest extends IntegrationTestBase
 
     private static TrackedEntityAttribute simpleStringPattern;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
     {
         // Set up future Date

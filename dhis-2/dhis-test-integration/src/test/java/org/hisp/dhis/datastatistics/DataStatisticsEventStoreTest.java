@@ -45,6 +45,7 @@ import org.hisp.dhis.dashboard.DashboardService;
 import org.hisp.dhis.setting.SystemSettingManager;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.UserSettingService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -82,7 +83,7 @@ class DataStatisticsEventStoreTest extends IntegrationTestBase
      * Defining a set of events/statistics, so they can be asserted on each
      * individual test/scenario.
      */
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         // Stub objects.

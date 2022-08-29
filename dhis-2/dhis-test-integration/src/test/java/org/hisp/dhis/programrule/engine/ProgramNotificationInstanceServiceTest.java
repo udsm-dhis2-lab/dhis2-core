@@ -53,6 +53,7 @@ import org.hisp.dhis.programrule.ProgramRuleActionType;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityInstance;
 import org.hisp.dhis.trackedentity.TrackedEntityInstanceService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -102,7 +103,7 @@ class ProgramNotificationInstanceServiceTest extends IntegrationTestBase
     @Autowired
     private ProgramRuleEngineService programRuleEngineService;
 
-    @Override
+    @BeforeEach
     protected void setUpTest()
         throws Exception
     {

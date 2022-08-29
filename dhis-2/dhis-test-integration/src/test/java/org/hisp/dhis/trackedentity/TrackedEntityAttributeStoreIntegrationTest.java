@@ -44,6 +44,7 @@ import org.hisp.dhis.program.ProgramTrackedEntityAttribute;
 import org.hisp.dhis.security.acl.AccessStringHelper;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeTableManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -51,9 +52,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * @author Ameen
  */
-class TrackedEntityAttributeStoreIntegrationTest
-    extends
-    IntegrationTestBase
+class TrackedEntityAttributeStoreIntegrationTest extends IntegrationTestBase
 {
     @Autowired
     private TrackedEntityAttributeService attributeService;
@@ -82,7 +81,7 @@ class TrackedEntityAttributeStoreIntegrationTest
 
     private TrackedEntityAttribute attributeZ;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
 

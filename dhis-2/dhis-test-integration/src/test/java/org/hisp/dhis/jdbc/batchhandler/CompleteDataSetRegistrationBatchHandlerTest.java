@@ -50,6 +50,8 @@ import org.hisp.dhis.period.PeriodType;
 import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.quick.BatchHandler;
 import org.hisp.quick.BatchHandlerFactory;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,7 +110,7 @@ class CompleteDataSetRegistrationBatchHandlerTest extends IntegrationTestBase
     // -------------------------------------------------------------------------
     // Fixture
     // -------------------------------------------------------------------------
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         batchHandler = batchHandlerFactory.createBatchHandler( CompleteDataSetRegistrationBatchHandler.class );
@@ -135,7 +137,7 @@ class CompleteDataSetRegistrationBatchHandlerTest extends IntegrationTestBase
         batchHandler.init();
     }
 
-    @Override
+    @AfterEach
     public void tearDownTest()
     {
         batchHandler.flush();

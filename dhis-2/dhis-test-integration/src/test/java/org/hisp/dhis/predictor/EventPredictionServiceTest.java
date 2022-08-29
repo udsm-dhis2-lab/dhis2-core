@@ -80,6 +80,8 @@ import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValue;
 import org.hisp.dhis.trackedentityattributevalue.TrackedEntityAttributeValueService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -173,7 +175,7 @@ class EventPredictionServiceTest extends IntegrationTestBase
 
     private Predictor predictorT;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         this.userService = _userService;
@@ -326,7 +328,7 @@ class EventPredictionServiceTest extends IntegrationTestBase
             .addDataValue( createDataValue( dataElementE, periodMay, orgUnitA, defaultCombo, defaultCombo, "300" ) );
     }
 
-    @Override
+    @AfterEach
     public void tearDownTest()
     {
         ReflectionTestUtils.setField( predictionService, "analyticsService", analyticsService );

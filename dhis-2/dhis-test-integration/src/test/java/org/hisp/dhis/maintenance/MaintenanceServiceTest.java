@@ -75,6 +75,7 @@ import org.hisp.dhis.trackedentity.TrackedEntityTypeService;
 import org.hisp.dhis.trackedentitydatavalue.TrackedEntityDataValueAudit;
 import org.hisp.dhis.trackedentitydatavalue.TrackedEntityDataValueAuditService;
 import org.joda.time.DateTime;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -161,7 +162,7 @@ class MaintenanceServiceTest extends IntegrationTestBase
 
     private RelationshipType relationshipType;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         organisationUnit = createOrganisationUnit( 'A' );

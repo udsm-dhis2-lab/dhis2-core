@@ -59,6 +59,7 @@ import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserRole;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -87,7 +88,7 @@ class ObjectBundleServiceAttributesTest extends IntegrationTestBase
     @Autowired
     private AttributeService attributeService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         renderService = _renderService;

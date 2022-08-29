@@ -68,6 +68,8 @@ import org.hisp.dhis.test.integration.IntegrationTestBase;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -114,7 +116,7 @@ class EventAnalyticsServiceTest extends IntegrationTestBase
     @Autowired
     private UserService _userService;
 
-    @Override
+    @BeforeEach
     public void setUpTest()
     {
         userService = _userService;
@@ -136,7 +138,7 @@ class EventAnalyticsServiceTest extends IntegrationTestBase
         idObjectManager.save( ouE );
     }
 
-    @Override
+    @AfterEach
     public void tearDownTest()
     {
         for ( AnalyticsTableService service : analyticsTableServices )
