@@ -58,6 +58,8 @@ public abstract class TransactionalIntegrationTest extends BaseSpringTest
     {
         TestUtils.executeStartupRoutines( applicationContext );
         boolean enableQueryLogging = dhisConfigurationProvider.isEnabled( ConfigurationKey.ENABLE_QUERY_LOGGING );
+        // TODO what can I do about the logging config? move it into
+        // log4j2-test.xml?
         // Enable to query logger to log only what's happening inside the test
         // method
         if ( enableQueryLogging )
