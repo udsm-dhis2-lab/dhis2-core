@@ -39,6 +39,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.event.annotation.AfterTestClass;
 import org.springframework.transaction.annotation.Transactional;
 
 /*
@@ -79,5 +80,14 @@ public abstract class TransactionalIntegrationTest extends BaseSpringTest
         {
             log.info( "Failed to clear hibernate session, reason:" + e.getMessage() );
         }
+    }
+
+    @AfterTestClass
+    void afterAll()
+    {
+        transactionTemplate.execute( status -> {
+            dbmsManager.emptyDatabase();
+            return null;
+        } );
     }
 }
