@@ -60,8 +60,6 @@ public interface EnrollmentService
 
     Enrollment getEnrollment( String id );
 
-    Enrollment getEnrollment( ProgramInstance programInstance );
-
     Enrollment getEnrollment( ProgramInstance programInstance, TrackedEntityInstanceParams params );
 
     Enrollment getEnrollment( User user, ProgramInstance programInstance, TrackedEntityInstanceParams params,

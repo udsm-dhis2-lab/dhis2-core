@@ -27,6 +27,7 @@
  */
 package org.hisp.dhis.webapi.controller.event;
 
+import static java.util.Collections.singletonList;
 import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.importSummaries;
 import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.importSummary;
 import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.jobConfigurationReport;
@@ -39,6 +40,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,6 +53,7 @@ import org.hisp.dhis.common.SlimPager;
 import org.hisp.dhis.commons.util.StreamUtils;
 import org.hisp.dhis.commons.util.TextUtils;
 import org.hisp.dhis.dxf2.common.ImportOptions;
+import org.hisp.dhis.dxf2.events.TrackedEntityInstanceParams;
 import org.hisp.dhis.dxf2.events.enrollment.Enrollment;
 import org.hisp.dhis.dxf2.events.enrollment.EnrollmentService;
 import org.hisp.dhis.dxf2.events.enrollment.Enrollments;
@@ -87,8 +90,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
-
-import com.google.common.collect.Lists;
 
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
@@ -129,13 +130,7 @@ public class EnrollmentController
     public @ResponseBody RootNode getEnrollments(
         EnrollmentCriteria enrollmentCriteria )
     {
-        List<String> fields = Lists.newArrayList( contextService.getParameterValues( "fields" ) );
-
-        if ( fields.isEmpty() )
-        {
-            fields.add(
-                "enrollment,created,lastUpdated,trackedEntityType,trackedEntityInstance,program,status,orgUnit,orgUnitName,enrollmentDate,incidentDate,followup" );
-        }
+        List<String> fields = getRequestFields();
 
         RootNode rootNode = NodeUtils.createMetadata();
 
@@ -198,7 +193,7 @@ public class EnrollmentController
         @RequestParam Map<String, String> parameters, Model model )
         throws NotFoundException
     {
-        return getEnrollment( id );
+        return getEnrollment( id, getRequestFields() );
     }
 
     // -------------------------------------------------------------------------
@@ -406,16 +401,36 @@ public class EnrollmentController
             .setLocation( "/system/tasks/" + ENROLLMENT_IMPORT );
     }
 
-    private Enrollment getEnrollment( String id )
+    private List<String> getRequestFields()
+    {
+        return Optional.of( contextService.getParameterValues( "fields" ) ).filter( l -> !l.isEmpty() )
+            .orElse( singletonList(
+                "enrollment,created,lastUpdated,trackedEntityType,trackedEntityInstance,program,status,orgUnit,orgUnitName,enrollmentDate,incidentDate,followup" ) );
+    }
+
+    private Enrollment getEnrollment( String id, List<String> fields )
         throws NotFoundException
     {
-        Enrollment enrollment = enrollmentService.getEnrollment( id );
+        return Optional.ofNullable( enrollmentService.getEnrollment( programInstanceService.getProgramInstance( id ),
+            getTrackedEntityInstanceParams( fields ) ) ).orElseThrow( () -> new NotFoundException( "Enrollment", id ) );
+    }
 
-        if ( enrollment == null )
+    private TrackedEntityInstanceParams getTrackedEntityInstanceParams( List<String> fields )
+    {
+        TrackedEntityInstanceParams trackedEntityInstanceParams = TrackedEntityInstanceParams.FALSE;
+
+        for ( String field : fields )
         {
-            throw new NotFoundException( "Enrollment", id );
+            if ( field.equals( "relationships" ) )
+            {
+                trackedEntityInstanceParams = trackedEntityInstanceParams.withIncludeRelationships( true );
+            }
+            else if ( field.equals( "events" ) )
+            {
+                trackedEntityInstanceParams = trackedEntityInstanceParams.withIncludeEvents( true );
+            }
         }
 
-        return enrollment;
+        return trackedEntityInstanceParams;
     }
 }
