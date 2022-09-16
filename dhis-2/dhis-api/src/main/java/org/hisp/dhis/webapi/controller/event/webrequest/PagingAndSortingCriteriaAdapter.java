@@ -29,6 +29,7 @@ package org.hisp.dhis.webapi.controller.event.webrequest;
 
 import static java.util.stream.Collectors.partitioningBy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +39,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,7 @@ import org.apache.commons.collections4.CollectionUtils;
  */
 @Data
 @Slf4j
+@AllArgsConstructor
 @NoArgsConstructor( access = AccessLevel.PROTECTED )
 public abstract class PagingAndSortingCriteriaAdapter implements PagingCriteria, SortingCriteria
 {
@@ -79,7 +82,7 @@ public abstract class PagingAndSortingCriteriaAdapter implements PagingCriteria,
     /**
      * order params
      */
-    private List<OrderCriteria> order;
+    private List<OrderCriteria> order = new ArrayList<>();
 
     /**
      * TODO: legacy flag can be removed when new tracker will have it's own
