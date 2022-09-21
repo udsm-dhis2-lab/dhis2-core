@@ -204,6 +204,7 @@ class TrackerEventCriteriaMapperTest
         verifyNoInteractions( programStageService );
         verifyNoInteractions( organisationUnitService );
         verifyNoInteractions( entityInstanceService );
+        verifyNoInteractions( attributeService );
     }
 
     @Test

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -122,7 +123,7 @@ class RequestParamUtils
      *         query filters
      */
     public static List<QueryItem> parseAttributeQueryItems( Set<String> items,
-        Map<String, TrackedEntityAttribute> attributes )
+        Supplier<Map<String, TrackedEntityAttribute>> attributes )
     {
         return items.stream()
             .map( i -> parseAttributeQueryItem( i, attributes ) )
@@ -141,19 +142,22 @@ class RequestParamUtils
      * @return query item of tracked entity attribute with attached query
      *         filters
      */
-    public static QueryItem parseAttributeQueryItem( String item, Map<String, TrackedEntityAttribute> attributes )
+    public static QueryItem parseAttributeQueryItem( String item,
+        Supplier<Map<String, TrackedEntityAttribute>> attributes )
     {
         return parseQueryItem( item, id -> attributeToQueryItem( id, attributes ) );
     }
 
-    private static QueryItem attributeToQueryItem( String identifier, Map<String, TrackedEntityAttribute> attributes )
+    private static QueryItem attributeToQueryItem( String identifier,
+        Supplier<Map<String, TrackedEntityAttribute>> attributes )
     {
-        if ( attributes.isEmpty() )
+        Map<String, TrackedEntityAttribute> attributeMap = attributes.get();
+        if ( attributeMap.isEmpty() )
         {
             throw new IllegalQueryException( "Attribute does not exist: " + identifier );
         }
 
-        TrackedEntityAttribute at = attributes.get( identifier );
+        TrackedEntityAttribute at = attributeMap.get( identifier );
         if ( at == null )
         {
             throw new IllegalQueryException( "Attribute does not exist: " + identifier );

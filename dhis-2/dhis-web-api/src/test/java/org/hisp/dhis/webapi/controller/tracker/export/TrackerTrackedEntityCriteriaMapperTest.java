@@ -235,6 +235,7 @@ class TrackerTrackedEntityCriteriaMapperTest
 
         verifyNoInteractions( programService );
         verifyNoInteractions( trackedEntityTypeService );
+        verifyNoInteractions( attributeService );
     }
 
     @Test

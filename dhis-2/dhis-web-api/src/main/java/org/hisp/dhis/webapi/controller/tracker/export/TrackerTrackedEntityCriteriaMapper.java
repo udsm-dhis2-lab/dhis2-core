@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import lombok.NonNull;
@@ -94,6 +95,34 @@ public class TrackerTrackedEntityCriteriaMapper
     @NonNull
     private final TrackedEntityAttributeService attributeService;
 
+    private static class Memoizer<T> implements Supplier<T>
+    {
+
+        private final Supplier<T> func;
+
+        private boolean called;
+
+        private T value;
+
+        Memoizer( Supplier<T> func )
+        {
+            this.func = func;
+        }
+
+        @Override
+        public T get()
+        {
+            if ( called )
+            {
+                return value;
+            }
+
+            called = true;
+            value = func.get();
+            return value;
+        }
+    }
+
     @Transactional( readOnly = true )
     public TrackedEntityInstanceQueryParams map( TrackerTrackedEntityCriteria criteria )
     {
@@ -118,8 +147,9 @@ public class TrackerTrackedEntityCriteriaMapper
 
         QueryFilter queryFilter = getQueryFilter( criteria.getQuery() );
 
-        Map<String, TrackedEntityAttribute> attributes = attributeService.getAllTrackedEntityAttributes()
-            .stream().collect( Collectors.toMap( TrackedEntityAttribute::getUid, att -> att ) );
+        Supplier<Map<String, TrackedEntityAttribute>> attributes = new Memoizer<>(
+            () -> attributeService.getAllTrackedEntityAttributes()
+                .stream().collect( Collectors.toMap( TrackedEntityAttribute::getUid, att -> att ) ) );
 
         List<QueryItem> attributeItems = parseAttributeQueryItems( criteria.getAttribute(), attributes );
 
@@ -277,13 +307,15 @@ public class TrackerTrackedEntityCriteriaMapper
         }
     }
 
-    private void validateOrderParams( List<OrderParam> orderParams, Map<String, TrackedEntityAttribute> attributes )
+    private void validateOrderParams( List<OrderParam> orderParams,
+        Supplier<Map<String, TrackedEntityAttribute>> attributes )
     {
         if ( orderParams != null && !orderParams.isEmpty() )
         {
             for ( OrderParam orderParam : orderParams )
             {
-                if ( !isStaticColumn( orderParam.getField() ) && !attributes.containsKey( orderParam.getField() ) )
+                if ( !isStaticColumn( orderParam.getField() )
+                    && !attributes.get().containsKey( orderParam.getField() ) )
                 {
                     throw new IllegalQueryException( "Invalid order property: " + orderParam.getField() );
                 }

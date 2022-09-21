@@ -37,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.hisp.dhis.common.IllegalQueryException;
 import org.hisp.dhis.common.QueryFilter;
@@ -59,12 +60,15 @@ class RequestParamUtilsTest
 
     private Map<String, TrackedEntityAttribute> attributes;
 
+    private Supplier<Map<String, TrackedEntityAttribute>> attributeSupplier;
+
     @BeforeEach
     void setUp()
     {
         attributes = Map.of(
             TEA_1_UID, trackedEntityAttribute( TEA_1_UID ),
             TEA_2_UID, trackedEntityAttribute( TEA_2_UID ) );
+        attributeSupplier = () -> attributes;
     }
 
     @Test
@@ -132,7 +136,7 @@ class RequestParamUtilsTest
     void testParseAttributeQueryItemWhenNoTEAExist()
     {
         String param = TEA_1_UID + ":eq:2";
-        Map<String, TrackedEntityAttribute> attributes = Collections.emptyMap();
+        Supplier<Map<String, TrackedEntityAttribute>> attributes = () -> Collections.emptyMap();
 
         Exception exception = assertThrows( IllegalQueryException.class,
             () -> RequestParamUtils.parseAttributeQueryItem( param, attributes ) );
@@ -145,7 +149,7 @@ class RequestParamUtilsTest
         String param = "JM5zWuf1mkb:eq:2";
 
         Exception exception = assertThrows( IllegalQueryException.class,
-            () -> RequestParamUtils.parseAttributeQueryItem( param, attributes ) );
+            () -> RequestParamUtils.parseAttributeQueryItem( param, attributeSupplier ) );
         assertEquals( "Attribute does not exist: JM5zWuf1mkb", exception.getMessage() );
     }
 

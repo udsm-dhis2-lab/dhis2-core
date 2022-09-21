@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -174,8 +175,11 @@ class TrackerEventCriteriaMapper
         List<OrderParam> attributeOrderParams = mapToOrderParams( attributeOrders );
         List<OrderParam> dataElementOrderParams = mapToOrderParams( dataElementOrders );
 
+        Supplier<Map<String, TrackedEntityAttribute>> attributes = () -> attributeService
+            .getAllTrackedEntityAttributes()
+            .stream().collect( Collectors.toMap( TrackedEntityAttribute::getUid, att -> att ) );
         List<QueryItem> filterAttributes = parseFilterAttributes( eventCriteria.getFilterAttributes(),
-            attributeOrderParams );
+            attributeOrderParams, attributes );
         validateFilterAttributes( filterAttributes );
 
         List<QueryItem> filters = eventCriteria.getFilter()
@@ -302,12 +306,9 @@ class TrackerEventCriteriaMapper
         }
     }
 
-    private List<QueryItem> parseFilterAttributes( Set<String> filterAttributes, List<OrderParam> attributeOrderParams )
+    private List<QueryItem> parseFilterAttributes( Set<String> filterAttributes, List<OrderParam> attributeOrderParams,
+        Supplier<Map<String, TrackedEntityAttribute>> attributes )
     {
-        Map<String, TrackedEntityAttribute> attributes = attributeService.getAllTrackedEntityAttributes()
-            .stream()
-            .collect( Collectors.toMap( TrackedEntityAttribute::getUid, att -> att ) );
-
         List<QueryItem> filterItems = parseAttributeQueryItems( filterAttributes, attributes );
         List<QueryItem> orderItems = attributeQueryItemsFromOrder( filterItems, attributes, attributeOrderParams );
 
@@ -315,12 +316,12 @@ class TrackerEventCriteriaMapper
     }
 
     private List<QueryItem> attributeQueryItemsFromOrder( List<QueryItem> filterAttributes,
-        Map<String, TrackedEntityAttribute> attributes, List<OrderParam> attributeOrderParams )
+        Supplier<Map<String, TrackedEntityAttribute>> attributes, List<OrderParam> attributeOrderParams )
     {
         return attributeOrderParams.stream()
             .map( OrderParam::getField )
             .filter( att -> !containsAttributeFilter( filterAttributes, att ) )
-            .map( attributes::get )
+            .map( at -> attributes.get().get( at ) )
             .map( at -> new QueryItem( at, null, at.getValueType(), at.getAggregationType(), at.getOptionSet() ) )
             .collect( Collectors.toUnmodifiableList() );
     }
