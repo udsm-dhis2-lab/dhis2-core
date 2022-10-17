@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   web:
-    image: teleivo/dhis2:master
+    image: "${DHIS2_IMAGE:-dhis2/core-dev:local}"
     ports:
       - "8080:8080"
     volumes:
