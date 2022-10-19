@@ -2389,7 +2389,11 @@
         <artifactId>validation-api</artifactId>
         <version>${validation-api.version}</version>
       </dependency>
-
+      <dependency>
+        <groupId>org.apache.solr</groupId>
+        <artifactId>solr-solrj</artifactId>
+        <version>9.0.0</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
