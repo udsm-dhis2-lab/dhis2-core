@@ -51,5 +51,19 @@ services:
     volumes:
       - db-dump:/opt/dump
 
+  solr:
+    image: solr:9.0
+    ports:
+     - "8983:8983"
+    volumes:
+      - $PWD/solr/configset:/opt/tracker # solr configuration containing the schema for the "tracker" core
+      # - solr:/var/solr
+    command:
+      - solr-precreate
+      - tracker
+      - /opt/tracker
+    depends_on:
+      - web
+
 volumes:
   db-dump:
