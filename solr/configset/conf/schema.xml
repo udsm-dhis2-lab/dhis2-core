@@ -190,7 +190,7 @@
   <field name="_version_" type="plong" indexed="false" stored="false"/>
   <field name="trackedEntity" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
   <field name="trackedEntityType" type="string" multiValued="false" indexed="false" required="true" stored="true"/>
-  <field name="orgUnit" type="string" multiValued="false" indexed="false" required="true" stored="true"/>
+  <!-- <field name="orgUnit" type="string" multiValued="false" indexed="false" required="true" stored="true"/> -->
   <!-- first name -->
   <field name="w75KJ2mc4zz" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
   <!-- last name -->

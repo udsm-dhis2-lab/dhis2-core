@@ -48,6 +48,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 mvn clean install \
+    --offline \
     -f "$(dirname "$0")/pom.xml" \
     --batch-mode \
     -Pdev -T 100C \
