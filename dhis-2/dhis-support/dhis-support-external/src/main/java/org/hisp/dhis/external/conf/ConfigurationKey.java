@@ -123,6 +123,11 @@ public enum ConfigurationKey
     CONNECTION_PASSWORD( "connection.password", "", true ),
 
     /**
+     * Apache Solr base url.
+     */
+    SOLR_BASE_URL( "solr.url", "", false ),
+
+    /**
      * Sets 'hibernate.cache.use_second_level_cache'. (default: true)
      */
     USE_SECOND_LEVEL_CACHE( "hibernate.cache.use_second_level_cache", "true", false ),

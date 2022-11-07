@@ -1,5 +1,6 @@
 -- view of names
-select tei.uid as tei, w75KJ2mc4zz.value as firstname, zDhUuAYrxNC.value as lastname, concat(w75KJ2mc4zz.value, ' ', zDhUuAYrxNC.value) as fullname from trackedentityinstance tei
+select tei.uid as trackedEntity, tet.uid as trackedEntityType, w75KJ2mc4zz.value as w75KJ2mc4zz, zDhUuAYrxNC.value as zDhUuAYrxNC, concat(w75KJ2mc4zz.value, ' ', zDhUuAYrxNC.value) as fullname from trackedentityinstance tei
+	join trackedentitytype tet on tei.trackedentitytypeid = tet.trackedentitytypeid
 	join trackedentityattributevalue w75KJ2mc4zz on w75KJ2mc4zz.trackedentityinstanceid = tei.trackedentityinstanceid
 	join trackedentityattribute w75KJ2mc4zz_att on w75KJ2mc4zz_att.trackedentityattributeid = w75KJ2mc4zz.trackedentityattributeid
 		and w75KJ2mc4zz_att.uid = 'w75KJ2mc4zz'
