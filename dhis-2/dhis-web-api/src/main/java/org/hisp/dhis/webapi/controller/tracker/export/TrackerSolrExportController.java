@@ -99,7 +99,7 @@ public class TrackerSolrExportController
         throws SolrServerException,
         IOException
     {
-        String sql = "select tei.uid as trackedEntity, tet.uid as trackedEntityType, w75KJ2mc4zz.value as w75KJ2mc4zz, zDhUuAYrxNC.value as zDhUuAYrxNC, concat(w75KJ2mc4zz.value, ' ', zDhUuAYrxNC.value) as fullname from trackedentityinstance tei\n"
+        String sql = "select tei.uid as trackedEntity, tet.uid as trackedEntityType, w75KJ2mc4zz.value as w75KJ2mc4zz, zDhUuAYrxNC.value as zDhUuAYrxNC from trackedentityinstance tei\n"
             +
             "\tjoin trackedentitytype tet on tei.trackedentitytypeid = tet.trackedentitytypeid\n" +
             "\tjoin trackedentityattributevalue w75KJ2mc4zz on w75KJ2mc4zz.trackedentityinstanceid = tei.trackedentityinstanceid\n"

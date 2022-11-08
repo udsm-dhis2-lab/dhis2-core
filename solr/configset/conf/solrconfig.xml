@@ -1030,6 +1030,20 @@
     <processor class="solr.RunUpdateProcessorFactory"/>
   </updateRequestProcessorChain>
 
+  <updateRequestProcessorChain name="add-fullname-to-the-schema">
+    <processor class="solr.CloneFieldUpdateProcessorFactory">
+        <str name="source">w75KJ2mc4zz</str>
+        <str name="source">zDhUuAYrxNC</str>
+        <str name="dest">fullname</str>
+    </processor>
+    <processor class="solr.ConcatFieldUpdateProcessorFactory">
+        <str name="fieldName">fullname</str>
+        <str name="delimiter"> </str>
+    </processor>
+    <processor class="solr.LogUpdateProcessorFactory" />
+    <processor class="solr.RunUpdateProcessorFactory" />
+  </updateRequestProcessorChain>
+
   <!-- Deduplication
 
        An example dedup update request processor chain that creates the "id" field
