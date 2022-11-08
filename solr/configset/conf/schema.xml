@@ -24,32 +24,6 @@
     <fieldType name="binary" class="solr.BinaryField"/>
     <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
     <fieldType name="booleans" class="solr.BoolField" sortMissingLast="true" multiValued="true"/>
-    <fieldType name="delimited_payloads_float" class="solr.TextField" indexed="true" stored="false">
-        <analyzer>
-            <tokenizer name="whitespace"/>
-            <filter encoder="float" name="delimitedPayload"/>
-        </analyzer>
-    </fieldType>
-    <fieldType name="delimited_payloads_int" class="solr.TextField" indexed="true" stored="false">
-        <analyzer>
-            <tokenizer name="whitespace"/>
-            <filter encoder="integer" name="delimitedPayload"/>
-        </analyzer>
-    </fieldType>
-    <fieldType name="delimited_payloads_string" class="solr.TextField" indexed="true" stored="false">
-        <analyzer>
-            <tokenizer name="whitespace"/>
-            <filter encoder="identity" name="delimitedPayload"/>
-        </analyzer>
-    </fieldType>
-    <fieldType name="descendent_path" class="solr.TextField">
-        <analyzer type="index">
-            <tokenizer name="pathHierarchy" delimiter="/"/>
-        </analyzer>
-        <analyzer type="query">
-            <tokenizer name="keyword"/>
-        </analyzer>
-    </fieldType>
     <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
     <fieldType name="pdates" class="solr.DatePointField" docValues="true" multiValued="true"/>
     <fieldType name="pdouble" class="solr.DoublePointField" docValues="true"/>
@@ -185,42 +159,52 @@
             <tokenizer name="whitespace"/>
         </analyzer>
     </fieldType>
-    <fieldType name="fullname" class="solr.TextField" positionIncrementGap="100">
-        <analyzer type="index">
-            <tokenizer name="standard"/>
-            <filter name="lowercase"/>
-        </analyzer>
-        <analyzer type="query">
-            <tokenizer name="standard"/>
-            <filter name="lowercase"/>
-        </analyzer>
-    </fieldType>
-    <!-- <field name="_text_" type="text_general" multiValued="true" indexed="true" stored="false"/> -->
+
     <field name="_version_" type="plong" indexed="false" stored="false"/>
     <field name="trackedEntity" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
     <field name="trackedEntityType" type="string" multiValued="false" indexed="false" required="true" stored="true"/>
     <!-- <field name="orgUnit" type="string" multiValued="false" indexed="false" required="true" stored="true"/> -->
-    <!-- first name -->
-    <field name="w75KJ2mc4zz" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
-    <!-- last name -->
-    <field name="zDhUuAYrxNC" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
-    <fieldType name="w75KJ2mc4zz_text" class="solr.TextField" positionIncrementGap="100">
+
+    <!-- analyzing names-->
+    <!-- Transliteration might be an option to analyze some languages and be able to use phonetic algorithms which would otherwise not work for that specific language -->
+    <!-- https://github.com/arafalov/solr-thai-test/blob/master/collection1/conf/schema.xml-->
+    <!-- https://unicode-org.github.io/icu/userguide/transforms/general/#script-transliteration-->
+    <fieldType name="name" class="solr.TextField" positionIncrementGap="100">
         <analyzer type="index">
             <tokenizer name="whitespace"/>
+            <filter name="lowercase"/>
             <filter name="wordDelimiterGraph" generateNumberParts="0" splitOnCaseChange="0" splitOnNumerics="0"
                     catenateWords="1" preserveOriginal="1"/>
             <filter name="flattenGraph"/> <!-- required on index analyzers after graph filters -->
         </analyzer>
         <analyzer type="query">
             <tokenizer name="whitespace"/>
+            <filter name="lowercase"/>
             <filter name="wordDelimiterGraph" generateNumberParts="0" splitOnCaseChange="0" splitOnNumerics="0"
                     catenateWords="1" preserveOriginal="1"/>
         </analyzer>
     </fieldType>
-    <copyField source="w75KJ2mc4zz" dest="w75KJ2mc4zz_text"/>
-    <field name="w75KJ2mc4zz_text" type="w75KJ2mc4zz_text" multiValued="false" indexed="true" required="true"
-           stored="true"/>
+    <!-- https://solr.apache.org/guide/solr/latest/indexing-guide/phonetic-matching.html#beider-morse-phonetic-matching-bmpm-->
+    <fieldType name="name_bmpm" class="solr.TextField" positionIncrementGap="100">
+        <analyzer>
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.BeiderMorseFilterFactory" nameType="GENERIC" ruleType="APPROX" concat="true"
+                    languageSet="auto"/>
+        </analyzer>
+    </fieldType>
 
-    <!-- TODO fix: right now it fails if fullname is required. is the processor even working? -->
-    <field name="fullname" type="fullname" multiValued="false" indexed="true" required="false" stored="true"/>
+    <!-- first name -->
+    <field name="w75KJ2mc4zz" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
+    <copyField source="w75KJ2mc4zz" dest="w75KJ2mc4zz_name"/>
+    <field name="w75KJ2mc4zz_name" type="name" multiValued="false" indexed="true" required="true"
+           stored="true"/>
+    <!-- last name -->
+    <field name="zDhUuAYrxNC" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
+    <copyField source="zDhUuAYrxNC" dest="zDhUuAYrxNC_name"/>
+    <field name="zDhUuAYrxNC_name" type="name" multiValued="false" indexed="true" required="true"
+           stored="true"/>
+    <!-- full name populated via UpdateRequestProcessorChain on update -->
+    <field name="fullname" type="name" multiValued="false" indexed="true" required="true" stored="true"/>
+    <copyField source="fullname" dest="fullname_bmpm"/>
+    <field name="fullname_bmpm" type="name_bmpm" multiValued="false" indexed="true" required="true" stored="true"/>
 </schema>

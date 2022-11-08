@@ -748,9 +748,15 @@
   </requestHandler>
 
   <!-- Shared parameters for multiple Request Handlers -->
-  <initParams path="/update/**,/query,/select,/spell">
+  <initParams path="/query,/select,/spell">
     <lst name="defaults">
-      <str name="df">_text_</str>
+      <str name="df">fullname</str>
+    </lst>
+  </initParams>
+  <initParams path="/update/**">
+    <lst name="defaults">
+      <str name="df">fullname</str>
+      <str name="update.chain">add-fullname-to-schema</str>
     </lst>
   </initParams>
 
@@ -1030,7 +1036,7 @@
     <processor class="solr.RunUpdateProcessorFactory"/>
   </updateRequestProcessorChain>
 
-  <updateRequestProcessorChain name="add-fullname-to-the-schema">
+  <updateRequestProcessorChain name="add-fullname-to-schema">
     <processor class="solr.CloneFieldUpdateProcessorFactory">
         <str name="source">w75KJ2mc4zz</str>
         <str name="source">zDhUuAYrxNC</str>
