@@ -1150,6 +1150,40 @@ public class MetadataImportServiceTest extends TransactionalIntegrationTest
         assertEquals( "CGWUjDCWaMA", visualization.getLegendDefinitions().getLegendSet().getUid() );
     }
 
+    @Test
+    public void testUpdateUserCreatedBy()
+        throws IOException
+    {
+        User userF = createUser( 'F', Lists.newArrayList( "ALL" ) );
+        userService.addUser( userF );
+
+        Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata = renderService.fromMetadata(
+            new ClassPathResource( "dxf2/create_user_without_createdBy.json" ).getInputStream(), RenderFormat.JSON );
+
+        MetadataImportParams params = createParams( ImportStrategy.CREATE, metadata );
+        params.setUser( userF );
+        ImportReport report = importService.importMetadata( params );
+        assertEquals( Status.OK, report.getStatus() );
+
+        User user = manager.get( User.class, "MwhEJUnTHkn" );
+        assertEquals( user.getUsername(), "UserB" );
+        assertNotNull( user.getUserCredentials().getCreatedBy() );
+        assertEquals( userF.getUid(), user.getUserCredentials().getCreatedBy().getUid() );
+
+        User admin = manager.get( User.class, "enHApD3I6Ho" );
+
+        metadata = renderService.fromMetadata(
+            new ClassPathResource( "dxf2/update_user_without_createdBy.json" ).getInputStream(), RenderFormat.JSON );
+        params = createParams( ImportStrategy.UPDATE, metadata );
+        params.setUser( admin );
+        report = importService.importMetadata( params );
+        assertEquals( Status.OK, report.getStatus() );
+
+        user = manager.get( User.class, "MwhEJUnTHkn" );
+        assertEquals( user.getUsername(), "UserBUpdated" );
+        assertNotNull( user.getUserCredentials().getCreatedBy() );
+    }
+
     private MetadataImportParams createParams( ImportStrategy importStrategy,
         Map<Class<? extends IdentifiableObject>, List<IdentifiableObject>> metadata )
     {
