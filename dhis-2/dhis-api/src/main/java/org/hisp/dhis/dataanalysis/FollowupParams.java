@@ -59,56 +59,56 @@ public class FollowupParams
     }
 
     @JsonProperty
-    public int getDataElementId()
+    public long getDataElementId()
     {
         return dataElementId;
     }
 
-    public void setDataElementId( int dataElementId )
+    public void setDataElementId( long dataElementId )
     {
         this.dataElementId = dataElementId;
     }
 
     @JsonProperty
-    public int getPeriodId()
+    public long getPeriodId()
     {
         return periodId;
     }
 
-    public void setPeriodId( int periodId )
+    public void setPeriodId( long periodId )
     {
         this.periodId = periodId;
     }
 
     @JsonProperty
-    public int getOrganisationUnitId()
+    public long getOrganisationUnitId()
     {
         return organisationUnitId;
     }
 
-    public void setOrganisationUnitId( int organisationUnitId )
+    public void setOrganisationUnitId( long organisationUnitId )
     {
         this.organisationUnitId = organisationUnitId;
     }
 
     @JsonProperty
-    public int getCategoryOptionComboId()
+    public long getCategoryOptionComboId()
     {
         return categoryOptionComboId;
     }
 
-    public void setCategoryOptionComboId( int categoryOptionComboId )
+    public void setCategoryOptionComboId( long categoryOptionComboId )
     {
         this.categoryOptionComboId = categoryOptionComboId;
     }
 
     @JsonProperty
-    public int getAttributeOptionComboId()
+    public long getAttributeOptionComboId()
     {
         return attributeOptionComboId;
     }
 
-    public void setAttributeOptionComboId( int attributeOptionComboId )
+    public void setAttributeOptionComboId( long attributeOptionComboId )
     {
         this.attributeOptionComboId = attributeOptionComboId;
     }
