@@ -620,11 +620,11 @@ public class HibernateDataValueStore extends HibernateGenericStore<DataValue>
         throws SQLException
     {
         
-        long dataElementId = rowSet.getLong( 1 );
-        long periodId = rowSet.getLong( 2 );
-        long organisationUnitId = rowSet.getLong( 3 );
-        long categoryOptionComboId = rowSet.getLong( 4 );
-        long attributeOptionComboId = rowSet.getLong( 5 );
+        long dataElementId = resultSet.getLong( 1 );
+        long periodId = resultSet.getLong( 2 );
+        long organisationUnitId = resultSet.getLong( 3 );
+        long categoryOptionComboId = resultSet.getLong( 4 );
+        long attributeOptionComboId = resultSet.getLong( 5 );
         String value = resultSet.getString( 6 );
         String storedBy = resultSet.getString( 7 );
         Date created = resultSet.getDate( 8 );
