@@ -108,8 +108,8 @@ public class JdbcDataAnalysisStore implements DataAnalysisStore
 
         while ( rowSet.next() )
         {
-            int orgUnitId = rowSet.getInt( 1 );
-            int categoryOptionComboId = rowSet.getInt( 2 );
+            long orgUnitId = rowSet.getInt( 1 );
+            long categoryOptionComboId = rowSet.getInt( 2 );
             double average = rowSet.getDouble( 3 );
             double stdDev = rowSet.getDouble( 4 );
 

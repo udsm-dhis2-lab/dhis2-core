@@ -31,15 +31,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class FollowupParams
 {
-    private int dataElementId;
+    private long dataElementId;
 
-    private int periodId;
+    private long periodId;
 
-    private int organisationUnitId;
+    private long organisationUnitId;
 
-    private int categoryOptionComboId;
+    private long categoryOptionComboId;
 
-    private int attributeOptionComboId;
+    private long attributeOptionComboId;
 
     private boolean followup;
 
@@ -47,8 +47,8 @@ public class FollowupParams
     {
     }
 
-    public FollowupParams( int dataElementId, int periodId, int organisationUnitId, int categoryOptionComboId,
-        int attributeOptionComboId, boolean followup )
+    public FollowupParams( long dataElementId, long periodId, long organisationUnitId, long categoryOptionComboId,
+        long attributeOptionComboId, boolean followup )
     {
         this.dataElementId = dataElementId;
         this.periodId = periodId;

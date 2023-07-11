@@ -636,7 +636,7 @@ public class HibernateDataApprovalStore
             final String[] approved = highestApproved == null ? null : highestApproved.split( SQL_CONCAT );
             final int level = approved == null ? 0 : Integer.parseInt( approved[0] ) - MAX_APPROVAL_LEVEL;
             final boolean accepted = approved == null ? false : approved[1].substring( 0, 1 ).equalsIgnoreCase( "t" );
-            final int approvedOrgUnitId = approved == null ? 0 : Integer.parseInt( approved[2] );
+            final long approvedOrgUnitId = approved == null ? 0 : Integer.parseInt( approved[2] );
 
             // null if not approved
             DataApprovalLevel approvedLevel = (level == 0 ? null : levelMap.get( level ));

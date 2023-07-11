@@ -619,11 +619,12 @@ public class HibernateDataValueStore extends HibernateGenericStore<DataValue>
     private DeflatedDataValue getDefalatedDataValueFromResultSet( ResultSet resultSet, boolean joinOrgUnit )
         throws SQLException
     {
-        Integer dataElementId = resultSet.getInt( 1 );
-        Integer periodId = resultSet.getInt( 2 );
-        Integer organisationUnitId = resultSet.getInt( 3 );
-        Integer categoryOptionComboId = resultSet.getInt( 4 );
-        Integer attributeOptionComboId = resultSet.getInt( 5 );
+        
+        long dataElementId = rowSet.getLong( 1 );
+        long periodId = rowSet.getLong( 2 );
+        long organisationUnitId = rowSet.getLong( 3 );
+        long categoryOptionComboId = rowSet.getLong( 4 );
+        long attributeOptionComboId = rowSet.getLong( 5 );
         String value = resultSet.getString( 6 );
         String storedBy = resultSet.getString( 7 );
         Date created = resultSet.getDate( 8 );
