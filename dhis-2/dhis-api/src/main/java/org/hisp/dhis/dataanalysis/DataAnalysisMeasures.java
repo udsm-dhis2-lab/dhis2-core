@@ -47,7 +47,7 @@ public class DataAnalysisMeasures {
   // -------------------------------------------------------------------------
 
   public DataAnalysisMeasures(
-      int orgUnitId, int categoryOptionComboId, double average, double standardDeviation) {
+      long orgUnitId, long categoryOptionComboId, double average, double standardDeviation) {
     this.orgUnitId = orgUnitId;
     this.categoryOptionComboId = categoryOptionComboId;
     this.average = average;

@@ -31,7 +31,7 @@ package org.hisp.dhis.reservedvalue;
  * @author Stian Sandvold
  */
 public class SequentialNumberCounter {
-  private int id;
+  private long id;
 
   private String ownerUid;
 
@@ -49,11 +49,11 @@ public class SequentialNumberCounter {
     this.counter = counter;
   }
 
-  public int getId() {
+  public long getId() {
     return id;
   }
 
-  public void setId(int id) {
+  public void setId(long id) {
     this.id = id;
   }
 

@@ -111,8 +111,8 @@ public class JdbcDataAnalysisStore implements DataAnalysisStore {
     SqlRowSet rowSet = jdbcTemplate.queryForRowSet(sql);
 
     while (rowSet.next()) {
-      int orgUnitId = rowSet.getInt(1);
-      int categoryOptionComboId = rowSet.getInt(2);
+      long orgUnitId = rowSet.getLong(1);
+      long categoryOptionComboId = rowSet.getLong(2);
       double average = rowSet.getDouble(3);
       double stdDev = rowSet.getDouble(4);
 

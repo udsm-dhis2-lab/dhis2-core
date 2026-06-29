@@ -30,26 +30,26 @@ package org.hisp.dhis.dataanalysis;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class FollowupParams {
-  private int dataElementId;
+  private long dataElementId;
 
-  private int periodId;
+  private long periodId;
 
-  private int organisationUnitId;
+  private long organisationUnitId;
 
-  private int categoryOptionComboId;
+  private long categoryOptionComboId;
 
-  private int attributeOptionComboId;
+  private long attributeOptionComboId;
 
   private boolean followup;
 
   public FollowupParams() {}
 
   public FollowupParams(
-      int dataElementId,
-      int periodId,
-      int organisationUnitId,
-      int categoryOptionComboId,
-      int attributeOptionComboId,
+      long dataElementId,
+      long periodId,
+      long organisationUnitId,
+      long categoryOptionComboId,
+      long attributeOptionComboId,
       boolean followup) {
     this.dataElementId = dataElementId;
     this.periodId = periodId;
@@ -60,47 +60,47 @@ public class FollowupParams {
   }
 
   @JsonProperty
-  public int getDataElementId() {
+  public long getDataElementId() {
     return dataElementId;
   }
 
-  public void setDataElementId(int dataElementId) {
+  public void setDataElementId(long dataElementId) {
     this.dataElementId = dataElementId;
   }
 
   @JsonProperty
-  public int getPeriodId() {
+  public long getPeriodId() {
     return periodId;
   }
 
-  public void setPeriodId(int periodId) {
+  public void setPeriodId(long periodId) {
     this.periodId = periodId;
   }
 
   @JsonProperty
-  public int getOrganisationUnitId() {
+  public long getOrganisationUnitId() {
     return organisationUnitId;
   }
 
-  public void setOrganisationUnitId(int organisationUnitId) {
+  public void setOrganisationUnitId(long organisationUnitId) {
     this.organisationUnitId = organisationUnitId;
   }
 
   @JsonProperty
-  public int getCategoryOptionComboId() {
+  public long getCategoryOptionComboId() {
     return categoryOptionComboId;
   }
 
-  public void setCategoryOptionComboId(int categoryOptionComboId) {
+  public void setCategoryOptionComboId(long categoryOptionComboId) {
     this.categoryOptionComboId = categoryOptionComboId;
   }
 
   @JsonProperty
-  public int getAttributeOptionComboId() {
+  public long getAttributeOptionComboId() {
     return attributeOptionComboId;
   }
 
-  public void setAttributeOptionComboId(int attributeOptionComboId) {
+  public void setAttributeOptionComboId(long attributeOptionComboId) {
     this.attributeOptionComboId = attributeOptionComboId;
   }
 
