@@ -110,6 +110,11 @@ public class JdbcEnrollmentAnalyticsTableManager extends AbstractEventJdbcTableM
   }
 
   @Override
+  public boolean validState() {
+    return tableIsNotEmpty("enrollment");
+  }
+
+  @Override
   @Transactional
   public List<AnalyticsTable> getAnalyticsTables(AnalyticsTableUpdateParams params) {
     return params.isLatestUpdate() ? List.of() : getRegularAnalyticsTables(params);
