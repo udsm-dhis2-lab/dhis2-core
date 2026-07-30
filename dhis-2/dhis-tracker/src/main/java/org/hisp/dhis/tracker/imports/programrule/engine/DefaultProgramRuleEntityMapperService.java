@@ -89,6 +89,7 @@ public class DefaultProgramRuleEntityMapperService implements ProgramRuleEntityM
   public List<Rule> toRules(@Nonnull List<ProgramRule> programRules) {
     return programRules.stream()
         .map(this::toRule)
+        .filter(Objects::nonNull)
         .filter(rule -> !rule.getActions().isEmpty())
         .toList();
   }
