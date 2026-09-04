@@ -50,6 +50,7 @@ import org.hisp.dhis.parser.expression.CommonExpressionVisitor;
 import org.hisp.dhis.parser.expression.ProgramExpressionParams;
 import org.hisp.dhis.parser.expression.antlr.ExpressionParser;
 import org.hisp.dhis.parser.expression.antlr.ExpressionParser.ExprContext;
+import org.hisp.dhis.parser.expression.literal.SqlLiteral;
 import org.hisp.dhis.parser.expression.statement.StatementBuilder;
 import org.hisp.dhis.period.Period;
 import org.hisp.dhis.program.AnalyticsPeriodBoundary;
@@ -145,6 +146,7 @@ public abstract class ProgramCountFunction extends ProgramExpressionItem {
               .itemMap(visitor.getItemMap())
               .constantMap(visitor.getConstantMap())
               .build();
+      sqlVisitor.setExpressionLiteral(new SqlLiteral(visitor.getSqlBuilder()));
       String valueSql = castString(sqlVisitor.visit(valueExprCtx));
 
       if (valueSql == null) {
